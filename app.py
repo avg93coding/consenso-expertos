@@ -826,6 +826,75 @@ if state_upload is not None:
     except Exception as e:
         st.sidebar.error(f"Error al cargar el estado: {str(e)}")
 
+elif menu == "Registro Previo":
+    st.title("Registro previo para Panel de Consenso")
+
+    st.markdown("""
+    Antes de participar en cualquier votación, por favor complete los siguientes formularios. 
+    Esta información será almacenada de forma independiente y usada para seguimiento institucional.
+    """)
+
+    opcion = st.radio("Seleccione el formulario que desea diligenciar:", ["Conflicto de Interés", "Confidencialidad"], horizontal=True)
+
+    # Formulario de Conflicto de Interés
+    if opcion == "Conflicto de Interés":
+        st.header("🔐 Declaración de Conflictos de Interés")
+        with st.form("form_conflicto"):
+            nombre = st.text_input("Nombre completo")
+            institucion = st.text_input("Institución o afiliación")
+            cargo = st.text_input("Cargo profesional")
+            participa_en = st.multiselect("¿Participa actualmente en alguno de los siguientes?", [
+                "Industria farmacéutica",
+                "Investigación patrocinada",
+                "Consultoría médica",
+                "Autoría de guías clínicas",
+                "Otro"
+            ])
+            tiene_conflicto = st.radio("¿Tiene un posible conflicto que pueda influir en esta recomendación?", ["No", "Sí"])
+            detalle_conflicto = ""
+            if tiene_conflicto == "Sí":
+                detalle_conflicto = st.text_area("Describa brevemente su conflicto")
+            confirma = st.checkbox("Declaro que la información es verídica y completa", value=False)
+            submit = st.form_submit_button("Enviar")
+
+            if submit:
+                if not nombre or not confirma:
+                    st.warning("Debe completar todos los campos obligatorios y aceptar la declaración.")
+                else:
+                    st.session_state.setdefault("registro_conflicto", []).append({
+                        "id": str(uuid.uuid4())[:8],
+                        "nombre": nombre,
+                        "institucion": institucion,
+                        "cargo": cargo,
+                        "participa_en": participa_en,
+                        "conflicto": tiene_conflicto,
+                        "detalle": detalle_conflicto,
+                        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+                    st.success("✅ Registro guardado exitosamente. Gracias por su transparencia.")
+
+    # Formulario de Confidencialidad
+    elif opcion == "Confidencialidad":
+        st.header("📄 Acuerdo de Confidencialidad")
+        with st.form("form_confidencialidad"):
+            nombre = st.text_input("Nombre completo")
+            acepta1 = st.checkbox("Me comprometo a mantener la confidencialidad del contenido discutido y votado.")
+            acepta2 = st.checkbox("Entiendo que no tengo derechos de autor sobre los productos resultantes del consenso.")
+            submit = st.form_submit_button("Aceptar y registrar")
+
+            if submit:
+                if not nombre or not (acepta1 and acepta2):
+                    st.warning("Debe completar el formulario y aceptar todas las condiciones.")
+                else:
+                    st.session_state.setdefault("registro_confidencialidad", []).append({
+                        "id": str(uuid.uuid4())[:8],
+                        "nombre": nombre,
+                        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "acepta": True
+                    })
+                    st.success("✅ Confidencialidad aceptada. Puede continuar con el proceso.")
+
+
 # Créditos
 st.sidebar.markdown("---")
 st.sidebar.markdown("**ODDS Epidemiology**")
