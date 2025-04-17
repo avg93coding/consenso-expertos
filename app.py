@@ -294,27 +294,26 @@ COMENTARIOS:
 
 # 4) CSS y estilo visual para ODDS Epidemiology
 def inject_css():
-    ACCENT = "#006B7F"  # Color principal ODDS (azul oscuro)
-    SECONDARY = "#3BAFDA"  # Color secundario (azul claro)
-    BG = "#FFFFFF"
-    CARD_BG = "#F8F8F8"
+    PRIMARY = "#662D91"    # Morado principal
+    SECONDARY = "#F1592A"  # Naranja vibrante
+    LIGHT_BG = "#F7F7F7"   # Fondo claro
     TEXT = "#333333"
     FONT = "'Segoe UI', Tahoma, Verdana, sans-serif"
-    
+
     css = f"""
     <style>
-      .stApp {{background-color:{BG} !important; color:{TEXT}; font-family:{FONT};}}
-      
+      .stApp {{background-color:{LIGHT_BG} !important; color:{TEXT}; font-family:{FONT};}}
+
       .app-header {{
-        background-color:{ACCENT}; 
-        padding:1.5rem; 
-        border-radius:0 0 10px 10px; 
-        text-align:center; 
-        color:white; 
+        background-color:{PRIMARY};
+        padding:1.5rem;
+        border-radius:0 0 10px 10px;
+        text-align:center;
+        color:white;
         margin-bottom: 20px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       }}
-      
+
       .odds-logo {{
         font-size: 2rem;
         font-weight: bold;
@@ -323,88 +322,35 @@ def inject_css():
         border-bottom: 2px solid {SECONDARY};
         display: inline-block;
       }}
-      
-      .odds-subtitle {{
-        font-size: 1.2rem;
-        margin-top: 5px;
-        opacity: 0.9;
-      }}
-      
-      .card {{
-        background-color: {CARD_BG};
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-      }}
-      
+
       .metric-card {{
         text-align: center;
         padding: 15px;
-        background: linear-gradient(to bottom right, {ACCENT}, {SECONDARY});
+        background: linear-gradient(to bottom right, {PRIMARY}, {SECONDARY});
         color: white;
         border-radius: 8px;
       }}
-      
+
       .metric-value {{
         font-size: 1.8rem;
         font-weight: bold;
       }}
-      
-      .metric-label {{
-        font-size: 0.9rem;
-        opacity: 0.9;
-      }}
-      
+
       .stButton>button {{
-        background-color: {ACCENT};
+        background-color: {PRIMARY};
         color: white;
         border: none;
         padding: 0.5rem 1rem;
         border-radius: 5px;
       }}
-      
+
       .stButton>button:hover {{
         background-color: {SECONDARY};
-      }}
-      
-      .hide-sidebar [data-testid="stSidebar"], 
-      .hide-sidebar [data-testid="stToolbar"] {{
-        display: none;
-      }}
-      
-      .session-badge {{
-        display: inline-block;
-        background-color: {SECONDARY};
-        color: white;
-        padding: 5px 10px;
-        border-radius: 15px;
-        font-weight: bold;
-      }}
-      
-      /* Estilizar el slider de votación */
-      div[data-testid="stSlider"] {{
-        padding: 20px 0;
-      }}
-      
-      /* Estilizar el texto de ayuda */
-      .helper-text {{
-        font-size: 0.9rem;
-        color: #666;
-        font-style: italic;
-      }}
-      
-      /* QR code container */
-      .qr-container {{
-        text-align: center;
-        padding: 15px;
-        background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
       }}
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
+
 
 def odds_header():
     header_html = """
