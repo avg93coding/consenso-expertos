@@ -452,28 +452,44 @@ if menu == "Inicio":
 
 elif menu == "Crear Sesión":
     st.subheader("Crear Nueva Sesión de Consenso")
-    
+
     st.markdown('<div class="card">', unsafe_allow_html=True)
     with st.form("create_form", clear_on_submit=True):
         desc = st.text_area("Recomendación a evaluar:", height=100)
         scale = st.selectbox("Escala de votación:", ["Likert 1-9", "Sí/No"])
-        
+        n_participantes = st.number_input(
+            "¿Cuántos participantes están habilitados para votar?", min_value=1, step=1)
+
         st.markdown("""
         <div class="helper-text">
         La escala Likert 1-9 permite evaluar el grado de acuerdo donde:
         - 1-3: Desacuerdo
         - 4-6: Neutral
         - 7-9: Acuerdo
-        
-        Se considera consenso cuando ≥80% de los votos son ≥7.
+
+        Se considera consenso cuando ≥80% de los votos son ≥7, y se ha alcanzado el quórum mínimo (mitad + 1 de los votantes esperados).
         </div>
         """, unsafe_allow_html=True)
-        
+
         if st.form_submit_button("Crear sesión"):
             if desc:
-                code = make_session(desc, scale)
+                code = uuid.uuid4().hex[:6].upper()
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                store[code] = {
+                    "desc": desc,
+                    "scale": scale,
+                    "votes": [],
+                    "comments": [],
+                    "ids": [],
+                    "names": [],
+                    "created_at": timestamp,
+                    "round": 1,
+                    "is_active": True,
+                    "n_participantes": int(n_participantes)
+                }
+                history[code] = []
                 st.success(f"Sesión creada exitosamente")
-                
+
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown(f"""
@@ -482,18 +498,13 @@ elif menu == "Crear Sesión":
                         <div class="metric-value">{code}</div>
                     </div>
                     """, unsafe_allow_html=True)
-                
+
                 with col2:
-                    # Usar HTML embebido para el QR con la URL visible
                     st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
-                
-                # Mostrar URL completa para verificación
+
                 url = create_qr_code_url(code)
                 st.info(f"URL para compartir: {url}")
-                
-                # Facilitar la prueba del enlace para el administrador
                 st.write(f"Para probar: [Abrir página de votación]({url})")
-                
                 st.markdown("""
                 <div class="helper-text">
                 <strong>Instrucciones:</strong> Comparta el código QR o la URL con los participantes. 
@@ -524,15 +535,20 @@ elif menu == "Dashboard":
                 st.success("✅ La sesión ha sido finalizada. Ya no aceptará más votos.")
                 st.rerun()
 
+            quorum = s.get("n_participantes", 0) // 2 + 1
+            votos_actuales = len(votes)
+
             st.markdown(f"""
             <div class="card">
                 <strong>Recomendación:</strong> {s["desc"]}<br>
                 <strong>Ronda actual:</strong> {s["round"]}<br>
-                <strong>Creada:</strong> {s["created_at"]}
+                <strong>Creada:</strong> {s["created_at"]}<br>
+                <strong>Votos esperados:</strong> {s.get("n_participantes", '?')} | 
+                <strong>Quórum mínimo:</strong> {quorum}<br>
+                <strong>Votos recibidos:</strong> {votos_actuales}
             </div>
             """, unsafe_allow_html=True)
 
-            # Métricas principales
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.markdown(f"""
@@ -562,7 +578,9 @@ elif menu == "Dashboard":
                     """, unsafe_allow_html=True)
 
             st.markdown('<div class="card">', unsafe_allow_html=True)
-            if votes:
+            if votos_actuales < quorum:
+                st.warning(f"⚠️ No se ha alcanzado el quórum mínimo requerido: {quorum} votos.")
+            else:
                 if pct >= 80 and lo >= 7:
                     st.success("✅ CONSENSO ALCANZADO: Se aprueba la recomendación.")
                 elif pct >= 80 and hi <= 3:
@@ -661,7 +679,6 @@ elif menu == "Dashboard":
                         > {com}
                         """)
                 st.markdown("</div>", unsafe_allow_html=True)
-
 
 elif menu == "Historial":
     st.subheader("Historial de Sesiones")
