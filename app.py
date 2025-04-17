@@ -54,8 +54,7 @@ def record_vote(code: str, vote, comment: str, name: str) -> str:
 
 
 def consensus_pct(votes):
-    if not votes: return 0.0
-    return sum(1 for v in votes if isinstance(v, int) and v >= 7) / len(votes)
+    return sum(1 for v in votes if isinstance(v, int) and v >= 7) / len(votes) if votes else 0.0
 
 
 def median_ci(votes):
@@ -67,10 +66,8 @@ def median_ci(votes):
 
 def make_qr(code: str) -> io.BytesIO:
     base = st.secrets.get("BASE_URL", "http://localhost:8501")
-    url = f"{base}?session={code}"
-    img = qrcode.make(url)
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    qrcode.make(f"{base}?session={code}").save(buf, format="PNG")
     buf.seek(0)
     return buf
 
@@ -93,17 +90,18 @@ def to_excel(code: str) -> io.BytesIO:
 
 def summarize_comments(comments: list) -> str:
     if not comments:
-        return "No hay comentarios."
+        return "Sin comentarios."
     return "\n".join(comments[:5]) + ("..." if len(comments) > 5 else "")
 
-# 4) CSS global
+# 4) CSS global y lógica para ocultar sidebar en votación
 ACCENT = "#6C63FF"
 BG = "#FFFFFF"
 CARD_BG = "#F8F8F8"
 TEXT = "#333333"
 FONT = "'Segoe UI', Tahoma, Verdana, sans-serif"
 
-st.markdown(f"""
+# Inyectar CSS
+css = f"""
 <style>
   .stApp {{ background-color: {BG} !important; color: {TEXT}; font-family: {FONT}; }}
   .app-header {{ background-color: {ACCENT}; padding: 1.5rem; border-radius: 0 0 10px 10px; text-align: center; color: white; font-size: 2rem; font-weight: bold; }}
@@ -113,28 +111,25 @@ st.markdown(f"""
   input, textarea {{ background-color: {CARD_BG} !important; color: {TEXT} !important; }}
   .hide-sidebar [data-testid="stSidebar"], .hide-sidebar [data-testid="stToolbar"] {{ display: none; }}
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(css, unsafe_allow_html=True)
 
 # 5) Función de votación
+
 def voting_page():
     st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
     st.header("Votación de Expertos")
 
-    # Dropdown de sesiones activas o QR param
+    # Dropdown o QR param
     sessions = list(store.keys())
-    if not sessions:
-        st.warning("Aún no hay sesiones.")
-        return
+    code_param = st.query_params.get("session", [""])[0]
+    code = code_param or st.selectbox("Selecciona sesión:", sessions)
 
-    params = st.query_params
-    initial = params.get("session", [""])[0]
-    code = initial or st.selectbox("Selecciona sesión:", sessions)
-
-    s = store.get(code)
-    if not s:
+    if code not in store:
         st.error("Sesión inválida.")
         return
 
+    s = store[code]
     name = st.text_input("Nombre de participante:")
     pid = hash_id(name or str(uuid.uuid4()))
 
@@ -151,10 +146,15 @@ def voting_page():
         st.success(f"Voto registrado (ID: {pid})")
         st.stop()
 
-# Enrutamiento simple
-menu = st.sidebar.radio("Menú", ["Inicio","Votación","Dashboard"])
+# 6) Enrutamiento: votación oculta menú
+if st.sidebar.radio("", ["Administración","Votación"]) == "Votación":
+    voting_page()
+    st.stop()
 
-if menu == "Inicio":
+# 7) Panel de administración
+page = st.sidebar.radio("", ["Inicio","Dashboard"])
+
+if page == "Inicio":
     st.header("Crear Nueva Sesión")
     with st.form("create_form", clear_on_submit=True):
         desc = st.text_input("Recomendación:")
@@ -163,8 +163,6 @@ if menu == "Inicio":
             code = make_session(desc, scale)
             st.success(f"Sesión creada: **{code}**")
             st.image(make_qr(code), caption="Escanea para votar", width=180)
-elif menu == "Votación":
-    voting_page()
 else:
     st.header("Dashboard en Vivo")
     sessions = list(store.keys())
@@ -178,7 +176,7 @@ else:
         # Métricas
         c1, c2, c3 = st.columns(3)
         c1.metric("Total votos", len(votes))
-        pct = consensus_pct(votes)*100
+        pct = consensus_pct(votes) * 100
         c2.metric("% Consenso", f"{pct:.1f}%")
         if votes:
             med, lo, hi = median_ci(votes)
@@ -186,9 +184,9 @@ else:
 
         # Interpretación
         if votes:
-            if pct >=80 and lo >= 7:
+            if pct >= 80 and lo >= 7:
                 st.success("Se aprueba el umbral.")
-            elif pct >=80 and hi <= 3:
+            elif pct >= 80 and hi <= 3:
                 st.error("No se aprueba el umbral.")
             else:
                 st.warning("No hay consenso; segunda ronda necesaria.")
@@ -204,7 +202,7 @@ else:
             fig = px.histogram(df, x="Voto", nbins=9 if s["scale"].startswith("Likert") else 2)
             st.plotly_chart(fig, use_container_width=True)
 
-        # Traza comentarios
+        # Trazabilidad comentarios
         if comments:
             st.subheader("Comentarios (ID anónimo)")
             for pid, com in zip(ids, comments):
