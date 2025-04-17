@@ -406,6 +406,8 @@ if "session" in params:
         st.markdown(f'<div class="session-badge">Sesión: {code}</div>', unsafe_allow_html=True)
 
         name = st.text_input("Nombre del participante:")
+        correo = st.text_input("Correo electrónico (obligatorio para sesiones privadas):")
+
 
         # Bloqueo si ya votó
         if name and name in s["names"]:
@@ -437,7 +439,7 @@ if "session" in params:
             if not name:
                 st.warning("Por favor, ingrese su nombre para registrar su voto.")
             else:
-                pid = record_vote(code, vote, comment, name)
+                pid = record_vote(code, vote, comment, name, correo)
                 if pid:
                     st.balloons()
                     st.success("🎉 Gracias por su participación.")
