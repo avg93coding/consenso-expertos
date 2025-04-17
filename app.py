@@ -668,34 +668,36 @@ elif menu == "Dashboard":
                     st.session_state["modify_recommendation"] = True
                     st.session_state["current_code"] = code
 
-                if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
-                    with st.form("new_round_form"):
-                        new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
-                        submit_button = st.form_submit_button("Confirmar nueva ronda")
-                        if submit_button:
-                            next_round = s["round"] + 1
-                            store[code].update({
-                                "desc": new_desc,
-                                "votes": [],
-                                "comments": [],
-                                "ids": [],
-                                "names": [],
-                                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                "round": next_round
-                            })
+               if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
+    with st.form("new_round_form"):
+        nombre_ronda = st.text_input("Nombre de la ronda:")
+        new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
+        submit_button = st.form_submit_button("Confirmar nueva ronda")
+        if submit_button:
+            next_round = s["round"] + 1
+            descripcion_final = f"{new_desc} ({nombre_ronda})" if nombre_ronda else new_desc
+            store[code].update({
+                "desc": descripcion_final,
+                "votes": [],
+                "comments": [],
+                "ids": [],
+                "names": [],
+                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "round": next_round
+            })
 
-                            st.success(f"✅ Nueva ronda iniciada: Ronda {next_round}")
+            st.success(f"✅ Nueva ronda iniciada: Ronda {next_round} - {nombre_ronda if nombre_ronda else 'sin nombre asignado'}")
 
-                            st.markdown('<div class="card">', unsafe_allow_html=True)
-                            st.subheader("Nuevo enlace de votación")
-                            st.markdown(f"<code>{create_qr_code_url(code)}</code>", unsafe_allow_html=True)
-                            st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
-                            st.markdown("</div>", unsafe_allow_html=True)
-
-                            st.session_state["modify_recommendation"] = False
-                            st.stop()
-
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Nuevo enlace de votación")
+            st.markdown(f"<code>{create_qr_code_url(code)}</code>", unsafe_allow_html=True)
+            st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
+
+            st.session_state["modify_recommendation"] = False
+            st.stop()
+
+st.markdown("</div>", unsafe_allow_html=True)
 
             if votes:
                 st.markdown('<div class="card">', unsafe_allow_html=True)
