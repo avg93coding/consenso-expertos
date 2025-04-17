@@ -13,6 +13,67 @@ import os
 from scipy import stats
 from streamlit_autorefresh import st_autorefresh
 
+# Detectar si es acceso externo con parámetro ?registro=...
+params = st.query_params
+if "registro" in params:
+    registro_tipo = params.get("registro")
+    st.set_page_config(page_title="Registro de Expertos", layout="centered")
+
+    if registro_tipo == "conflicto":
+        st.title("🔐 Registro: Declaración de Conflictos de Interés")
+        with st.form("form_conflicto_externo"):
+            nombre = st.text_input("Nombre completo")
+            institucion = st.text_input("Institución o afiliación")
+            cargo = st.text_input("Cargo profesional")
+            participa_en = st.multiselect("¿Participa actualmente en alguno de los siguientes?", [
+                "Industria farmacéutica", "Investigación patrocinada", "Consultoría médica", "Autoría de guías clínicas", "Otro"])
+            tiene_conflicto = st.radio("¿Tiene un posible conflicto que pueda influir en esta recomendación?", ["No", "Sí"])
+            detalle_conflicto = ""
+            if tiene_conflicto == "Sí":
+                detalle_conflicto = st.text_area("Describa brevemente su conflicto")
+            confirma = st.checkbox("Declaro que la información es verídica y completa", value=False)
+            submit = st.form_submit_button("Enviar")
+
+            if submit:
+                if not nombre or not confirma:
+                    st.warning("Debe completar todos los campos obligatorios y aceptar la declaración.")
+                else:
+                    st.session_state.setdefault("registro_conflicto", []).append({
+                        "id": str(uuid.uuid4())[:8],
+                        "nombre": nombre,
+                        "institucion": institucion,
+                        "cargo": cargo,
+                        "participa_en": participa_en,
+                        "conflicto": tiene_conflicto,
+                        "detalle": detalle_conflicto,
+                        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+                    st.success("✅ Registro enviado correctamente. Puede cerrar esta ventana.")
+        st.stop()
+
+    elif registro_tipo == "confidencialidad":
+        st.title("📄 Registro: Acuerdo de Confidencialidad")
+        with st.form("form_confidencialidad_externo"):
+            nombre = st.text_input("Nombre completo")
+            acepta1 = st.checkbox("Me comprometo a mantener la confidencialidad del contenido discutido y votado.")
+            acepta2 = st.checkbox("Entiendo que no tengo derechos de autor sobre los productos resultantes del consenso.")
+            submit = st.form_submit_button("Aceptar y registrar")
+
+            if submit:
+                if not nombre or not (acepta1 and acepta2):
+                    st.warning("Debe completar el formulario y aceptar todas las condiciones.")
+                else:
+                    st.session_state.setdefault("registro_confidencialidad", []).append({
+                        "id": str(uuid.uuid4())[:8],
+                        "nombre": nombre,
+                        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "acepta": True
+                    })
+                    st.success("✅ Registro enviado correctamente. Puede cerrar esta ventana.")
+        st.stop()
+
+
+
 
 # 1) Configuración de la página
 st.set_page_config(
@@ -827,72 +888,61 @@ if state_upload is not None:
         st.sidebar.error(f"Error al cargar el estado: {str(e)}")
 
 elif menu == "Registro Previo":
-    st.title("Registro previo para Panel de Consenso")
+    st.title("📋 Registro Previo - Panel de Consenso")
+    st.markdown("Comparta los siguientes enlaces con los participantes para que completen sus registros antes de iniciar el consenso.")
 
-    st.markdown("""
-    Antes de participar en cualquier votación, por favor complete los siguientes formularios. 
-    Esta información será almacenada de forma independiente y usada para seguimiento institucional.
-    """)
+    # -------------------------------
+    # 🔐 Declaración de Conflictos
+    # -------------------------------
+    st.markdown("### 🔐 Declaración de Conflictos de Interés")
+    url_conflicto = "https://consenso-expertos-sfpqj688ihbl7m6tgrdmwb.streamlit.app/?registro=conflicto"
+    st.code(url_conflicto, language="text")
 
-    opcion = st.radio("Seleccione el formulario que desea diligenciar:", ["Conflicto de Interés", "Confidencialidad"], horizontal=True)
+    qr_conflicto = qrcode.make(url_conflicto)
+    buf_c = io.BytesIO()
+    qr_conflicto.save(buf_c, format="PNG")
+    img_conflicto = base64.b64encode(buf_c.getvalue()).decode("utf-8")
 
-    # Formulario de Conflicto de Interés
-    if opcion == "Conflicto de Interés":
-        st.header("🔐 Declaración de Conflictos de Interés")
-        with st.form("form_conflicto"):
-            nombre = st.text_input("Nombre completo")
-            institucion = st.text_input("Institución o afiliación")
-            cargo = st.text_input("Cargo profesional")
-            participa_en = st.multiselect("¿Participa actualmente en alguno de los siguientes?", [
-                "Industria farmacéutica",
-                "Investigación patrocinada",
-                "Consultoría médica",
-                "Autoría de guías clínicas",
-                "Otro"
-            ])
-            tiene_conflicto = st.radio("¿Tiene un posible conflicto que pueda influir en esta recomendación?", ["No", "Sí"])
-            detalle_conflicto = ""
-            if tiene_conflicto == "Sí":
-                detalle_conflicto = st.text_area("Describa brevemente su conflicto")
-            confirma = st.checkbox("Declaro que la información es verídica y completa", value=False)
-            submit = st.form_submit_button("Enviar")
+    st.markdown(f'''
+    <img src="data:image/png;base64,{img_conflicto}" width="180">
+    <p><em>Escanéelo para registrar conflictos desde el celular</em></p>
+    ''', unsafe_allow_html=True)
 
-            if submit:
-                if not nombre or not confirma:
-                    st.warning("Debe completar todos los campos obligatorios y aceptar la declaración.")
-                else:
-                    st.session_state.setdefault("registro_conflicto", []).append({
-                        "id": str(uuid.uuid4())[:8],
-                        "nombre": nombre,
-                        "institucion": institucion,
-                        "cargo": cargo,
-                        "participa_en": participa_en,
-                        "conflicto": tiene_conflicto,
-                        "detalle": detalle_conflicto,
-                        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    })
-                    st.success("✅ Registro guardado exitosamente. Gracias por su transparencia.")
+    # -------------------------------
+    # 📄 Confidencialidad
+    # -------------------------------
+    st.markdown("---")
+    st.markdown("### 📄 Compromiso de Confidencialidad")
+    url_confid = "https://consenso-expertos-sfpqj688ihbl7m6tgrdmwb.streamlit.app/?registro=confidencialidad"
+    st.code(url_confid, language="text")
 
-    # Formulario de Confidencialidad
-    elif opcion == "Confidencialidad":
-        st.header("📄 Acuerdo de Confidencialidad")
-        with st.form("form_confidencialidad"):
-            nombre = st.text_input("Nombre completo")
-            acepta1 = st.checkbox("Me comprometo a mantener la confidencialidad del contenido discutido y votado.")
-            acepta2 = st.checkbox("Entiendo que no tengo derechos de autor sobre los productos resultantes del consenso.")
-            submit = st.form_submit_button("Aceptar y registrar")
+    qr_confid = qrcode.make(url_confid)
+    buf_d = io.BytesIO()
+    qr_confid.save(buf_d, format="PNG")
+    img_confid = base64.b64encode(buf_d.getvalue()).decode("utf-8")
 
-            if submit:
-                if not nombre or not (acepta1 and acepta2):
-                    st.warning("Debe completar el formulario y aceptar todas las condiciones.")
-                else:
-                    st.session_state.setdefault("registro_confidencialidad", []).append({
-                        "id": str(uuid.uuid4())[:8],
-                        "nombre": nombre,
-                        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "acepta": True
-                    })
-                    st.success("✅ Confidencialidad aceptada. Puede continuar con el proceso.")
+    st.markdown(f'''
+    <img src="data:image/png;base64,{img_confid}" width="180">
+    <p><em>Escanéelo para registrar confidencialidad desde el celular</em></p>
+    ''', unsafe_allow_html=True)
+
+    # -------------------------------
+    # 📥 Descarga de registros
+    # -------------------------------
+    st.markdown("---")
+    st.subheader("📥 Exportar registros recibidos")
+
+    col1, col2 = st.columns(2)
+
+    if "registro_conflicto" in st.session_state:
+        df1 = pd.DataFrame(st.session_state["registro_conflicto"])
+        with col1:
+            st.download_button("⬇️ Descargar Conflictos", df1.to_csv(index=False).encode("utf-8"), file_name="conflictos.csv")
+
+    if "registro_confidencialidad" in st.session_state:
+        df2 = pd.DataFrame(st.session_state["registro_confidencialidad"])
+        with col2:
+            st.download_button("⬇️ Descargar Confidencialidad", df2.to_csv(index=False).encode("utf-8"), file_name="confidencialidad.csv")
 
 
 # Créditos
