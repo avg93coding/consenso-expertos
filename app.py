@@ -13,24 +13,47 @@ import os
 from scipy import stats
 from streamlit_autorefresh import st_autorefresh
 
-# Detectar si es acceso externo con parámetro ?registro=...
+import os
+
+# Crear carpeta para guardar datos si no existe
+DATA_DIR = "registro_data"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# Función: cargar registros desde CSV
+def cargar_registros(nombre):
+    path = os.path.join(DATA_DIR, f"{nombre}.csv")
+    if os.path.exists(path):
+        return pd.read_csv(path).to_dict("records")
+    return []
+
+# Función: guardar registros en CSV
+def guardar_registros(nombre, registros):
+    df = pd.DataFrame(registros)
+    df.to_csv(os.path.join(DATA_DIR, f"{nombre}.csv"), index=False)
+
+# Inicializar en session_state
+if "registro_conflicto" not in st.session_state:
+    st.session_state["registro_conflicto"] = cargar_registros("registro_conflicto")
+
+if "registro_confidencialidad" not in st.session_state:
+    st.session_state["registro_confidencialidad"] = cargar_registros("registro_confidencialidad")
+
+# Lógica si la URL tiene ?registro=...
 params = st.query_params
 if "registro" in params:
-    registro_tipo = params.get("registro")
+    tipo = params.get("registro")
     st.set_page_config(page_title="Registro de Expertos", layout="centered")
 
-    if registro_tipo == "conflicto":
+    if tipo == "conflicto":
         st.title("🔐 Registro: Declaración de Conflictos de Interés")
         with st.form("form_conflicto_externo"):
             nombre = st.text_input("Nombre completo")
             institucion = st.text_input("Institución o afiliación")
             cargo = st.text_input("Cargo profesional")
             participa_en = st.multiselect("¿Participa actualmente en alguno de los siguientes?", [
-                "Industria farmacéutica", "Investigación patrocinada", "Consultoría médica", "Autoría de guías clínicas", "Otro", "Ninguno"])
+                "Industria farmacéutica", "Investigación patrocinada", "Consultoría médica", "Autoría de guías clínicas", "Otro"])
             tiene_conflicto = st.radio("¿Tiene un posible conflicto que pueda influir en esta recomendación?", ["No", "Sí"])
-            detalle_conflicto = ""
-            if tiene_conflicto == "Sí":
-                detalle_conflicto = st.text_area("Describa brevemente su conflicto")
+            detalle_conflicto = st.text_area("Describa brevemente su conflicto") if tiene_conflicto == "Sí" else ""
             confirma = st.checkbox("Declaro que la información es verídica y completa", value=False)
             submit = st.form_submit_button("Enviar")
 
@@ -38,20 +61,22 @@ if "registro" in params:
                 if not nombre or not confirma:
                     st.warning("Debe completar todos los campos obligatorios y aceptar la declaración.")
                 else:
-                    st.session_state.setdefault("registro_conflicto", []).append({
+                    nuevo = {
                         "id": str(uuid.uuid4())[:8],
                         "nombre": nombre,
                         "institucion": institucion,
                         "cargo": cargo,
-                        "participa_en": participa_en,
+                        "participa_en": "; ".join(participa_en),
                         "conflicto": tiene_conflicto,
                         "detalle": detalle_conflicto,
                         "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    })
+                    }
+                    st.session_state["registro_conflicto"].append(nuevo)
+                    guardar_registros("registro_conflicto", st.session_state["registro_conflicto"])
                     st.success("✅ Registro enviado correctamente. Puede cerrar esta ventana.")
         st.stop()
 
-    elif registro_tipo == "confidencialidad":
+    elif tipo == "confidencialidad":
         st.title("📄 Registro: Acuerdo de Confidencialidad")
         with st.form("form_confidencialidad_externo"):
             nombre = st.text_input("Nombre completo")
@@ -63,15 +88,16 @@ if "registro" in params:
                 if not nombre or not (acepta1 and acepta2):
                     st.warning("Debe completar el formulario y aceptar todas las condiciones.")
                 else:
-                    st.session_state.setdefault("registro_confidencialidad", []).append({
+                    nuevo = {
                         "id": str(uuid.uuid4())[:8],
                         "nombre": nombre,
                         "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "acepta": True
-                    })
+                    }
+                    st.session_state["registro_confidencialidad"].append(nuevo)
+                    guardar_registros("registro_confidencialidad", st.session_state["registro_confidencialidad"])
                     st.success("✅ Registro enviado correctamente. Puede cerrar esta ventana.")
         st.stop()
-
 
 
 
