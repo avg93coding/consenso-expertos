@@ -512,6 +512,7 @@ elif menu == "Crear Sesión":
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
     with st.form("create_form", clear_on_submit=True):
+        nombre_ronda = st.text_input("Nombre de la ronda:")
         desc = st.text_area("Recomendación a evaluar:", height=100)
         scale = st.selectbox("Escala de votación:", ["Likert 1-9", "Sí/No"])
         n_participantes = st.number_input(
@@ -532,8 +533,9 @@ elif menu == "Crear Sesión":
             if desc:
                 code = uuid.uuid4().hex[:6].upper()
                 timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                descripcion_final = f"{desc} ({nombre_ronda})" if nombre_ronda else desc
                 store[code] = {
-                    "desc": desc,
+                    "desc": descripcion_final,
                     "scale": scale,
                     "votes": [],
                     "comments": [],
