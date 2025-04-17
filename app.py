@@ -7,6 +7,7 @@ import qrcode
 import io
 import hashlib
 import datetime
+import base64
 from scipy import stats
 
 # 1) Configuración de la página
@@ -17,14 +18,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2) Store global
-@st.cache_resource
-def get_store():
-    return {
-        "sessions": {},
-        "history": {}  # Para guardar historial de rondas
-    }
-store = get_store()
+# 2) Almacenamiento persistente utilizando session_state
+# Esto asegura que las sesiones persistan incluso cuando Streamlit se reinicia
+if "sessions" not in st.session_state:
+    st.session_state.sessions = {}
+if "history" not in st.session_state:
+    st.session_state.history = {}
 
 # 3) Utilidades
 def make_session(desc: str, scale: str) -> str:
@@ -41,19 +40,19 @@ def make_session(desc: str, scale: str) -> str:
         "round": 1
     }
     
-    store["sessions"][code] = session_data
+    st.session_state.sessions[code] = session_data
     # Inicializar historial para esta sesión
-    store["history"][code] = [session_data.copy()]
+    st.session_state.history[code] = [session_data.copy()]
     return code
 
 def hash_id(name: str) -> str:
     return hashlib.sha256(name.encode()).hexdigest()[:8]
 
 def record_vote(code: str, vote, comment: str, name: str):
-    if code not in store["sessions"]:
+    if code not in st.session_state.sessions:
         return None
     
-    s = store["sessions"][code]
+    s = st.session_state.sessions[code]
     pid = hash_id(name or str(uuid.uuid4()))
     
     # Evitar votos duplicados por nombre
@@ -85,15 +84,28 @@ def median_ci(votes):
     res = stats.bootstrap((arr,), np.median, confidence_level=0.95, n_resamples=1000)
     return med, res.confidence_interval.low, res.confidence_interval.high
 
+def get_base_url():
+    # Intenta obtener la URL base desde secretos o usa un valor predeterminado
+    try:
+        return st.secrets.get("BASE_URL", "http://localhost:8501")
+    except:
+        return "http://localhost:8501"  # URL predeterminada si no hay secretos
+
+def create_qr_code_url(code: str):
+    base_url = get_base_url()
+    # Asegura que la URL sea absoluta y tenga el formato correcto
+    if not base_url.startswith(('http://', 'https://')):
+        base_url = f"http://{base_url}"
+    # Usa la estructura correcta para parámetros de URL
+    return f"{base_url}/?session={code}"
+
 def make_qr(code: str) -> io.BytesIO:
-    # Usa una URL absoluta para asegurar que funcione en cualquier entorno
-    base = st.secrets.get("BASE_URL", "http://localhost:8501")
-    url = f"{base}?session={code}"
+    url = create_qr_code_url(code)
     
     buf = io.BytesIO()
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,  # Nivel más alto de corrección de errores
         box_size=10,
         border=4,
     )
@@ -104,11 +116,23 @@ def make_qr(code: str) -> io.BytesIO:
     buf.seek(0)
     return buf
 
+def get_qr_code_image_html(code):
+    buf = make_qr(code)
+    img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+    url = create_qr_code_url(code)
+    html = f"""
+    <div style="text-align: center; margin-bottom: 20px;">
+        <img src="data:image/png;base64,{img_str}" width="200">
+        <p style="margin-top: 10px; font-size: 0.8rem;">URL: <a href="{url}" target="_blank">{url}</a></p>
+    </div>
+    """
+    return html
+
 def to_excel(code: str) -> io.BytesIO:
-    if code not in store["sessions"]:
+    if code not in st.session_state.sessions:
         return io.BytesIO()
     
-    s = store["sessions"][code]
+    s = st.session_state.sessions[code]
     df = pd.DataFrame({
         "ID anónimo": s["ids"],
         "Nombre real": s["names"],
@@ -120,8 +144,8 @@ def to_excel(code: str) -> io.BytesIO:
     })
     
     # Añadir datos de rondas anteriores del historial
-    if code in store["history"]:
-        for past_round in store["history"][code][:-1]:  # Excluir la ronda actual
+    if code in st.session_state.history:
+        for past_round in st.session_state.history[code][:-1]:  # Excluir la ronda actual
             hist_df = pd.DataFrame({
                 "ID anónimo": past_round["ids"],
                 "Nombre real": past_round["names"],
@@ -142,10 +166,10 @@ def to_excel(code: str) -> io.BytesIO:
     return buf
 
 def create_report(code: str) -> str:
-    if code not in store["sessions"]:
+    if code not in st.session_state.sessions:
         return "Sesión inválida"
     
-    s = store["sessions"][code]
+    s = st.session_state.sessions[code]
     pct = consensus_pct(s["votes"]) * 100
     med, lo, hi = median_ci(s["votes"])
     
@@ -168,9 +192,9 @@ COMENTARIOS:
             report += f"{i+1}. {pid}: {comment}\n"
     
     # Añadir historial de rondas anteriores
-    if code in store["history"] and len(store["history"][code]) > 1:
+    if code in st.session_state.history and len(st.session_state.history[code]) > 1:
         report += "\nHISTORIAL DE RONDAS ANTERIORES:\n"
-        for i, past_round in enumerate(store["history"][code][:-1]):
+        for i, past_round in enumerate(st.session_state.history[code][:-1]):
             round_pct = consensus_pct(past_round["votes"]) * 100
             report += f"\nRonda {past_round['round']} - {past_round['created_at']}\n"
             report += f"Recomendación: {past_round['desc']}\n"
@@ -279,6 +303,15 @@ def inject_css():
         color: #666;
         font-style: italic;
       }}
+      
+      /* QR code container */
+      .qr-container {{
+        text-align: center;
+        padding: 15px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      }}
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
@@ -304,12 +337,15 @@ if "session" in params:
     st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
     st.markdown('<div class="card">', unsafe_allow_html=True)
     
-    if code not in store["sessions"]:
-        st.error("Sesión inválida o expirada.")
+    if code not in st.session_state.sessions:
+        st.error(f"Sesión inválida o expirada: '{code}'")
         st.info("Por favor, contacte al administrador para obtener un nuevo código de sesión.")
+        # Añadir un botón para depuración
+        if st.button("Ver sesiones disponibles"):
+            st.write("Sesiones activas:", list(st.session_state.sessions.keys()))
         st.stop()
     
-    s = store["sessions"][code]
+    s = st.session_state.sessions[code]
     
     st.subheader(f"Panel de Votación - Ronda {s['round']}")
     st.markdown(f'<div class="session-badge">Sesión: {code}</div>', unsafe_allow_html=True)
@@ -381,9 +417,9 @@ if menu == "Inicio":
     """)
     st.markdown("</div>", unsafe_allow_html=True)
     
-    if store["sessions"]:
+    if st.session_state.sessions:
         st.subheader("Sesiones Activas")
-        for code, session in store["sessions"].items():
+        for code, session in st.session_state.sessions.items():
             st.markdown(f"""
             <div class="card">
                 <strong>Código:</strong> {code} | 
@@ -427,13 +463,14 @@ elif menu == "Crear Sesión":
                     """, unsafe_allow_html=True)
                 
                 with col2:
-                    qr_image = make_qr(code)
-                    st.image(qr_image, caption="Escanea para votar", width=180)
+                    # Usar HTML embebido para el QR con la URL visible
+                    st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
                 
-                st.markdown(f"""
+                st.info(f"URL para compartir: {create_qr_code_url(code)}")
+                st.markdown("""
                 <div class="helper-text">
-                Comparta este código QR con los participantes para que puedan votar.
-                URL directa: {st.secrets.get("BASE_URL", "http://localhost:8501")}?session={code}
+                <strong>Instrucciones:</strong> Comparta el código QR o la URL con los participantes. 
+                La URL debe incluir el parámetro de sesión exactamente como se muestra arriba.
                 </div>
                 """, unsafe_allow_html=True)
             else:
@@ -443,13 +480,13 @@ elif menu == "Crear Sesión":
 elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
     
-    if not store["sessions"]:
+    if not st.session_state.sessions:
         st.info("No hay sesiones activas. Cree una nueva sesión para comenzar.")
     else:
-        code = st.selectbox("Seleccionar sesión activa:", list(store["sessions"].keys()))
+        code = st.selectbox("Seleccionar sesión activa:", list(st.session_state.sessions.keys()))
         
         if code:
-            s = store["sessions"][code]
+            s = st.session_state.sessions[code]
             votes, comments, ids = s["votes"], s["comments"], s["ids"]
             
             st.markdown(f"""
@@ -457,6 +494,16 @@ elif menu == "Dashboard":
                 <strong>Recomendación:</strong> {s["desc"]}<br>
                 <strong>Ronda actual:</strong> {s["round"]}<br>
                 <strong>Creada:</strong> {s["created_at"]}
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Link para votación 
+            st.markdown(f"""
+            <div class="card">
+                <h4>Enlace para votantes</h4>
+                <p>Comparta este enlace o el código QR para que los participantes voten:</p>
+                <code>{create_qr_code_url(code)}</code>
+                {get_qr_code_image_html(code)}
             </div>
             """, unsafe_allow_html=True)
             
@@ -510,11 +557,11 @@ elif menu == "Dashboard":
                     new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
                     if st.form_submit_button("Iniciar nueva ronda de votación"):
                         # Guardar la ronda actual en el historial
-                        if code in store["history"]:
-                            store["history"][code].append(s.copy())
+                        if code in st.session_state.history:
+                            st.session_state.history[code].append(s.copy())
                         
                         # Crear nueva ronda
-                        store["sessions"][code].update({
+                        st.session_state.sessions[code].update({
                             "desc": new_desc,
                             "votes": [],
                             "comments": [],
@@ -605,13 +652,13 @@ elif menu == "Dashboard":
 elif menu == "Historial":
     st.subheader("Historial de Sesiones")
     
-    if not store["history"]:
+    if not st.session_state.history:
         st.info("No hay historial de sesiones disponible.")
     else:
-        code = st.selectbox("Seleccionar sesión:", list(store["history"].keys()))
+        code = st.selectbox("Seleccionar sesión:", list(st.session_state.history.keys()))
         
-        if code and code in store["history"]:
-            history = store["history"][code]
+        if code and code in st.session_state.history:
+            history = st.session_state.history[code]
             
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.write(f"Total de rondas: {len(history)}")
@@ -641,5 +688,5 @@ elif menu == "Historial":
                         st.subheader("Comentarios")
                         for pid, name, vote, comment in zip(round_data['ids'], round_data['names'], round_data['votes'], round_data['comments']):
                             if comment:
-                                st.markdown(f"**{name} (ID: {pid})** - Voto: {vote}\n> {comment}")
+                                st.markdown(f"**{name} (ID: {pid})** - Voto: {vote}\n>{comment}")
             st.markdown("</div>", unsafe_allow_html=True)
