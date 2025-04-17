@@ -461,18 +461,22 @@ elif menu == "Crear Recomendación":
         nombre_ronda = st.text_input("Nombre de la ronda:")
         desc = st.text_area("Recomendación a evaluar:", height=100)
         scale = st.selectbox("Escala de votación:", ["Likert 1-9", "Sí/No"])
-        n_participantes = st.number_input("¿Cuántos participantes están habilitados para votar?", min_value=1, step=1)
+        n_participantes = st.number_input(
+            "¿Cuántos participantes están habilitados para votar?", min_value=1, step=1)
+        es_privada = st.checkbox("¿Esta recomendación será privada?")
 
-        sesion_privada = st.checkbox("¿Sesión privada solo para correos autorizados?")
-        lista_correos = []
-        if sesion_privada:
-            archivo_correos = st.file_uploader("Subir archivo CSV con correos autorizados", type=["csv"])
-            if archivo_correos:
+        correos_autorizados = []
+        archivo_correos = st.file_uploader("📧 Subir lista de correos autorizados (CSV con columna 'correo')", type=["csv"])
+        if archivo_correos is not None:
+            try:
                 df_correos = pd.read_csv(archivo_correos)
-                if "correo" in df_correos.columns:
-                    lista_correos = df_correos["correo"].dropna().astype(str).str.strip().tolist()
+                if 'correo' in df_correos.columns:
+                    correos_autorizados = df_correos['correo'].astype(str).str.strip().tolist()
+                    st.success(f"Se cargaron {len(correos_autorizados)} correos autorizados correctamente.")
                 else:
-                    st.error("El archivo debe contener una columna llamada 'correo'")
+                    st.error("El archivo debe contener una columna llamada 'correo'.")
+            except Exception as e:
+                st.error(f"Error al leer el archivo: {str(e)}")
 
         st.markdown("""
         <div class="helper-text">
@@ -501,8 +505,8 @@ elif menu == "Crear Recomendación":
                     "round": 1,
                     "is_active": True,
                     "n_participantes": int(n_participantes),
-                    "acceso_privado": sesion_privada,
-                    "correos_autorizados": lista_correos
+                    "privado": es_privada,
+                    "correos_autorizados": correos_autorizados
                 }
                 history[code] = []
                 st.success(f"Sesión creada exitosamente")
@@ -531,6 +535,7 @@ elif menu == "Crear Recomendación":
             else:
                 st.warning("Por favor, ingrese una recomendación.")
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
