@@ -401,9 +401,8 @@ if "session" in params:
                     st.error("Error al registrar el voto. La sesión puede haber expirado.")
         
         # Botón para volver a la página principal
-        if st.button("Volver a la página principal"):
-            st.session_state.current_page = "home"
-            st.experimental_rerun()
+       if st.button("Finalizar votación", key="finish_voting"):
+    st.success("Gracias por su participación. Puede cerrar esta ventana.")
             
         st.markdown("</div>", unsafe_allow_html=True)
         st.stop()
@@ -580,11 +579,30 @@ elif menu == "Dashboard":
                     
                     # Opción para iniciar nueva ronda
                     if st.button("Iniciar nueva ronda"):
-                        st.session_state["modify_recommendation"] = True
-                        st.session_state["current_code"] = code
+    st.session_state["modify_recommendation"] = True
+    st.session_state["current_code"] = code
+    st.session_state["menu"] = "Dashboard"  # Asegura que se mantenga en Dashboard
+            # Después del botón "Iniciar nueva ronda de votación"
+            # Guardar automáticamente el historial
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            state_data = {
+                "sessions": store,
+                "history": history
+            }
+            state_str = str(state_data)
+            state_b64 = base64.b64encode(state_str.encode()).decode()
+            
+            # Guardar en archivo
+            backup_filename = f"odds_backup_auto_{code}_{timestamp}.txt"
+            with open(backup_filename, "w") as f:
+                f.write(state_b64)
+            
+            st.success(f"Se ha guardado automáticamente el historial en {backup_filename}")
             
             # UI para modificar la recomendación y crear nueva ronda
-if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
+if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code"):
+    code = st.session_state["current_code"]
+    s = store[code]  # Necesitamos obtener s nuevamente
     import copy
     with st.form("new_round_form", clear_on_submit=True):
         new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
@@ -661,11 +679,11 @@ if st.session_state.get("modify_recommendation", False) and st.session_state.get
                 )
             
             with col2:
-                st.download_button(
-                    "Descargar Reporte", 
+               st.download_button(
+                    "Descargar Reporte Completo", 
                     create_report(code), 
-                    file_name=f"reporte_{code}_ronda{s['round']}.txt",
-                    help="Genera un reporte detallado con métricas y comentarios"
+                    file_name=f"reporte_completo_{code}_ronda{s['round']}.txt",
+                    help="Genera un reporte detallado con métricas, comentarios e historial de todas las rondas"
                 )
             st.markdown("</div>", unsafe_allow_html=True)
             
