@@ -665,144 +665,108 @@ elif menu == "Dashboard":
 
 elif menu == "Historial":
     st.subheader("Historial de Sesiones")
-    
+
     if not history:
         st.info("No hay historial de sesiones disponible.")
     else:
         code = st.selectbox("Seleccionar sesión:", list(history.keys()))
-        
+
         if code and code in history:
             rounds_history = history[code]
-            
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.write(f"Total de rondas: {len(rounds_history)}")
-            
+
             for i, round_data in enumerate(rounds_history):
                 with st.expander(f"Ronda {round_data['round']} - {round_data['created_at']}"):
                     st.write(f"**Recomendación:** {round_data['desc']}")
                     st.write(f"**Votos totales:** {len(round_data['votes'])}")
-                    
                     pct = consensus_pct(round_data['votes']) * 100
                     st.write(f"**% Consenso:** {pct:.1f}%")
-                    
+
                     if round_data['votes']:
                         med, lo, hi = median_ci(round_data['votes'])
                         st.write(f"**Mediana (IC 95%):** {med:.1f} [{lo:.1f}, {hi:.1f}]")
-                        
-                    
-                        
-                        # Estado del consenso
+
                         if pct >= 80 and lo >= 7:
                             st.success("CONSENSO: Se aprobó la recomendación.")
                         elif pct >= 80 and hi <= 3:
                             st.error("CONSENSO: No se aprobó la recomendación.")
                         else:
                             st.warning("No se alcanzó consenso en esta ronda.")
-                    
-                    # Mostrar los comentarios de esta ronda
+
                     if round_data['comments']:
                         st.subheader("Comentarios")
                         for pid, name, vote, comment in zip(round_data['ids'], round_data['names'], round_data['votes'], round_data['comments']):
                             if comment:
                                 st.markdown(f"**{name} (ID: {pid})** - Voto: {vote}\n>{comment}")
+
             st.markdown("</div>", unsafe_allow_html=True)
-            
-            # Añadir opción para exportar todo el historial
+
             st.download_button(
-                "Descargar Historial Completo", 
-                to_excel(code), 
+                "Descargar Historial Completo",
+                to_excel(code),
                 file_name=f"historial_completo_{code}.xlsx",
                 help="Descarga todas las rondas de esta sesión en un solo archivo"
             )
-            
-            # Gráfico de evolución del consenso a través de las rondas
-            if len(history) > 1:
+
+            if len(rounds_history) > 1:
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.subheader("Evolución del Consenso")
-                
-                # Preparar datos para el gráfico
-                round_data = []
-                for r in history:
+                round_data_list = []
+                for r in rounds_history:
                     pct = consensus_pct(r['votes']) * 100
                     med, _, _ = median_ci(r['votes'])
-                    round_data.append({
+                    round_data_list.append({
                         "Ronda": r['round'],
                         "% Consenso": pct,
                         "Mediana": med if r['votes'] else 0
                     })
-                
-                round_df = pd.DataFrame(round_data)
-                
-                # Crear gráfico de evolución
+                round_df = pd.DataFrame(round_data_list)
                 fig = px.line(
-                    round_df, 
-                    x="Ronda", 
+                    round_df,
+                    x="Ronda",
                     y=["% Consenso", "Mediana"],
                     title="Evolución del Consenso por Ronda",
                     markers=True,
                     color_discrete_sequence=["#006B7F", "#3BAFDA"]
                 )
-                
-                # Mejorar el aspecto del gráfico
                 fig.update_layout(
                     xaxis=dict(tickmode='linear', tick0=1, dtick=1),
                     yaxis=dict(title="Valor"),
                     hovermode="x unified",
                     plot_bgcolor='rgba(0,0,0,0)',
                     paper_bgcolor='rgba(0,0,0,0)',
-                    legend=dict(
-                        orientation="h",
-                        yanchor="bottom",
-                        y=1.02,
-                        xanchor="right",
-                        x=1
-                    )
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                 )
-                
-                # Agregar una línea de referencia en 80% para el consenso
                 fig.add_shape(
                     type="line",
                     x0=0,
                     y0=80,
-                    x1=len(history)+1,
+                    x1=len(rounds_history) + 1,
                     y1=80,
-                    line=dict(
-                        color="#FF4B4B",
-                        width=2,
-                        dash="dash",
-                    ),
+                    line=dict(color="#FF4B4B", width=2, dash="dash"),
                     name="Umbral de Consenso (80%)"
                 )
-                
                 st.plotly_chart(fig, use_container_width=True)
                 st.markdown("</div>", unsafe_allow_html=True)
-                
-                # Añadir informe comparativo
+
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.subheader("Análisis Comparativo de Rondas")
-                
-                # Comparar la primera y la última ronda
-                first_round = history[0]
-                last_round = history[-1]
-                
+                first_round = rounds_history[0]
+                last_round = rounds_history[-1]
                 first_pct = consensus_pct(first_round['votes']) * 100
                 last_pct = consensus_pct(last_round['votes']) * 100
-                
-                st.write(f"**Cambio en % de consenso:** {first_pct:.1f}% → {last_pct:.1f}% ({last_pct-first_pct:+.1f}%)")
-                
+                st.write(f"**Cambio en % de consenso:** {first_pct:.1f}% → {last_pct:.1f}% ({last_pct - first_pct:+.1f}%)")
                 if first_round['votes'] and last_round['votes']:
                     first_med, _, _ = median_ci(first_round['votes'])
                     last_med, _, _ = median_ci(last_round['votes'])
-                    
-                    st.write(f"**Cambio en mediana:** {first_med:.1f} → {last_med:.1f} ({last_med-first_med:+.1f})")
-                
-                # Resumen del proceso
+                    st.write(f"**Cambio en mediana:** {first_med:.1f} → {last_med:.1f} ({last_med - first_med:+.1f})")
                 if last_pct >= 80:
                     st.success("Se alcanzó consenso al final del proceso.")
                 else:
                     st.warning("No se alcanzó consenso a pesar de múltiples rondas.")
-                
                 st.markdown("</div>", unsafe_allow_html=True)
+
 
 # Agregar funcionalidad para guardar/cargar sesiones
 st.sidebar.markdown("---")
