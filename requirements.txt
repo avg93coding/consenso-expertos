@@ -4,3 +4,5 @@ plotly
 qrcode
 openpyxl
 openai
+numpy
+scipy
