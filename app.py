@@ -48,7 +48,6 @@ def get_data_store():
     return {'sessions': {}}
 
 # == Funciones Auxiliares ==
-
 def generar_codigo():
     return uuid.uuid4().hex[:6].upper()
 
@@ -111,9 +110,8 @@ def resumen_comentarios(comments: list) -> str:
     return "API de OpenAI no configurada."
 
 # == Página de Votación ==
-# Detecta session en query params una sola vez
 def pagina_votacion():
-    params = st.experimental_get_query_params()
+    params = st.query_params
     initial = params.get('session', [None])[0]
     st.markdown('<div class="hide-sidebar">',unsafe_allow_html=True)
 
@@ -145,6 +143,7 @@ def pagina_votacion():
 pagina_votacion()
 
 # == Páginas de Administración ==
+
 def pagina_inicio():
     st.markdown("<div class='app-header'>Panel de Consenso</div>",unsafe_allow_html=True)
     with st.form("crear_form", clear_on_submit=True):
@@ -200,8 +199,7 @@ def pagina_tablero():
         st.plotly_chart(fig, use_container_width=True)
     if comentarios:
         st.subheader("Comentarios y IDs anónimos")
-        for pid, c in zip(ids, comentarios):
-            st.write(f"{pid}: {c}")
+        for pid, c in zip(ids, comentarios): st.write(f"{pid}: {c}")
 
 # == Navegación Lateral ==
 pag = {'Inicio': pagina_inicio, 'Tablero': pagina_tablero}
