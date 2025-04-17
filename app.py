@@ -6,6 +6,7 @@ import uuid
 import qrcode
 import io
 import hashlib
+from datetime import datetime
 from scipy import stats
 
 # 1) Configuración de la página
@@ -13,12 +14,15 @@ st.set_page_config(
     page_title="Dashboard de Consenso",
     page_icon="🎯",
     layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# 2) Store global compartido (cache_resource para todos los usuarios)
-@st.cache_resource
+# 2) Store global en session_state
 def get_store():
-    return {}
+    if "store" not in st.session_state:
+        st.session_state.store = {}
+    return st.session_state.store
+
 store = get_store()
 
 # 3) Utilidades
@@ -34,10 +38,12 @@ def make_session(desc: str, scale: str) -> str:
     }
     return code
 
+
 def hash_id(name: str) -> str:
     return hashlib.sha256(name.encode()).hexdigest()[:8]
 
-def record_vote(code: str, vote, comment: str, name: str):
+
+def record_vote(code: str, vote, comment: str, name: str) -> str:
     s = store[code]
     pid = hash_id(name or str(uuid.uuid4()))
     s["votes"].append(vote)
@@ -46,8 +52,11 @@ def record_vote(code: str, vote, comment: str, name: str):
     s["names"].append(name)
     return pid
 
+
 def consensus_pct(votes):
-    return sum(1 for v in votes if isinstance(v,int) and v>=7) / len(votes) if votes else 0.0
+    if not votes: return 0.0
+    return sum(1 for v in votes if isinstance(v, int) and v >= 7) / len(votes)
+
 
 def median_ci(votes):
     arr = np.array(votes)
@@ -55,13 +64,18 @@ def median_ci(votes):
     res = stats.bootstrap((arr,), np.median, confidence_level=0.95, n_resamples=1000)
     return med, res.confidence_interval.low, res.confidence_interval.high
 
-def make_qr(code: str):
-    base = st.secrets["BASE_URL"]
-    img = qrcode.make(f"{base}?session={code}")
-    buf = io.BytesIO(); img.save(buf, format="PNG"); buf.seek(0)
+
+def make_qr(code: str) -> io.BytesIO:
+    base = st.secrets.get("BASE_URL", "http://localhost:8501")
+    url = f"{base}?session={code}"
+    img = qrcode.make(url)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
     return buf
 
-def to_excel(code: str):
+
+def to_excel(code: str) -> io.BytesIO:
     s = store[code]
     df = pd.DataFrame({
         "ID anónimo": s["ids"],
@@ -70,88 +84,128 @@ def to_excel(code: str):
         "Voto": s["votes"],
         "Comentario": s["comments"]
     })
-    df["Consenso"] = ["Sí" if consensus_pct(s["votes"])>=0.8 else "No"] * len(df)
-    buf = io.BytesIO(); df.to_excel(buf, index=False); buf.seek(0)
+    df["Consenso"] = ["Sí" if consensus_pct(s["votes"]) >= 0.8 else "No" for _ in s["votes"]]
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False)
+    buf.seek(0)
     return buf
 
-def summarize(comments):
-    return "\n".join(comments[:5]) + ("..." if len(comments)>5 else "")
 
-# 4) VOTACIÓN (solo si hay ?session=)
-params = st.query_params
-if "session" in params:
-    code = params["session"][0]
-    st.markdown("## Votación de Expertos")
-    if code not in store:
-        st.error("Sesión no válida.")
-        st.stop()
-    s = store[code]
+def summarize_comments(comments: list) -> str:
+    if not comments:
+        return "No hay comentarios."
+    return "\n".join(comments[:5]) + ("..." if len(comments) > 5 else "")
+
+# 4) CSS global
+ACCENT = "#6C63FF"
+BG = "#FFFFFF"
+CARD_BG = "#F8F8F8"
+TEXT = "#333333"
+FONT = "'Segoe UI', Tahoma, Verdana, sans-serif"
+
+st.markdown(f"""
+<style>
+  .stApp {{ background-color: {BG} !important; color: {TEXT}; font-family: {FONT}; }}
+  .app-header {{ background-color: {ACCENT}; padding: 1.5rem; border-radius: 0 0 10px 10px; text-align: center; color: white; font-size: 2rem; font-weight: bold; }}
+  .metric-card {{ background: {CARD_BG} !important; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); padding: 1rem; margin-bottom: 1rem; }}
+  .stButton>button {{ background-color: {ACCENT} !important; color: white !important; padding: 0.6rem 1.2rem !important; border-radius: 6px !important; }}
+  .stButton>button:hover {{ background-color: #5930C4 !important; }}
+  input, textarea {{ background-color: {CARD_BG} !important; color: {TEXT} !important; }}
+  .hide-sidebar [data-testid="stSidebar"], .hide-sidebar [data-testid="stToolbar"] {{ display: none; }}
+</style>
+""", unsafe_allow_html=True)
+
+# 5) Función de votación
+def voting_page():
+    st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
+    st.header("Votación de Expertos")
+
+    # Dropdown de sesiones activas o QR param
+    sessions = list(store.keys())
+    if not sessions:
+        st.warning("Aún no hay sesiones.")
+        return
+
+    params = st.query_params
+    initial = params.get("session", [""])[0]
+    code = initial or st.selectbox("Selecciona sesión:", sessions)
+
+    s = store.get(code)
+    if not s:
+        st.error("Sesión inválida.")
+        return
+
     name = st.text_input("Nombre de participante:")
     pid = hash_id(name or str(uuid.uuid4()))
-    st.write(f"**Recomendación:** {s['desc']}")
+
+    st.subheader(s["desc"])
     vote = (st.slider("Tu voto (1–9):", 1, 9, 5)
             if s["scale"].startswith("Likert")
             else st.radio("Tu voto:", ["Sí","No"]))
     comment = st.text_area("Comentario (opcional):")
+
     if st.button("Enviar voto"):
         record_vote(code, vote, comment, name)
-        pct = int(consensus_pct(s["votes"])*100)
+        pct = int(consensus_pct(s["votes"]) * 100)
         st.progress(pct)
-        st.success(f"Voto registrado (ID: {pid}).")
-    st.stop()
+        st.success(f"Voto registrado (ID: {pid})")
+        st.stop()
 
-# 5) PANEL DE MODERADOR
-st.sidebar.title("Moderador")
-mode = st.sidebar.radio("Ir a:", ["Inicio","Dashboard"])
+# Enrutamiento simple
+menu = st.sidebar.radio("Menú", ["Inicio","Votación","Dashboard"])
 
-if mode=="Inicio":
-    st.header("🔧 Crear Sesión")
-    with st.form("form"):
+if menu == "Inicio":
+    st.header("Crear Nueva Sesión")
+    with st.form("create_form", clear_on_submit=True):
         desc = st.text_input("Recomendación:")
         scale = st.selectbox("Escala:", ["Likert 1-9","Sí/No"])
         if st.form_submit_button("Crear sesión") and desc:
             code = make_session(desc, scale)
-            st.success(f"Código: **{code}**")
-            st.image(make_qr(code), caption="Escanea para votar", width=200)
-
+            st.success(f"Sesión creada: **{code}**")
+            st.image(make_qr(code), caption="Escanea para votar", width=180)
+elif menu == "Votación":
+    voting_page()
 else:
-    st.header("📊 Dashboard en Vivo")
-    codes = list(store.keys())
-    if not codes:
+    st.header("Dashboard en Vivo")
+    sessions = list(store.keys())
+    if not sessions:
         st.info("No hay sesiones activas.")
     else:
-        sel = st.selectbox("Sesión activa:", codes)
-        s = store[sel]
+        code = st.selectbox("Selecciona sesión:", sessions)
+        s = store[code]
         votes, comments, ids = s["votes"], s["comments"], s["ids"]
-        pct = consensus_pct(votes)
-        med, lo, hi = median_ci(votes) if votes else (None,None,None)
 
-        c1,c2,c3 = st.columns(3)
-        c1.metric("Votos totales", len(votes))
-        c2.metric("% Consenso", f"{pct*100:.1f}%")
-        if med is not None:
-            c3.metric("Mediana (IC95%)", f"{med:.1f} [{lo:.1f},{hi:.1f}]")
-
+        # Métricas
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Total votos", len(votes))
+        pct = consensus_pct(votes)*100
+        c2.metric("% Consenso", f"{pct:.1f}%")
         if votes:
-            if pct>=0.8 and med>=7 and lo>=7:
-                st.success("✅ Umbral aprobado")
-            elif pct>=0.8 and med<=3 and hi<=3:
-                st.error("❌ Umbral no aprobado")
+            med, lo, hi = median_ci(votes)
+            c3.metric("Mediana (IC95)", f"{med:.1f} [{lo:.1f},{hi:.1f}]")
+
+        # Interpretación
+        if votes:
+            if pct >=80 and lo >= 7:
+                st.success("Se aprueba el umbral.")
+            elif pct >=80 and hi <= 3:
+                st.error("No se aprueba el umbral.")
             else:
-                st.warning("⚠️ Segunda ronda necesaria")
+                st.warning("No hay consenso; segunda ronda necesaria.")
 
-        d1,d2 = st.columns(2)
-        d1.download_button("📥 Descargar Excel", to_excel(sel),
-                           file_name=f"res_{sel}.xlsx")
-        d2.download_button("📥 Descargar Resumen", summarize(comments),
-                           file_name=f"rep_{sel}.txt")
+        # Descargas
+        d1, d2 = st.columns(2)
+        d1.download_button("Descargar Excel", to_excel(code), file_name=f"res_{code}.xlsx")
+        d2.download_button("Descargar Resumen", summarize_comments(comments), file_name=f"rep_{code}.txt")
 
+        # Gráfica
         if votes:
             df = pd.DataFrame({"Voto": votes})
             fig = px.histogram(df, x="Voto", nbins=9 if s["scale"].startswith("Likert") else 2)
             st.plotly_chart(fig, use_container_width=True)
 
+        # Traza comentarios
         if comments:
             st.subheader("Comentarios (ID anónimo)")
             for pid, com in zip(ids, comments):
-                st.write(f"- {pid}: {com}")
+                st.write(f"{pid}: {com}")
