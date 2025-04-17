@@ -579,54 +579,101 @@ elif menu == "Dashboard":
                 else:
                     st.warning("⚠️ CONSENSO NO ALCANZADO: Se recomienda realizar otra ronda.")
                     
-                 # Opción para iniciar nueva ronda
-if st.button("Iniciar nueva ronda"):
-    # Marcar que vamos a modificar la recomendación y mantenernos en Dashboard
-    st.session_state["modify_recommendation"] = True
-    st.session_state["current_code"] = code
-    st.session_state["menu"] = "Dashboard"
+                elif menu == "Dashboard":
+    st.header("Dashboard en Tiempo Real")
 
-    # Guardar automáticamente el historial
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    state_data = {
-        "sessions": store,
-        "history": history
-    }
-    state_str = str(state_data)
-    state_b64 = base64.b64encode(state_str.encode()).decode()
+    # Si no hay sesiones, mostramos aviso
+    if not store:
+        st.info("No hay sesiones activas.")
+    else:
+        # Selector de sesión
+        code = st.selectbox("Seleccionar sesión:", list(store.keys()))
+        s = store[code]
+        votes = s["votes"]
+        pct = int(consensus_pct(votes) * 100)
 
-            
-        # Opción para iniciar nueva ronda
+        # Métricas
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total votos", len(votes))
+        col2.metric("% Consenso", f"{pct}%")
+        if votes:
+            med, lo, hi = median_ci(votes)
+            col3.metric("Mediana (IC95%)", f"{med:.1f} [{lo:.1f},{hi:.1f}]")
+
+        st.markdown("---")
+
+        # 1) Botón para iniciar nueva ronda
         if st.button("Iniciar nueva ronda"):
-            st.session_state["modify_recommendation"] = True
-            st.session_state["current_code"] = code
-            st.session_state["menu"] = "Dashboard"
-            
-            # Guardar automáticamente el historial
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            state_data = {
-                "sessions": store,
-                "history": history
-            }
-            state_str = str(state_data)
-            state_b64 = base64.b64encode(state_str.encode()).decode()
-            
-            # Guardar en archivo
-            backup_filename = f"odds_backup_auto_{code}_{timestamp}.txt"
-            with open(backup_filename, "w") as f:
-                f.write(state_b64)
-            
-            st.success(f"Se ha guardado automáticamente el historial en {backup_filename}")
-        
-        # UI para modificar la recomendación y crear nueva ronda
+            # Guardar estado actual en historial
+            old = copy.deepcopy(s)
+            history.setdefault(code, []).append(old)
+
+            # Incrementar ronda y resetear votos/comentarios
+            next_round = s["round"] + 1
+            store[code].update({
+                "votes": [],
+                "comments": [],
+                "ids": [],
+                "names": [],
+                "round": next_round,
+                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+
+            st.success(f"Nueva ronda iniciada: Ronda {next_round}")
+            st.info("Por favor, vuelve a seleccionar la sesión para refrescar los datos.")
+
+        st.markdown("---")
+
+        # 2) UI para modificar la recomendación y crear la ronda (si se activó)
         if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
-            s = store[code]  # Re-obtenemos la sesión
+            s = store[code]
             with st.form("new_round_form", clear_on_submit=True):
                 new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
-                if st.form_submit_button("Iniciar nueva ronda de votación"):
-                    # 1) Copiar la ronda actual al historial
-                    old = copy.deepcopy(store[code])
-                    history.setdefault(code, []).append(old)
+                if st.form_submit_button("Confirmar nueva ronda"):
+                    # Guardar histórica (nuevamente, por si hubo cambios antes de form)
+                    past = copy.deepcopy(s)
+                    history.setdefault(code, []).append(past)
+
+                    # Aplicar cambios y resetear
+                    next_round = s["round"] + 1
+                    store[code].update({
+                        "desc": new_desc,
+                        "votes": [],
+                        "comments": [],
+                        "ids": [],
+                        "names": [],
+                        "round": next_round,
+                        "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+
+                    st.success(f"Recomendación actualizada. Ahora estás en la ronda {next_round}.")
+                    # Desactivar el flag y pedir al usuario que recargue
+                    st.session_state["modify_recommendation"] = False
+                    st.info("Selecciona la sesión de nuevo para ver la ronda actualizada.")
+
+        st.markdown("---")
+
+        # 3) Botones de descarga
+        colA, colB = st.columns(2)
+        colA.download_button("📥 Descargar Excel", to_excel(code), file_name=f"res_{code}.xlsx")
+        colB.download_button("📥 Descargar Reporte", create_report(code), file_name=f"reporte_{code}.txt")
+
+        # 4) Mostrar historial de rondas
+        if code in history and history[code]:
+            st.subheader("Historial de Rondas Anteriores")
+            for rnd in history[code]:
+                st.markdown(f"- Ronda {rnd['round']} (creada: {rnd['created_at']})")
+
+        # 5) Gráfica de la ronda actual
+        if votes:
+            df = pd.DataFrame({"Voto": votes})
+            if s["scale"].startswith("Likert"):
+                fig = px.histogram(df, x="Voto", nbins=9)
+            else:
+                counts = {"Sí": votes.count("Sí"), "No": votes.count("No")}
+                fig = px.pie(values=list(counts.values()), names=list(counts.keys()))
+            st.plotly_chart(fig, use_container_width=True)
+
 
                     # 2) Resetear para la nueva ronda
                     next_round = store[code]["round"] + 1
