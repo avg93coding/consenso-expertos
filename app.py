@@ -21,10 +21,15 @@ st.set_page_config(
 
 # 2) Almacenamiento persistente utilizando session_state
 # Esto asegura que las sesiones persistan incluso cuando Streamlit se reinicia
-if "sessions" not in st.session_state:
-    st.session_state.sessions = {}
-if "history" not in st.session_state:
-    st.session_state.history = {}
+# Diccionario compartido en todo el servidor
+@st.cache_resource
+def get_store():
+    return {}
+
+store = get_store()
+# (Puedes mantener el history en memoria si lo necesitas:)
+history = {}
+
 
 # 3) Utilidades
 def make_session(desc: str, scale: str) -> str:
@@ -41,19 +46,19 @@ def make_session(desc: str, scale: str) -> str:
         "round": 1
     }
     
-    st.session_state.sessions[code] = session_data
+    store[code] = session_data
     # Inicializar historial para esta sesión
-    st.session_state.history[code] = [session_data.copy()]
+    history[code] = [session_data.copy()]
     return code
 
 def hash_id(name: str) -> str:
     return hashlib.sha256(name.encode()).hexdigest()[:8]
 
 def record_vote(code: str, vote, comment: str, name: str):
-    if code not in st.session_state.sessions:
+    if code not in store:
         return None
     
-    s = st.session_state.sessions[code]
+    s = store[code]
     pid = hash_id(name or str(uuid.uuid4()))
     
     # Evitar votos duplicados por nombre
@@ -126,10 +131,10 @@ def get_qr_code_image_html(code):
     return html
 
 def to_excel(code: str) -> io.BytesIO:
-    if code not in st.session_state.sessions:
+    if code not in store:
         return io.BytesIO()
     
-    s = st.session_state.sessions[code]
+    s = store[code]
     df = pd.DataFrame({
         "ID anónimo": s["ids"],
         "Nombre real": s["names"],
@@ -141,8 +146,8 @@ def to_excel(code: str) -> io.BytesIO:
     })
     
     # Añadir datos de rondas anteriores del historial
-    if code in st.session_state.history:
-        for past_round in st.session_state.history[code][:-1]:  # Excluir la ronda actual
+    if code in history:
+        for past_round in history[code][:-1]:  # Excluir la ronda actual
             hist_df = pd.DataFrame({
                 "ID anónimo": past_round["ids"],
                 "Nombre real": past_round["names"],
@@ -163,10 +168,10 @@ def to_excel(code: str) -> io.BytesIO:
     return buf
 
 def create_report(code: str) -> str:
-    if code not in st.session_state.sessions:
+    if code not in store:
         return "Sesión inválida"
     
-    s = st.session_state.sessions[code]
+    s = store[code]
     pct = consensus_pct(s["votes"]) * 100
     med, lo, hi = median_ci(s["votes"])
     
@@ -189,9 +194,9 @@ COMENTARIOS:
             report += f"{i+1}. {pid}: {comment}\n"
     
     # Añadir historial de rondas anteriores
-    if code in st.session_state.history and len(st.session_state.history[code]) > 1:
+    if code in history and len(history[code]) > 1:
         report += "\nHISTORIAL DE RONDAS ANTERIORES:\n"
-        for i, past_round in enumerate(st.session_state.history[code][:-1]):
+        for i, past_round in enumerate(history[code][:-1]):
             round_pct = consensus_pct(past_round["votes"]) * 100
             report += f"\nRonda {past_round['round']} - {past_round['created_at']}\n"
             report += f"Recomendación: {past_round['desc']}\n"
@@ -340,17 +345,17 @@ if "session" in params:
         st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
         st.markdown('<div class="card">', unsafe_allow_html=True)
         
-        if code not in st.session_state.sessions:
+        if code not in store:
             st.error(f"Sesión inválida o expirada: '{code}'")
             st.info("Por favor, contacte al administrador para obtener un nuevo código de sesión.")
             # Añadir un botón para depuración
             if st.button("Ver sesiones disponibles"):
-                st.write("Sesiones activas:", list(st.session_state.sessions.keys()))
+                st.write("Sesiones activas:", list(store.keys()))
                 st.write("Código recibido:", code)
                 st.write("Tipo de código:", type(code))
             st.stop()
         
-        s = st.session_state.sessions[code]
+        s = store[code]
         
         st.subheader(f"Panel de Votación - Ronda {s['round']}")
         st.markdown(f'<div class="session-badge">Sesión: {code}</div>', unsafe_allow_html=True)
@@ -431,9 +436,9 @@ if menu == "Inicio":
     """)
     st.markdown("</div>", unsafe_allow_html=True)
     
-    if st.session_state.sessions:
+    if store:
         st.subheader("Sesiones Activas")
-        for code, session in st.session_state.sessions.items():
+        for code, session in store.items():
             st.markdown(f"""
             <div class="card">
                 <strong>Código:</strong> {code} | 
@@ -504,13 +509,13 @@ elif menu == "Crear Sesión":
 elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
     
-    if not st.session_state.sessions:
+    if not store:
         st.info("No hay sesiones activas. Cree una nueva sesión para comenzar.")
     else:
-        code = st.selectbox("Seleccionar sesión activa:", list(st.session_state.sessions.keys()))
+        code = st.selectbox("Seleccionar sesión activa:", list(store.keys()))
         
         if code:
-            s = st.session_state.sessions[code]
+            s = store[code]
             votes, comments, ids = s["votes"], s["comments"], s["ids"]
             
             st.markdown(f"""
@@ -586,11 +591,11 @@ elif menu == "Dashboard":
                     new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
                     if st.form_submit_button("Iniciar nueva ronda de votación"):
                         # Guardar la ronda actual en el historial
-                        if code in st.session_state.history:
-                            st.session_state.history[code].append(s.copy())
+                        if code in history:
+                            history[code].append(s.copy())
                         
                         # Crear nueva ronda
-                        st.session_state.sessions[code].update({
+                        store[code].update({
                             "desc": new_desc,
                             "votes": [],
                             "comments": [],
@@ -679,13 +684,13 @@ elif menu == "Dashboard":
 elif menu == "Historial":
     st.subheader("Historial de Sesiones")
     
-    if not st.session_state.history:
+    if not history:
         st.info("No hay historial de sesiones disponible.")
     else:
-        code = st.selectbox("Seleccionar sesión:", list(st.session_state.history.keys()))
+        code = st.selectbox("Seleccionar sesión:", list(history.keys()))
         
-        if code and code in st.session_state.history:
-            history = st.session_state.history[code]
+        if code and code in history:
+            history = history[code]
             
             st.markdown('<div class="card">', unsafe_allow_html=True)
             st.write(f"Total de rondas: {len(history)}")
@@ -822,8 +827,8 @@ st.sidebar.subheader("Administración")
 # Opción para guardar el estado actual
 if st.sidebar.button("Guardar Estado"):
     state_data = {
-        "sessions": st.session_state.sessions,
-        "history": st.session_state.history
+        "sessions": store,
+        "history": history
     }
     state_str = str(state_data)  # Serialización simple
     state_b64 = base64.b64encode(state_str.encode()).decode()
@@ -851,8 +856,8 @@ if state_upload is not None:
         
         # Restaurar estado
         if "sessions" in state_data and "history" in state_data:
-            st.session_state.sessions = state_data["sessions"]
-            st.session_state.history = state_data["history"]
+            store = state_data["sessions"]
+            history = state_data["history"]
             st.sidebar.success("Estado restaurado correctamente.")
             st.experimental_rerun()
         else:
