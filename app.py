@@ -579,20 +579,22 @@ elif menu == "Dashboard":
                 else:
                     st.warning("⚠️ CONSENSO NO ALCANZADO: Se recomienda realizar otra ronda.")
                     
-                    # Opción para iniciar nueva ronda
-                    if st.button("Iniciar nueva ronda"):
+                 # Opción para iniciar nueva ronda
+if st.button("Iniciar nueva ronda"):
+    # Marcar que vamos a modificar la recomendación y mantenernos en Dashboard
     st.session_state["modify_recommendation"] = True
     st.session_state["current_code"] = code
-    st.session_state["menu"] = "Dashboard"  # Asegura que se mantenga en Dashboard
-            # Después del botón "Iniciar nueva ronda de votación"
-            # Guardar automáticamente el historial
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            state_data = {
-                "sessions": store,
-                "history": history
-            }
-            state_str = str(state_data)
-            state_b64 = base64.b64encode(state_str.encode()).decode()
+    st.session_state["menu"] = "Dashboard"
+
+    # Guardar automáticamente el historial
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    state_data = {
+        "sessions": store,
+        "history": history
+    }
+    state_str = str(state_data)
+    state_b64 = base64.b64encode(state_str.encode()).decode()
+
             
             # Guardar en archivo
             backup_filename = f"odds_backup_auto_{code}_{timestamp}.txt"
