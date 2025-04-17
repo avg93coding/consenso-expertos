@@ -13,7 +13,7 @@ from scipy import stats
 
 # 1) Configuración de la página
 st.set_page_config(
-    page_title="ODDS Epidemiology - Dashboard de Consenso",
+    page_title="ODDS Epidemiology - Dashboard Consenso de expertos",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="collapsed"
