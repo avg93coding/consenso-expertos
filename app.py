@@ -16,23 +16,17 @@ st.set_page_config(
     layout="wide",
 )
 
-# 2) Almacenamiento en memoria (persistente mientras corre la app)
+# 2) Almacenamiento en memoria
 @st.cache_resource
 def get_store():
     return {}
 
 store = get_store()
 
-# 3) Funciones auxiliares
-def make_session(description: str, scale: str) -> str:
+# 3) Utilidades
+def make_session(desc: str, scale: str) -> str:
     code = uuid.uuid4().hex[:6].upper()
-    store[code] = {
-        "description": description,
-        "scale": scale,
-        "votes": [],
-        "comments": [],
-        "ids": []
-    }
+    store[code] = {"desc": desc, "scale": scale, "votes": [], "comments": [], "ids": []}
     return code
 
 def hash_id(name: str) -> str:
@@ -46,8 +40,7 @@ def record_vote(code: str, vote, comment: str, pid: str):
 
 def consensus_pct(votes):
     if not votes: return 0.0
-    # porcentaje de votos ≥7 en escala Likert
-    return sum(1 for v in votes if isinstance(v,int) and v>=7)/len(votes)
+    return sum(1 for v in votes if isinstance(v,int) and v>=7) / len(votes)
 
 def median_ci(votes):
     arr = np.array(votes)
@@ -57,8 +50,7 @@ def median_ci(votes):
 
 def make_qr(code: str):
     base = st.secrets.get("BASE_URL", "http://localhost:8501")
-    url = f"{base}?session={code}"
-    img = qrcode.make(url)
+    img = qrcode.make(f"{base}?session={code}")
     buf = io.BytesIO(); img.save(buf, format="PNG"); buf.seek(0)
     return buf
 
@@ -66,7 +58,7 @@ def to_excel(code: str):
     s = store[code]
     df = pd.DataFrame({
         "ID (anónimo)": s["ids"],
-        "Recomendación": s["description"],
+        "Recomendación": s["desc"],
         "Voto": s["votes"],
         "Comentario": s["comments"]
     })
@@ -75,62 +67,58 @@ def to_excel(code: str):
     return buf
 
 def summarize(comments):
-    # simplificado: lista de primeros 5 comentarios
-    return "\n".join(comments) if len(comments)<=5 else "\n".join(comments[:5]) + "\n..."
+    return "\n".join(comments[:5]) + ("..." if len(comments)>5 else "")
 
-# 4) Página de VOTACIÓN
+# 4) Página de votación
 def voting_page():
-    params = st.experimental_get_query_params()
-    code = params.get("session", [None])[0]
-    st.markdown("<style>.css-1d391kg {display: none;}</style>", unsafe_allow_html=True)
-    st.markdown("<h2>Votación de Expertos</h2>", unsafe_allow_html=True)
-    code_input = st.text_input("Código de sesión:", value=code or "")
-    if not code_input:
-        st.warning("Escanea el QR o ingresa el código para comenzar.")
-        st.stop()
+    params = st.query_params
+    init = params.get("session", [None])[0]
+    code = st.text_input("Código de sesión:", value=init or "")
+    if not code:
+        st.info("Escanea el QR o introduce el código para empezar a votar.")
+        return
 
-    if code_input not in store:
+    if code not in store:
         st.error("Código inválido.")
-        st.stop()
+        return
 
-    s = store[code_input]
-    # pedir nombre
+    s = store[code]
     name = st.text_input("Tu nombre (se anonimiza):")
     pid = hash_id(name or str(uuid.uuid4()))
 
-    st.write(f"**Recomendación:** {s['description']}")
+    st.markdown(f"### Recomendación:\n**{s['desc']}**")
     vote = (st.slider("Tu voto (1–9):", 1, 9, 5)
             if s["scale"].startswith("Likert")
             else st.radio("Tu voto:", ["Sí","No"]))
     comment = st.text_area("Comentario (opcional):")
 
     if st.button("Enviar voto"):
-        record_vote(code_input, vote, comment, pid)
+        record_vote(code, vote, comment, pid)
         pct = int(consensus_pct(s["votes"])*100)
         st.progress(pct)
-        st.success("¡Voto registrado!")
-        st.stop()
+        st.success("Voto registrado.")
 
-# si se accede con ?session=XXX mostramos solo votación
-if st.experimental_get_query_params().get("session"):
+# Si se accede con ?session=XYZ, mostramos solo la votación
+if st.query_params.get("session"):
+    st.markdown("<style>.css-1d391kg{display:none;}</style>", unsafe_allow_html=True)
     voting_page()
+    st.stop()
 
 # 5) Panel de administración
-st.sidebar.title("Panel de Administración")
+st.sidebar.title("Administración")
 page = st.sidebar.radio("Ir a:", ["Inicio","Reportes Finales"])
 
 if page=="Inicio":
-    st.header("Crear nueva sesión")
+    st.header("🔧 Crear nueva sesión")
     with st.form("form_create", clear_on_submit=True):
         desc = st.text_input("Recomendación:")
         scale = st.selectbox("Escala:", ["Likert 1-9","Sí/No"])
         if st.form_submit_button("Crear sesión") and desc:
             code = make_session(desc, scale)
             st.success(f"Código de sesión: **{code}**")
-            st.image(make_qr(code), caption="Escanea para votar", width=180)
-
+            st.image(make_qr(code), caption="Escanea para votar")
 else:
-    st.header("Reportes Finales")
+    st.header("📊 Reportes Finales")
     code = st.text_input("Código de sesión:")
     if not code:
         st.info("Introduce un código para ver resultados.")
@@ -142,7 +130,6 @@ else:
         pct = consensus_pct(votes)
         med, lo, hi = median_ci(votes) if votes else (None,None,None)
 
-        # Métricas
         c1,c2,c3 = st.columns(3)
         c1.metric("Total votos", len(votes))
         c2.metric("% Consenso", f"{pct*100:.1f}%")
@@ -156,22 +143,22 @@ else:
             elif pct>=0.8 and med<=3 and hi<=3:
                 st.error("❌ No se aprueba el umbral.")
             else:
-                st.warning("⚠️ No se alcanza consenso; segunda ronda necesaria.")
+                st.warning("⚠️ Se requiere segunda ronda.")
 
         # Descargas
         colA, colB = st.columns(2)
-        colA.download_button("📥 Descargar Excel", data=to_excel(code),
+        colA.download_button("📥 Descargar Excel", to_excel(code),
                              file_name=f"resultados_{code}.xlsx")
-        colB.download_button("📥 Descargar Resumen", data=summarize(comments),
+        colB.download_button("📥 Descargar Resumen", summarize(comments),
                              file_name=f"reporte_{code}.txt")
 
-        # Gráfica y comentarios
+        # Gráfica
         if votes:
             df = pd.DataFrame({"Voto": votes})
             fig = px.histogram(df, x="Voto", nbins=9 if s["scale"].startswith("Likert") else 2)
-            fig.update_layout(plot_bgcolor=BG, paper_bgcolor=BG, colorway=[ACCENT])
             st.plotly_chart(fig, use_container_width=True)
 
+        # Comentarios con ID
         if comments:
             st.subheader("Comentarios y IDs")
             for pid, com in zip(ids, comments):
