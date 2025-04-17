@@ -401,7 +401,7 @@ if "session" in params:
                     st.error("Error al registrar el voto. La sesión puede haber expirado.")
         
         # Botón para volver a la página principal
-       if st.button("Finalizar votación", key="finish_voting"):
+    if st.button("Finalizar votación", key="finish_voting"):
            st.success("Gracias por su participación. Puede cerrar esta ventana.")
             
        st.markdown("</div>", unsafe_allow_html=True)
