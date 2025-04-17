@@ -578,12 +578,30 @@ elif menu == "Dashboard":
                 else:
                     st.warning("⚠️ CONSENSO NO ALCANZADO: Se recomienda realizar otra ronda.")
                 
-                # Botones de acción para nueva ronda
-                st.subheader("Administrar Rondas")
-                if st.button("Iniciar nueva ronda"):
-                    # Guardar estado actual en historial
-                    old_round = copy.deepcopy(s)
-                    history.setdefault(code, []).append(old_round)
+               # Botones de acción para nueva ronda
+st.subheader("Administrar Rondas")
+
+if st.button("Iniciar nueva ronda"):
+    if code not in history:
+        history[code] = []
+
+    # Copiar ronda actual al historial
+    old_round = copy.deepcopy(s)
+    history[code].append(old_round)
+
+    # Mostrar confirmación
+    st.success(f"✅ Ronda {s['round']} guardada. Total en historial: {len(history[code])}")
+
+    # Mostrar formulario para nueva ronda
+    st.session_state["modify_recommendation"] = True
+    st.session_state["current_code"] = code
+
+# Mostrar formulario si está activado
+if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
+    with st.form("new_round_form"):
+        new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
+        submit_button = st.form_submit_button("_
+
                     
                     # Activar flag para mostrar el formulario de modificación
                     st.session_state["modify_recommendation"] = True
