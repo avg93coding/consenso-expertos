@@ -946,25 +946,21 @@ elif menu == "Registro Previo":
         with col2:
             st.info("Sin registros aún.")
 
-# -------------------------------
-# 🗑️ Opción para borrar registros
-# -------------------------------
-st.markdown("---")
-st.subheader("🗑️ Borrar registros")
+    # 🗑️ Borrar registros (SOLO dentro del menú Registro Previo)
+    st.markdown("---")
+    st.subheader("🗑️ Borrar registros")
 
-if st.button("❌ Borrar todos los registros de conflicto y confidencialidad"):
-    # Limpiar session_state
-    st.session_state["registro_conflicto"] = []
-    st.session_state["registro_confidencialidad"] = []
+    if st.button("❌ Borrar todos los registros de conflicto y confidencialidad"):
+        st.session_state["registro_conflicto"] = []
+        st.session_state["registro_confidencialidad"] = []
 
-    # Borrar archivos físicos
-    try:
-        os.remove(os.path.join(DATA_DIR, "registro_conflicto.csv"))
-        os.remove(os.path.join(DATA_DIR, "registro_confidencialidad.csv"))
-    except FileNotFoundError:
-        pass
+        try:
+            os.remove(os.path.join(DATA_DIR, "registro_conflicto.csv"))
+            os.remove(os.path.join(DATA_DIR, "registro_confidencialidad.csv"))
+        except FileNotFoundError:
+            pass
 
-    st.success("Registros eliminados correctamente.")
+        st.success("Registros eliminados correctamente.")
 
 
 
