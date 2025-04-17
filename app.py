@@ -484,11 +484,12 @@ elif menu == "Crear Sesión":
                 url = create_qr_code_url(code)
                 st.info(f"URL para compartir: {url}")
                 
+                # Mostrar URL completa para verificación
+                url = create_qr_code_url(code)
+                st.info(f"URL para compartir: {url}")
+                
                 # Facilitar la prueba del enlace para el administrador
-                # Mostrar URL completa para verificación y enlace directo
-url = create_qr_code_url(code)
-st.info(f"URL para compartir: {url}")
-st.write(f"Para probar: [Abrir página de votación]({url})")
+                st.write(f"Para probar: [Abrir página de votación]({url})")
                 
                 st.markdown("""
                 <div class="helper-text">
