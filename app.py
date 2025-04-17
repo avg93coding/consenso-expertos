@@ -523,11 +523,7 @@ elif menu == "Dashboard":
             """, unsafe_allow_html=True)
             
          
-            
-            # Botón para probar la URL de votación
-            if st.button("Probar enlace de votación"):
-                st.session_state.redirect_url = create_qr_code_url(code)
-                st.markdown(f"[Abrir página de votación]({create_qr_code_url(code)})")
+    
             
             # Métricas principales
             col1, col2, col3 = st.columns(3)
