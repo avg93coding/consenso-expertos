@@ -591,10 +591,13 @@ elif menu == "Dashboard":
             with col1:
                 if st.button("Finalizar esta sesión"):
                     store[code]["is_active"] = False
-                    st.success("✅ La sesión ha sido finalizada. Ya no aceptará más votos.")
+                    old_round = copy.deepcopy(s)
+                    history.setdefault(code, []).append(old_round)
+                    st.success("✅ La sesión ha sido finalizada y guardada en el historial.")
                     st.rerun()
+
             with col2:
-                if st.button("Guardar ronda en historial"):
+                if st.button("Guardar ronda manualmente en historial"):
                     old_round = copy.deepcopy(s)
                     history.setdefault(code, []).append(old_round)
                     st.success(f"📝 Ronda {s['round']} guardada en el historial.")
@@ -613,7 +616,151 @@ elif menu == "Dashboard":
             </div>
             """, unsafe_allow_html=True)
 
-            # ... El resto del código continúa aquí (métricas, visualizaciones, exportaciones, etc.)
+            # Métricas
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">Total votos</div>
+                    <div class="metric-value">{len(votes)}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            pct = consensus_pct(votes) * 100
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">% Consenso</div>
+                    <div class="metric-value">{pct:.1f}%</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            if votes:
+                med, lo, hi = median_ci(votes)
+                with col3:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-label">Mediana (IC 95%)</div>
+                        <div class="metric-value">{med:.1f} [{lo:.1f}, {hi:.1f}]</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+
+            if votos_actuales < quorum:
+                st.info(f"🕒 Aún no se alcanza el quórum mínimo requerido de {quorum} votos.")
+            else:
+                if pct >= 80 and all([not np.isnan(lo), not np.isnan(hi), 7 <= med <= 9, 7 <= lo <= 9, 7 <= hi <= 9]):
+                    st.success("✅ CONSENSO ALCANZADO: Se aprueba la recomendación (por mediana + IC95%).")
+                elif pct >= 80:
+                    st.success("✅ CONSENSO ALCANZADO: Se aprueba la recomendación (por porcentaje).")
+                elif pct <= 20 and all([not np.isnan(lo), not np.isnan(hi), 1 <= med <= 3, 1 <= lo <= 3, 1 <= hi <= 3]):
+                    st.error("❌ CONSENSO ALCANZADO: No se aprueba la recomendación (por mediana + IC95%).")
+                elif votes.count(1) + votes.count(2) + votes.count(3) >= 0.8 * votos_actuales:
+                    st.error("❌ CONSENSO ALCANZADO: No se aprueba la recomendación (por porcentaje).")
+                else:
+                    st.warning("⚠️ CONSENSO NO ALCANZADO: Se recomienda realizar otra ronda.")
+
+                st.subheader("Administrar Rondas")
+                if st.button("Iniciar nueva ronda"):
+                    old_round = copy.deepcopy(s)
+                    history.setdefault(code, []).append(old_round)
+                    st.session_state["modify_recommendation"] = True
+                    st.session_state["current_code"] = code
+
+                if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
+                    with st.form("new_round_form"):
+                        new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
+                        submit_button = st.form_submit_button("Confirmar nueva ronda")
+                        if submit_button:
+                            next_round = s["round"] + 1
+                            store[code].update({
+                                "desc": new_desc,
+                                "votes": [],
+                                "comments": [],
+                                "ids": [],
+                                "names": [],
+                                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "round": next_round
+                            })
+
+                            st.success(f"✅ Nueva ronda iniciada: Ronda {next_round}")
+
+                            st.markdown('<div class="card">', unsafe_allow_html=True)
+                            st.subheader("Nuevo enlace de votación")
+                            st.markdown(f"<code>{create_qr_code_url(code)}</code>", unsafe_allow_html=True)
+                            st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
+                            st.markdown("</div>", unsafe_allow_html=True)
+
+                            st.session_state["modify_recommendation"] = False
+                            st.stop()
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            if votes:
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                st.subheader("Resultados")
+
+                if s["scale"].startswith("Likert"):
+                    df = pd.DataFrame({"Voto": votes})
+                    fig = px.histogram(
+                        df,
+                        x="Voto",
+                        nbins=9,
+                        title="Distribución de Votos",
+                        color_discrete_sequence=["#006B7F"],
+                        labels={"Voto": "Escala Likert (1-9)", "count": "Frecuencia"}
+                    )
+                    fig.update_layout(
+                        xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+                        bargap=0.1,
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                    )
+                else:
+                    counts = {"Sí": votes.count("Sí"), "No": votes.count("No")}
+                    df = pd.DataFrame(list(counts.items()), columns=["Respuesta", "Conteo"])
+                    fig = px.pie(
+                        df,
+                        values="Conteo",
+                        names="Respuesta",
+                        title="Distribución de Votos",
+                        color_discrete_sequence=["#006B7F", "#3BAFDA"]
+                    )
+
+                st.plotly_chart(fig, use_container_width=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Exportar Datos")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.download_button(
+                    "Descargar Excel Completo",
+                    to_excel(code),
+                    file_name=f"consenso_{code}_ronda{s['round']}.xlsx",
+                    help="Descarga todos los datos de esta sesión incluyendo rondas anteriores"
+                )
+            with col2:
+                st.download_button(
+                    "Descargar Reporte Completo",
+                    create_report(code),
+                    file_name=f"reporte_completo_{code}_ronda{s['round']}.txt",
+                    help="Genera un reporte detallado con métricas, comentarios e historial de todas las rondas"
+                )
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            if comments:
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                st.subheader("Comentarios de los participantes")
+                for i, (pid, name, vote, com) in enumerate(zip(ids, s["names"], votes, comments)):
+                    if com:
+                        st.markdown(f"""
+                        **Participante {name} (ID: {pid})** - Voto: {vote}
+                        > {com}
+                        """)
+                st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 elif menu == "Historial":
