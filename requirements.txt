@@ -5,3 +5,5 @@ plotly
 qrcode
 scipy
 openpyxl
+streamlit-autorefresh
+
