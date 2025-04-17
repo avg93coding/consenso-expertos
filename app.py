@@ -510,18 +510,22 @@ elif menu == "Dashboard":
     if not store:
         st.info("No hay sesiones activas. Cree una nueva sesión para comenzar.")
     else:
+        # Filtrar sesiones activas (opcionalmente)
         code = st.selectbox("Seleccionar sesión activa:", list(store.keys()))
         
         if code:
             s = store[code]
-                # Mostrar botón para finalizar sesión si está activa
-    if s.get("is_active", True):
-        if st.button("Finalizar esta sesión"):
-            store[code]["is_active"] = False
-            st.success("✅ La sesión ha sido finalizada. Ya no aceptará más votos.")
-            st.experimental_rerun()
 
+            # ✅ Mostrar botón para finalizar sesión si está activa
+            if s.get("is_active", True):
+                if st.button("Finalizar esta sesión"):
+                    store[code]["is_active"] = False
+                    st.success("✅ La sesión ha sido finalizada. Ya no aceptará más votos.")
+                    st.experimental_rerun()
+
+            # 👇 Esta línea debe ir dentro del mismo bloque
             votes, comments, ids = s["votes"], s["comments"], s["ids"]
+
             
             st.markdown(f"""
             <div class="card">
