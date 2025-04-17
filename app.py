@@ -521,7 +521,8 @@ elif menu == "Dashboard":
                 if st.button("Finalizar esta sesión"):
                     store[code]["is_active"] = False
                     st.success("✅ La sesión ha sido finalizada. Ya no aceptará más votos.")
-                    st.experimental_rerun()
+                    st.rerun()
+
 
             # 👇 Esta línea debe ir dentro del mismo bloque
             votes, comments, ids = s["votes"], s["comments"], s["ids"]
@@ -608,7 +609,8 @@ elif menu == "Dashboard":
                             
                             st.success(f"Nueva ronda iniciada: Ronda {next_round}")
                             st.session_state["modify_recommendation"] = False
-                            st.experimental_rerun()
+                            st.rerun()
+
                 
                 st.markdown("</div>", unsafe_allow_html=True)
             
@@ -863,7 +865,8 @@ if state_upload is not None:
             store = state_data["sessions"]
             history = state_data["history"]
             st.sidebar.success("Estado restaurado correctamente.")
-            st.experimental_rerun()
+            st.rerun()
+
         else:
             st.sidebar.error("Formato de archivo inválido.")
     except Exception as e:
