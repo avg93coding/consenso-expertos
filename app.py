@@ -509,17 +509,7 @@ if menu == "Inicio":
     """)
     st.markdown("</div>", unsafe_allow_html=True)
     
-    if store:
-        st.subheader("Sesiones Activas")
-        for code, session in store.items():
-            st.markdown(f"""
-            <div class="card">
-                <strong>Código:</strong> {code} | 
-                <strong>Creada:</strong> {session['created_at']} | 
-                <strong>Ronda:</strong> {session['round']} | 
-                <strong>Votos:</strong> {len(session['votes'])}
-            </div>
-            """, unsafe_allow_html=True)
+    
 
 elif menu == "Crear Sesión":
     st.subheader("Crear Nueva Sesión de Consenso")
