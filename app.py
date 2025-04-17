@@ -5,7 +5,7 @@ import plotly.express as px
 import uuid
 import qrcode
 import io
-import hashlibreco
+import hashlib
 import datetime
 import base64
 import copy
