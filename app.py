@@ -402,14 +402,14 @@ if "session" in params:
         
         # Botón para volver a la página principal
        if st.button("Finalizar votación", key="finish_voting"):
-            st.success("Gracias por su participación. Puede cerrar esta ventana.")
+           st.success("Gracias por su participación. Puede cerrar esta ventana.")
             
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.stop()
+       st.markdown("</div>", unsafe_allow_html=True)
+       st.stop()
     except Exception as e:
-        st.error(f"Error al procesar la sesión: {str(e)}")
-        st.info("Por favor, intente escanear el código QR nuevamente o contacte al administrador.")
-        st.stop()
+       st.error(f"Error al procesar la sesión: {str(e)}")
+       st.info("Por favor, intente escanear el código QR nuevamente o contacte al administrador.")
+       st.stop()
 
 # 6) Panel de administración
 odds_header()
