@@ -11,6 +11,8 @@ import base64
 import copy
 import os
 from scipy import stats
+from streamlit_autorefresh import st_autorefresh
+
 
 # 1) Configuración de la página
 st.set_page_config(
