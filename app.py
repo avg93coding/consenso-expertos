@@ -35,21 +35,19 @@ history = {}
 def make_session(desc: str, scale: str) -> str:
     code = uuid.uuid4().hex[:6].upper()
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    session_data = {
-        "desc": desc, 
-        "scale": scale, 
-        "votes": [], 
-        "comments": [], 
-        "ids": [], 
+    store[code] = {
+        "desc": desc,
+        "scale": scale,
+        "votes": [],
+        "comments": [],
+        "ids": [],
         "names": [],
         "created_at": timestamp,
         "round": 1
     }
-    
-    store[code] = session_data
-    # Inicializar historial para esta sesión
-    history[code] = [session_data.copy()]
+    history[code] = []  # inicializamos el historial
     return code
+
 
 def hash_id(name: str) -> str:
     return hashlib.sha256(name.encode()).hexdigest()[:8]
@@ -592,7 +590,19 @@ elif menu == "Dashboard":
                     if st.form_submit_button("Iniciar nueva ronda de votación"):
                         # Guardar la ronda actual en el historial
                         if code in history:
-                            history[code].append(s.copy())
+                            old = copy.deepcopy(store[code])
+                            history[code].append(old)
+                        ronda = store[code]["round"] + 1
+store[code].update({
+    "desc": nueva_desc,
+    "votes": [],
+    "comments": [],
+    "ids": [],
+    "names": [],
+    "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    "round": ronda
+})
+
                         
                         # Crear nueva ronda
                         store[code].update({
