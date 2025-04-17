@@ -438,7 +438,7 @@ odds_header()
 
 st.sidebar.title("Panel de Control")
 st.sidebar.markdown("### ODDS Epidemiology")
-menu = st.sidebar.radio("Navegación", ["Inicio", "Crear Sesión", "Dashboard",  "Registro Previo"])
+menu = st.sidebar.radio("Navegación", ["Inicio", "Crear Recomendación", "Dashboard",  "Registro Previo"])
 
 if menu == "Inicio":
     st.markdown("## Bienvenido al Sistema de votación para Consenso de expertos de ODDS Epidemiology")
@@ -453,7 +453,7 @@ if menu == "Inicio":
     
     
 
-elif menu == "Crear Sesión":
+elif menu == "Crear Recomendación":
     st.subheader("Crear Nueva Recomendación")
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -475,7 +475,7 @@ elif menu == "Crear Sesión":
         </div>
         """, unsafe_allow_html=True)
 
-        if st.form_submit_button("Crear sesión"):
+        if st.form_submit_button("Crear Recomendación"):
             if desc:
                 code = uuid.uuid4().hex[:6].upper()
                 timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
