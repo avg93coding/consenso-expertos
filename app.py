@@ -596,24 +596,54 @@ if st.button("Iniciar nueva ronda"):
     state_b64 = base64.b64encode(state_str.encode()).decode()
 
             
+        # Opción para iniciar nueva ronda
+        if st.button("Iniciar nueva ronda"):
+            st.session_state["modify_recommendation"] = True
+            st.session_state["current_code"] = code
+            st.session_state["menu"] = "Dashboard"
+            
+            # Guardar automáticamente el historial
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            state_data = {
+                "sessions": store,
+                "history": history
+            }
+            state_str = str(state_data)
+            state_b64 = base64.b64encode(state_str.encode()).decode()
+            
             # Guardar en archivo
             backup_filename = f"odds_backup_auto_{code}_{timestamp}.txt"
             with open(backup_filename, "w") as f:
                 f.write(state_b64)
             
             st.success(f"Se ha guardado automáticamente el historial en {backup_filename}")
-            
-            # UI para modificar la recomendación y crear nueva ronda
-if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code"):
-    code = st.session_state["current_code"]
-    s = store[code]  # Necesitamos obtener s nuevamente
-    import copy
-    with st.form("new_round_form", clear_on_submit=True):
-        new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
-        if st.form_submit_button("Iniciar nueva ronda de votación"):
-            # 1) Copiar la ronda actual al historial
-            old = copy.deepcopy(store[code])
-            history.setdefault(code, []).append(old)
+        
+        # UI para modificar la recomendación y crear nueva ronda
+        if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
+            s = store[code]  # Re-obtenemos la sesión
+            with st.form("new_round_form", clear_on_submit=True):
+                new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
+                if st.form_submit_button("Iniciar nueva ronda de votación"):
+                    # 1) Copiar la ronda actual al historial
+                    old = copy.deepcopy(store[code])
+                    history.setdefault(code, []).append(old)
+
+                    # 2) Resetear para la nueva ronda
+                    next_round = store[code]["round"] + 1
+                    store[code].update({
+                        "desc": new_desc,
+                        "votes": [],
+                        "comments": [],
+                        "ids": [],
+                        "names": [],
+                        "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "round": next_round
+                    })
+
+                    st.success(f"Nueva ronda iniciada: Ronda {next_round}")
+                    st.session_state["modify_recommendation"] = False
+                    st.info("Por favor, vuelva a seleccionar la sesión en el Dashboard para refrescar.")
+
 
             # 2) Resetear para la nueva ronda
             next_round = store[code]["round"] + 1
