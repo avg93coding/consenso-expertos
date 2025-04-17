@@ -485,9 +485,10 @@ elif menu == "Crear Sesión":
                 st.info(f"URL para compartir: {url}")
                 
                 # Facilitar la prueba del enlace para el administrador
-                if st.button("Probar enlace de votación"):
-                    st.session_state.test_url = url
-                    st.write(f"[Abrir página de votación]({url})")
+                # Mostrar URL completa para verificación y enlace directo
+url = create_qr_code_url(code)
+st.info(f"URL para compartir: {url}")
+st.write(f"Para probar: [Abrir página de votación]({url})")
                 
                 st.markdown("""
                 <div class="helper-text">
