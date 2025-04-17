@@ -8,6 +8,7 @@ import io
 import hashlib
 import datetime
 import base64
+import copy
 import os
 from scipy import stats
 
@@ -27,7 +28,7 @@ def get_store():
     return {}
 
 store = get_store()
-# (Puedes mantener el history en memoria si lo necesitas:)
+# Historia en memoria:
 history = {}
 
 
@@ -145,7 +146,7 @@ def to_excel(code: str) -> io.BytesIO:
     
     # Añadir datos de rondas anteriores del historial
     if code in history:
-        for past_round in history[code][:-1]:  # Excluir la ronda actual
+        for past_round in history[code]:  # Todas las rondas pasadas
             hist_df = pd.DataFrame({
                 "ID anónimo": past_round["ids"],
                 "Nombre real": past_round["names"],
@@ -192,9 +193,9 @@ COMENTARIOS:
             report += f"{i+1}. {pid}: {comment}\n"
     
     # Añadir historial de rondas anteriores
-    if code in history and len(history[code]) > 1:
+    if code in history and len(history[code]) > 0:
         report += "\nHISTORIAL DE RONDAS ANTERIORES:\n"
-        for i, past_round in enumerate(history[code][:-1]):
+        for i, past_round in enumerate(history[code]):
             round_pct = consensus_pct(past_round["votes"]) * 100
             report += f"\nRonda {past_round['round']} - {past_round['created_at']}\n"
             report += f"Recomendación: {past_round['desc']}\n"
@@ -400,7 +401,7 @@ if "session" in params:
                 else:
                     st.error("Error al registrar el voto. La sesión puede haber expirado.")
 
-        # Botón para finalizar votación (mismo nivel que el de Enviar voto)
+        # Botón para finalizar votación
         if st.button("Finalizar votación", key="finish_voting"):
             st.success("Gracias por su participación. Puede cerrar esta ventana.")
 
@@ -483,10 +484,6 @@ elif menu == "Crear Sesión":
                 with col2:
                     # Usar HTML embebido para el QR con la URL visible
                     st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
-                
-                # Mostrar URL completa para verificación
-                url = create_qr_code_url(code)
-                st.info(f"URL para compartir: {url}")
                 
                 # Mostrar URL completa para verificación
                 url = create_qr_code_url(code)
@@ -578,136 +575,41 @@ elif menu == "Dashboard":
                     st.error("❌ CONSENSO ALCANZADO: No se aprueba la recomendación.")
                 else:
                     st.warning("⚠️ CONSENSO NO ALCANZADO: Se recomienda realizar otra ronda.")
+                
+                # Botones de acción para nueva ronda
+                st.subheader("Administrar Rondas")
+                if st.button("Iniciar nueva ronda"):
+                    # Guardar estado actual en historial
+                    old_round = copy.deepcopy(s)
+                    history.setdefault(code, []).append(old_round)
                     
-                elif menu == "Dashboard":
-    st.header("Dashboard en Tiempo Real")
-
-    # Si no hay sesiones, mostramos aviso
-    if not store:
-        st.info("No hay sesiones activas.")
-    else:
-        # Selector de sesión
-        code = st.selectbox("Seleccionar sesión:", list(store.keys()))
-        s = store[code]
-        votes = s["votes"]
-        pct = int(consensus_pct(votes) * 100)
-
-        # Métricas
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total votos", len(votes))
-        col2.metric("% Consenso", f"{pct}%")
-        if votes:
-            med, lo, hi = median_ci(votes)
-            col3.metric("Mediana (IC95%)", f"{med:.1f} [{lo:.1f},{hi:.1f}]")
-
-        st.markdown("---")
-
-        # 1) Botón para iniciar nueva ronda
-        if st.button("Iniciar nueva ronda"):
-            # Guardar estado actual en historial
-            old = copy.deepcopy(s)
-            history.setdefault(code, []).append(old)
-
-            # Incrementar ronda y resetear votos/comentarios
-            next_round = s["round"] + 1
-            store[code].update({
-                "votes": [],
-                "comments": [],
-                "ids": [],
-                "names": [],
-                "round": next_round,
-                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-
-            st.success(f"Nueva ronda iniciada: Ronda {next_round}")
-            st.info("Por favor, vuelve a seleccionar la sesión para refrescar los datos.")
-
-        st.markdown("---")
-
-        # 2) UI para modificar la recomendación y crear la ronda (si se activó)
-        if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
-            s = store[code]
-            with st.form("new_round_form", clear_on_submit=True):
-                new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
-                if st.form_submit_button("Confirmar nueva ronda"):
-                    # Guardar histórica (nuevamente, por si hubo cambios antes de form)
-                    past = copy.deepcopy(s)
-                    history.setdefault(code, []).append(past)
-
-                    # Aplicar cambios y resetear
-                    next_round = s["round"] + 1
-                    store[code].update({
-                        "desc": new_desc,
-                        "votes": [],
-                        "comments": [],
-                        "ids": [],
-                        "names": [],
-                        "round": next_round,
-                        "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    })
-
-                    st.success(f"Recomendación actualizada. Ahora estás en la ronda {next_round}.")
-                    # Desactivar el flag y pedir al usuario que recargue
-                    st.session_state["modify_recommendation"] = False
-                    st.info("Selecciona la sesión de nuevo para ver la ronda actualizada.")
-
-        st.markdown("---")
-
-        # 3) Botones de descarga
-        colA, colB = st.columns(2)
-        colA.download_button("📥 Descargar Excel", to_excel(code), file_name=f"res_{code}.xlsx")
-        colB.download_button("📥 Descargar Reporte", create_report(code), file_name=f"reporte_{code}.txt")
-
-        # 4) Mostrar historial de rondas
-        if code in history and history[code]:
-            st.subheader("Historial de Rondas Anteriores")
-            for rnd in history[code]:
-                st.markdown(f"- Ronda {rnd['round']} (creada: {rnd['created_at']})")
-
-        # 5) Gráfica de la ronda actual
-        if votes:
-            df = pd.DataFrame({"Voto": votes})
-            if s["scale"].startswith("Likert"):
-                fig = px.histogram(df, x="Voto", nbins=9)
-            else:
-                counts = {"Sí": votes.count("Sí"), "No": votes.count("No")}
-                fig = px.pie(values=list(counts.values()), names=list(counts.keys()))
-            st.plotly_chart(fig, use_container_width=True)
-
-
-                    # 2) Resetear para la nueva ronda
-                    next_round = store[code]["round"] + 1
-                    store[code].update({
-                        "desc": new_desc,
-                        "votes": [],
-                        "comments": [],
-                        "ids": [],
-                        "names": [],
-                        "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "round": next_round
-                    })
-
-                    st.success(f"Nueva ronda iniciada: Ronda {next_round}")
-                    st.session_state["modify_recommendation"] = False
-                    st.info("Por favor, vuelva a seleccionar la sesión en el Dashboard para refrescar.")
-
-
-            # 2) Resetear para la nueva ronda
-            next_round = store[code]["round"] + 1
-            store[code].update({
-                "desc": new_desc,
-                "votes": [],
-                "comments": [],
-                "ids": [],
-                "names": [],
-                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "round": next_round
-            })
-
-            st.success(f"Nueva ronda iniciada: Ronda {next_round}")
-            st.session_state["modify_recommendation"] = False
-            st.experimental_rerun()
-
+                    # Activar flag para mostrar el formulario de modificación
+                    st.session_state["modify_recommendation"] = True
+                    st.session_state["current_code"] = code
+                
+                # Mostrar formulario para modificar recomendación si flag activo
+                if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
+                    with st.form("new_round_form"):
+                        new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
+                        submit_button = st.form_submit_button("Confirmar nueva ronda")
+                        
+                        if submit_button:
+                            next_round = s["round"] + 1
+                            store[code].update({
+                                "desc": new_desc,
+                                "votes": [],
+                                "comments": [],
+                                "ids": [],
+                                "names": [],
+                                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "round": next_round
+                            })
+                            
+                            st.success(f"Nueva ronda iniciada: Ronda {next_round}")
+                            st.session_state["modify_recommendation"] = False
+                            st.experimental_rerun()
+                
+                st.markdown("</div>", unsafe_allow_html=True)
             
             # Visualización de resultados
             if votes:
@@ -789,12 +691,12 @@ elif menu == "Historial":
         code = st.selectbox("Seleccionar sesión:", list(history.keys()))
         
         if code and code in history:
-            history = history[code]
+            rounds_history = history[code]
             
             st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.write(f"Total de rondas: {len(history)}")
+            st.write(f"Total de rondas: {len(rounds_history)}")
             
-            for i, round_data in enumerate(history):
+            for i, round_data in enumerate(rounds_history):
                 with st.expander(f"Ronda {round_data['round']} - {round_data['created_at']}"):
                     st.write(f"**Recomendación:** {round_data['desc']}")
                     st.write(f"**Votos totales:** {len(round_data['votes'])}")
@@ -805,6 +707,8 @@ elif menu == "Historial":
                     if round_data['votes']:
                         med, lo, hi = median_ci(round_data['votes'])
                         st.write(f"**Mediana (IC 95%):** {med:.1f} [{lo:.1f}, {hi:.1f}]")
+                        
+                    
                         
                         # Estado del consenso
                         if pct >= 80 and lo >= 7:
