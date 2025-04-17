@@ -499,11 +499,7 @@ if menu == "Inicio":
     
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.markdown("""
-    Esta herramienta le permite:
-    - Crear sesiones de votación para recomendaciones
-    - Monitorear resultados en tiempo real
-    - Generar reportes detallados
-    - Realizar múltiples rondas de votación
+    
     
     Utilice el panel de navegación para comenzar.
     """)
