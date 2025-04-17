@@ -589,7 +589,7 @@ elif menu == "Dashboard":
             s = store[code]
             votes, comments, ids = s["votes"], s["comments"], s["ids"]
 
-            col1, _ = st.columns(2)
+            col1, col2 = st.columns(2)
             with col1:
                 if st.button("Finalizar esta sesión"):
                     store[code]["is_active"] = False
@@ -697,24 +697,58 @@ elif menu == "Dashboard":
 
             if votes:
                 st.markdown('<div class="card">', unsafe_allow_html=True)
-                st.subheader("Exportar Datos")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.download_button(
-                        "Descargar Excel Completo",
-                        to_excel(code),
-                        file_name=f"consenso_{code}_ronda{s['round']}.xlsx",
-                        help="Descarga todos los datos de esta sesión incluyendo rondas anteriores"
+                st.subheader("Resultados")
+
+                if s["scale"].startswith("Likert"):
+                    df = pd.DataFrame({"Voto": votes})
+                    fig = px.histogram(
+                        df,
+                        x="Voto",
+                        nbins=9,
+                        title="Distribución de Votos",
+                        color_discrete_sequence=["#006B7F"],
+                        labels={"Voto": "Escala Likert (1-9)", "count": "Frecuencia"}
                     )
-                with col2:
-                    st.download_button(
-                        "Descargar Reporte Completo",
-                        create_report(code),
-                        file_name=f"reporte_completo_{code}_ronda{s['round']}.txt",
-                        help="Genera un reporte detallado con métricas, comentarios e historial de todas las rondas"
+                    fig.update_layout(
+                        xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+                        bargap=0.1,
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
                     )
+                else:
+                    counts = {"Sí": votes.count("Sí"), "No": votes.count("No")}
+                    df = pd.DataFrame(list(counts.items()), columns=["Respuesta", "Conteo"])
+                    fig = px.pie(
+                        df,
+                        values="Conteo",
+                        names="Respuesta",
+                        title="Distribución de Votos",
+                        color_discrete_sequence=["#006B7F", "#3BAFDA"]
+                    )
+
+                st.plotly_chart(fig, use_container_width=True)
                 st.markdown("</div>", unsafe_allow_html=True)
 
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("Exportar Datos")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.download_button(
+                    "Descargar Excel Completo",
+                    to_excel(code),
+                    file_name=f"consenso_{code}_ronda{s['round']}.xlsx",
+                    help="Descarga todos los datos de esta sesión incluyendo rondas anteriores"
+                )
+            with col2:
+                st.download_button(
+                    "Descargar Reporte Completo",
+                    create_report(code),
+                    file_name=f"reporte_completo_{code}_ronda{s['round']}.txt",
+                    help="Genera un reporte detallado con métricas, comentarios e historial de todas las rondas"
+                )
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            if comments:
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.subheader("Comentarios de los participantes")
                 for i, (pid, name, vote, com) in enumerate(zip(ids, s["names"], votes, comments)):
@@ -724,6 +758,7 @@ elif menu == "Dashboard":
                         > {com}
                         """)
                 st.markdown("</div>", unsafe_allow_html=True)
+                
 elif menu == "Historial":
     st.subheader("Historial de Sesiones")
 
