@@ -768,53 +768,52 @@ elif menu == "Historial":
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# Agregar funcionalidad para guardar/cargar sesiones
+# Guardar y Cargar Estado - Administración
 st.sidebar.markdown("---")
 st.sidebar.subheader("Administración")
 
-# Opción para guardar el estado actual
+# Guardar estado
 if st.sidebar.button("Guardar Estado"):
-    state_data = {
-        "sessions": store,
-        "history": history
-    }
-    state_str = str(state_data)  # Serialización simple
-    state_b64 = base64.b64encode(state_str.encode()).decode()
-    
-    st.sidebar.markdown("### Datos de Respaldo")
-    st.sidebar.code(state_b64, language=None)
-    st.sidebar.download_button(
-        "Descargar Backup", 
-        state_b64, 
-        file_name=f"odds_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-        help="Guarde este archivo para restaurar sus sesiones en el futuro"
-    )
-    st.sidebar.success("Estado guardado.")
+    try:
+        state_data = {
+            "sessions": copy.deepcopy(store),
+            "history": copy.deepcopy(history)
+        }
+        state_b64 = base64.b64encode(str(state_data).encode()).decode()
+        st.sidebar.markdown("### Datos de Respaldo")
+        st.sidebar.code(state_b64, language=None)
+        st.sidebar.download_button(
+            label="Descargar Backup",
+            data=state_b64,
+            file_name=f"odds_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            help="Guarde este archivo para restaurar sus sesiones en el futuro"
+        )
+        st.sidebar.success("Estado guardado correctamente.")
+    except Exception as e:
+        st.sidebar.error(f"Error al guardar el estado: {str(e)}")
 
-# Opción para cargar un estado anterior
+# Cargar estado
 state_upload = st.sidebar.file_uploader("Cargar Estado", type=["txt"])
 if state_upload is not None:
     try:
         content = state_upload.read().decode()
-        state_data_str = base64.b64decode(content).decode()
-        
-        # Evaluación segura del string (para evitar código malicioso)
+        decoded = base64.b64decode(content).decode()
         import ast
-        state_data = ast.literal_eval(state_data_str)
-        
-        # Restaurar estado
+        state_data = ast.literal_eval(decoded)
+
         if "sessions" in state_data and "history" in state_data:
-            store = state_data["sessions"]
-            history = state_data["history"]
+            store.clear()
+            store.update(state_data["sessions"])
+            history.clear()
+            history.update(state_data["history"])
             st.sidebar.success("Estado restaurado correctamente.")
             st.rerun()
-
         else:
-            st.sidebar.error("Formato de archivo inválido.")
+            st.sidebar.error("El archivo no contiene datos válidos.")
     except Exception as e:
-        st.sidebar.error(f"Error al cargar el archivo: {str(e)}")
+        st.sidebar.error(f"Error al cargar el estado: {str(e)}")
 
-# Créditos y versión
+# Créditos
 st.sidebar.markdown("---")
 st.sidebar.markdown("**ODDS Epidemiology**")
 st.sidebar.markdown("v1.0.0 - 2025")
