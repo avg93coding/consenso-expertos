@@ -889,7 +889,7 @@ if state_upload is not None:
 
 elif menu == "Registro Previo":
     st.title("📋 Registro Previo - Panel de Consenso")
-    st.markdown("Comparta los siguientes enlaces con los participantes para que completen sus registros antes de iniciar el consenso.")
+    st.markdown("Registros antes de iniciar el consenso.")
 
     # -------------------------------
     # 🔐 Declaración de Conflictos
@@ -909,7 +909,7 @@ elif menu == "Registro Previo":
     ''', unsafe_allow_html=True)
 
     # -------------------------------
-    # 📄 Confidencialidad
+    # 📄 Compromiso de Confidencialidad
     # -------------------------------
     st.markdown("---")
     st.markdown("### 📄 Compromiso de Confidencialidad")
@@ -934,15 +934,29 @@ elif menu == "Registro Previo":
 
     col1, col2 = st.columns(2)
 
-    if "registro_conflicto" in st.session_state:
+    if "registro_conflicto" in st.session_state and st.session_state["registro_conflicto"]:
         df1 = pd.DataFrame(st.session_state["registro_conflicto"])
         with col1:
-            st.download_button("⬇️ Descargar Conflictos", df1.to_csv(index=False).encode("utf-8"), file_name="conflictos.csv")
+            st.download_button(
+                "⬇️ Descargar Conflictos",
+                df1.to_csv(index=False).encode("utf-8"),
+                file_name="conflictos.csv"
+            )
+    else:
+        with col1:
+            st.info("No se han recibido registros de Conflicto de Interés.")
 
-    if "registro_confidencialidad" in st.session_state:
+    if "registro_confidencialidad" in st.session_state and st.session_state["registro_confidencialidad"]:
         df2 = pd.DataFrame(st.session_state["registro_confidencialidad"])
         with col2:
-            st.download_button("⬇️ Descargar Confidencialidad", df2.to_csv(index=False).encode("utf-8"), file_name="confidencialidad.csv")
+            st.download_button(
+                "⬇️ Descargar Confidencialidad",
+                df2.to_csv(index=False).encode("utf-8"),
+                file_name="confidencialidad.csv"
+            )
+    else:
+        with col2:
+            st.info("No se han recibido registros de Confidencialidad.")
 
 
 # Créditos
