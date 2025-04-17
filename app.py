@@ -138,6 +138,12 @@ if 'session' in params:
             st.success("Voto registrado.")
     else:
         st.error("Código inválido.")
+        st.markdown("---")
+        manual = st.text_input("Introduce el código manualmente:")
+        if st.button("Unirse a la sesión") and manual:
+            # Actualizar parámetros de consulta con el código ingresado
+            st.experimental_set_query_params(session=manual.upper())
+            st.experimental_rerun()
     st.stop()
 
 # == Páginas de Administración ==
