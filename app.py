@@ -668,100 +668,37 @@ elif menu == "Dashboard":
                     st.session_state["modify_recommendation"] = True
                     st.session_state["current_code"] = code
 
-               if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
-    with st.form("new_round_form"):
-        nombre_ronda = st.text_input("Nombre de la ronda:")
-        new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
-        submit_button = st.form_submit_button("Confirmar nueva ronda")
-        if submit_button:
-            next_round = s["round"] + 1
-            descripcion_final = f"{new_desc} ({nombre_ronda})" if nombre_ronda else new_desc
-            store[code].update({
-                "desc": descripcion_final,
-                "votes": [],
-                "comments": [],
-                "ids": [],
-                "names": [],
-                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "round": next_round
-            })
+                if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
+                    with st.form("new_round_form"):
+                        nombre_ronda = st.text_input("Nombre de la ronda:")
+                        new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
+                        submit_button = st.form_submit_button("Confirmar nueva ronda")
+                        if submit_button:
+                            next_round = s["round"] + 1
+                            descripcion_final = f"{new_desc} ({nombre_ronda})" if nombre_ronda else new_desc
+                            store[code].update({
+                                "desc": descripcion_final,
+                                "votes": [],
+                                "comments": [],
+                                "ids": [],
+                                "names": [],
+                                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "round": next_round
+                            })
 
-            st.success(f"✅ Nueva ronda iniciada: Ronda {next_round} - {nombre_ronda if nombre_ronda else 'sin nombre asignado'}")
+                            st.success(f"✅ Nueva ronda iniciada: Ronda {next_round} - {nombre_ronda if nombre_ronda else 'sin nombre asignado'}")
 
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("Nuevo enlace de votación")
-            st.markdown(f"<code>{create_qr_code_url(code)}</code>", unsafe_allow_html=True)
-            st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
+                            st.markdown('<div class="card">', unsafe_allow_html=True)
+                            st.subheader("Nuevo enlace de votación")
+                            st.markdown(f"<code>{create_qr_code_url(code)}</code>", unsafe_allow_html=True)
+                            st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
+                            st.markdown("</div>", unsafe_allow_html=True)
+
+                            st.session_state["modify_recommendation"] = False
+                            st.stop()
+
             st.markdown("</div>", unsafe_allow_html=True)
 
-            st.session_state["modify_recommendation"] = False
-            st.stop()
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-            if votes:
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-                st.subheader("Resultados")
-
-                if s["scale"].startswith("Likert"):
-                    df = pd.DataFrame({"Voto": votes})
-                    fig = px.histogram(
-                        df,
-                        x="Voto",
-                        nbins=9,
-                        title="Distribución de Votos",
-                        color_discrete_sequence=["#006B7F"],
-                        labels={"Voto": "Escala Likert (1-9)", "count": "Frecuencia"}
-                    )
-                    fig.update_layout(
-                        xaxis=dict(tickmode='linear', tick0=1, dtick=1),
-                        bargap=0.1,
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        paper_bgcolor='rgba(0,0,0,0)',
-                    )
-                else:
-                    counts = {"Sí": votes.count("Sí"), "No": votes.count("No")}
-                    df = pd.DataFrame(list(counts.items()), columns=["Respuesta", "Conteo"])
-                    fig = px.pie(
-                        df,
-                        values="Conteo",
-                        names="Respuesta",
-                        title="Distribución de Votos",
-                        color_discrete_sequence=["#006B7F", "#3BAFDA"]
-                    )
-
-                st.plotly_chart(fig, use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("Exportar Datos")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.download_button(
-                    "Descargar Excel Completo",
-                    to_excel(code),
-                    file_name=f"consenso_{code}_ronda{s['round']}.xlsx",
-                    help="Descarga todos los datos de esta sesión incluyendo rondas anteriores"
-                )
-            with col2:
-                st.download_button(
-                    "Descargar Reporte Completo",
-                    create_report(code),
-                    file_name=f"reporte_completo_{code}_ronda{s['round']}.txt",
-                    help="Genera un reporte detallado con métricas, comentarios e historial de todas las rondas"
-                )
-            st.markdown("</div>", unsafe_allow_html=True)
-
-            if comments:
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-                st.subheader("Comentarios de los participantes")
-                for i, (pid, name, vote, com) in enumerate(zip(ids, s["names"], votes, comments)):
-                    if com:
-                        st.markdown(f"""
-                        **Participante {name} (ID: {pid})** - Voto: {vote}
-                        > {com}
-                        """)
-                st.markdown("</div>", unsafe_allow_html=True)
 
 
 
