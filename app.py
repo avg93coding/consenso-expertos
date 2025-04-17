@@ -594,9 +594,17 @@ elif menu == "Dashboard":
                                 "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                                 "round": next_round
                             })
-                            st.success(f"Nueva ronda iniciada: Ronda {next_round}")
+
+                            st.success(f"✅ Nueva ronda iniciada: Ronda {next_round}")
+
+                            st.markdown('<div class="card">', unsafe_allow_html=True)
+                            st.subheader("Nuevo enlace de votación")
+                            st.markdown(f"<code>{create_qr_code_url(code)}</code>", unsafe_allow_html=True)
+                            st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
+                            st.markdown("</div>", unsafe_allow_html=True)
+
                             st.session_state["modify_recommendation"] = False
-                            st.rerun()
+                            st.stop()
 
             st.markdown("</div>", unsafe_allow_html=True)
 
