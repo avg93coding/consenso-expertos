@@ -118,33 +118,47 @@ def resumen_comentarios(comments: list) -> str:
     return "API de OpenAI no configurada."
 
 # == Página de Votación ==
-params = st.query_params
-if 'session' in params:
-    st.markdown('<div class="hide-sidebar">',unsafe_allow_html=True)
-    code = params['session'][0]
-    st.markdown("<div class='app-header'>Votación de Expertos</div>",unsafe_allow_html=True)
-    if code in get_data_store()['sessions']:
+# Se obtiene código desde QR o texto manual
+def pagina_votacion():
+    st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
+    params = st.query_params
+    code_qr = params.get('session', [None])[0]
+    code_manual = st.text_input("Código de sesión:" )
+    code = code_qr or (code_manual.upper() if code_manual else None)
+
+    if code and code in get_data_store()['sessions']:
         session = get_data_store()['sessions'][code]
-        item = obtener_item(session)
+        # Nombre anonimo
         st.text_input("Nombre de participante:", key='name')
         nombre = st.session_state.get('name', '')
         pid = anonimizar_nombre(nombre) if nombre else anonimizar_nombre(str(uuid.uuid4()))
+
+        item = obtener_item(session)
         st.subheader(item['nombre'])
-        voto = st.slider("Tu voto:",1,9,5) if 'Likert' in item['escala'] else st.radio("Tu voto:",['Sí','No'])
+        voto = st.slider("Tu voto:", 1, 9, 5) if 'Likert' in item['escala'] else st.radio("Tu voto:", ['Sí', 'No'])
         comentario = st.text_area("Comentario (opcional):")
         if st.button("Enviar voto"):
             registrar_voto(code, voto, comentario, pid)
-            st.progress(int(calcular_consenso(session)*100))
+            st.progress(int(calcular_consenso(session) * 100))
             st.success("Voto registrado.")
     else:
-        st.error("Código inválido.")
-        st.markdown("---")
-        manual = st.text_input("Introduce el código manualmente:")
-        if st.button("Unirse a la sesión") and manual:
-            # Actualizar parámetros de consulta con el código ingresado
-            st.experimental_set_query_params(session=manual.upper())
-            st.experimental_rerun()
-    st.stop()
+        if code_manual:
+            st.error("Código inválido. Por favor verifica o crea nueva sesión.")
+        else:
+            st.info("Escanea el QR o ingresa manualmente el código de sesión.")
+
+    # Termina aquí si es votación
+    if code and code in get_data_store()['sessions']:
+        return
+    else:
+        return
+
+# Llamada a página de votación temprana
+pagina_votacion()
+
+# ----------------------------------------
+# Páginas de Administración ==   
+
 
 # == Páginas de Administración ==
 def pagina_inicio():
