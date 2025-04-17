@@ -589,7 +589,7 @@ elif menu == "Dashboard":
             s = store[code]
             votes, comments, ids = s["votes"], s["comments"], s["ids"]
 
-            col1, col2 = st.columns(2)
+            col1, _ = st.columns(2)
             with col1:
                 if st.button("Finalizar esta sesión"):
                     store[code]["is_active"] = False
@@ -597,12 +597,6 @@ elif menu == "Dashboard":
                     history.setdefault(code, []).append(old_round)
                     st.success("✅ La sesión ha sido finalizada y guardada en el historial.")
                     st.rerun()
-
-            with col2:
-                if st.button("Guardar ronda manualmente en historial"):
-                    old_round = copy.deepcopy(s)
-                    history.setdefault(code, []).append(old_round)
-                    st.success(f"📝 Ronda {s['round']} guardada en el historial.")
 
             quorum = s.get("n_participantes", 0) // 2 + 1
             votos_actuales = len(votes)
@@ -701,9 +695,35 @@ elif menu == "Dashboard":
 
             st.markdown("</div>", unsafe_allow_html=True)
 
+            if votes:
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                st.subheader("Exportar Datos")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.download_button(
+                        "Descargar Excel Completo",
+                        to_excel(code),
+                        file_name=f"consenso_{code}_ronda{s['round']}.xlsx",
+                        help="Descarga todos los datos de esta sesión incluyendo rondas anteriores"
+                    )
+                with col2:
+                    st.download_button(
+                        "Descargar Reporte Completo",
+                        create_report(code),
+                        file_name=f"reporte_completo_{code}_ronda{s['round']}.txt",
+                        help="Genera un reporte detallado con métricas, comentarios e historial de todas las rondas"
+                    )
+                st.markdown("</div>", unsafe_allow_html=True)
 
-
-
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                st.subheader("Comentarios de los participantes")
+                for i, (pid, name, vote, com) in enumerate(zip(ids, s["names"], votes, comments)):
+                    if com:
+                        st.markdown(f"""
+                        **Participante {name} (ID: {pid})** - Voto: {vote}
+                        > {com}
+                        """)
+                st.markdown("</div>", unsafe_allow_html=True)
 elif menu == "Historial":
     st.subheader("Historial de Sesiones")
 
