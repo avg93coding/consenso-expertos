@@ -378,6 +378,8 @@ if "session" in params:
         
         comment = st.text_area("Comentario o justificación (opcional):")
         
+
+        # Botón de enviar voto
         if st.button("Enviar voto"):
             if not name:
                 st.warning("Por favor, ingrese su nombre para registrar su voto.")
@@ -385,12 +387,10 @@ if "session" in params:
                 pid = record_vote(code, vote, comment, name)
                 if pid:
                     pct = int(consensus_pct(s["votes"]) * 100)
-                    st.success(f"Voto registrado correctamente.")
+                    st.success("Voto registrado correctamente.")
                     st.markdown(f"**ID de su voto:** {pid}")
                     st.markdown(f"**Consenso actual:** {pct}%")
                     st.progress(pct/100)
-                    
-                    # Estatus actual del consenso
                     if pct >= 80:
                         st.success("El grupo está alcanzando consenso.")
                     elif pct >= 50:
@@ -399,17 +399,19 @@ if "session" in params:
                         st.warning("Aún no hay consenso en el grupo.")
                 else:
                     st.error("Error al registrar el voto. La sesión puede haber expirado.")
-        
-        # Botón para volver a la página principal
-    if st.button("Finalizar votación", key="finish_voting"):
-           st.success("Gracias por su participación. Puede cerrar esta ventana.")
-            
-       st.markdown("</div>", unsafe_allow_html=True)
-       st.stop()
+
+        # Botón para finalizar votación (mismo nivel que el de Enviar voto)
+        if st.button("Finalizar votación", key="finish_voting"):
+            st.success("Gracias por su participación. Puede cerrar esta ventana.")
+
+        # Cierre de la tarjeta HTML y detención
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.stop()
+
     except Exception as e:
-       st.error(f"Error al procesar la sesión: {str(e)}")
-       st.info("Por favor, intente escanear el código QR nuevamente o contacte al administrador.")
-       st.stop()
+        st.error(f"Error al procesar la sesión: {str(e)}")
+        st.info("Por favor, intente escanear el código QR nuevamente o contacte al administrador.")
+
 
 # 6) Panel de administración
 odds_header()
