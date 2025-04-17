@@ -335,39 +335,40 @@ inject_css()
 params = st.query_params
 if "session" in params:
     try:
-        # Intenta obtener el código como lista o como valor único
         code = params["session"][0] if isinstance(params.get("session"), list) else params.get("session")
-        
-        # Verificación de seguridad adicional
         code = str(code).strip().upper()
-        
+
         odds_header()
-        
         st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        
+
         if code not in store:
             st.error(f"Sesión inválida o expirada: '{code}'")
             st.info("Por favor, contacte al administrador para obtener un nuevo código de sesión.")
-            # Añadir un botón para depuración
             if st.button("Ver sesiones disponibles"):
                 st.write("Sesiones activas:", list(store.keys()))
                 st.write("Código recibido:", code)
                 st.write("Tipo de código:", type(code))
             st.stop()
-        
+
         s = store[code]
-        
+
         st.subheader(f"Panel de Votación - Ronda {s['round']}")
         st.markdown(f'<div class="session-badge">Sesión: {code}</div>', unsafe_allow_html=True)
-        
+
         name = st.text_input("Nombre del participante:")
-        
+
+        # Si ya votó, no permitir volver a votar
+        if name and name in s["names"]:
+            st.success("✅ Gracias, su voto ya ha sido registrado.")
+            st.markdown("Puede cerrar esta ventana. 🙏")
+            st.stop()
+
         st.markdown("### Recomendación a evaluar:")
         st.markdown(f"**{s['desc']}**")
-        
+
         st.markdown('<div class="helper-text">Evalúe si está de acuerdo con la recomendación según la escala proporcionada.</div>', unsafe_allow_html=True)
-        
+
         if s["scale"].startswith("Likert"):
             st.markdown("""
             **Escala de votación:**
@@ -378,43 +379,28 @@ if "session" in params:
             vote = st.slider("Su voto:", 1, 9, 5)
         else:
             vote = st.radio("Su voto:", ["Sí", "No"])
-        
-        comment = st.text_area("Comentario o justificación (opcional):")
-        
 
-        # Botón de enviar voto
+        comment = st.text_area("Comentario o justificación (opcional):")
+
         if st.button("Enviar voto"):
             if not name:
                 st.warning("Por favor, ingrese su nombre para registrar su voto.")
             else:
                 pid = record_vote(code, vote, comment, name)
                 if pid:
-                    pct = int(consensus_pct(s["votes"]) * 100)
-                    st.success("Voto registrado correctamente.")
+                    st.success("✅ Gracias, su voto ha sido registrado.")
                     st.markdown(f"**ID de su voto:** {pid}")
-                    st.markdown(f"**Consenso actual:** {pct}%")
-                    st.progress(pct/100)
-                    if pct >= 80:
-                        st.success("El grupo está alcanzando consenso.")
-                    elif pct >= 50:
-                        st.info("El grupo está progresando hacia un consenso.")
-                    else:
-                        st.warning("Aún no hay consenso en el grupo.")
+                    st.markdown("Puede cerrar esta ventana. 🙌")
+                    st.stop()
                 else:
                     st.error("Error al registrar el voto. La sesión puede haber expirado.")
 
-        # Botón para finalizar votación
-        if st.button("Finalizar votación", key="finish_voting"):
-            st.success("Gracias por su participación. Puede cerrar esta ventana.")
-
-        # Cierre de la tarjeta HTML y detención
         st.markdown("</div>", unsafe_allow_html=True)
         st.stop()
 
     except Exception as e:
         st.error(f"Error al procesar la sesión: {str(e)}")
         st.info("Por favor, intente escanear el código QR nuevamente o contacte al administrador.")
-
 
 # 6) Panel de administración
 odds_header()
