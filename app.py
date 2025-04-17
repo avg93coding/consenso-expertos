@@ -492,7 +492,7 @@ odds_header()
 
 st.sidebar.title("Panel de Control")
 st.sidebar.markdown("### ODDS Epidemiology")
-menu = st.sidebar.radio("Navegación", ["Inicio", "Crear Sesión", "Dashboard", "Historial", "Registro Previo"])
+menu = st.sidebar.radio("Navegación", ["Inicio", "Crear Sesión", "Dashboard",  "Registro Previo"])
 
 if menu == "Inicio":
     st.markdown("## Bienvenido al Sistema de votación para Consenso de expertos de ODDS Epidemiology")
