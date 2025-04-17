@@ -514,6 +514,13 @@ elif menu == "Dashboard":
         
         if code:
             s = store[code]
+                # Mostrar botón para finalizar sesión si está activa
+    if s.get("is_active", True):
+        if st.button("Finalizar esta sesión"):
+            store[code]["is_active"] = False
+            st.success("✅ La sesión ha sido finalizada. Ya no aceptará más votos.")
+            st.experimental_rerun()
+
             votes, comments, ids = s["votes"], s["comments"], s["ids"]
             
             st.markdown(f"""
