@@ -5,7 +5,7 @@ import plotly.express as px
 import uuid
 import qrcode
 import io
-import hashlib
+import hashlibreco
 import datetime
 import base64
 import copy
@@ -151,13 +151,25 @@ def correo_autorizado(correo: str, code: str) -> bool:
             return correo.lower().strip() in [c.lower().strip() for c in lista]
     return True
 
+# Función para validar si un correo está autorizado para votar en una sesión privada
+def correo_autorizado(correo: str, code: str) -> bool:
+    if code in store:
+        sesion = store[code]
+        if sesion.get("privado", False):
+            lista = sesion.get("correos_autorizados", [])
+            return correo and correo.lower().strip() in [c.lower().strip() for c in lista]
+    return True  # Si la sesión no es privada, siempre es autorizado
+
 # Función para registrar el voto
 def record_vote(code: str, vote, comment: str, name: str, correo: str = None):
     if code not in store:
         return None
-    
+
+    if not correo_autorizado(correo, code):
+        return None
+
     s = store[code]
-    pid = hashlib.sha256(name.encode()).hexdigest()[:8]  # hash del nombre
+    pid = hashlib.sha256(name.encode()).hexdigest()[:8]
 
     # Evitar votos duplicados por nombre
     if name and name in s["names"]:
@@ -166,23 +178,6 @@ def record_vote(code: str, vote, comment: str, name: str, correo: str = None):
         s["comments"][idx] = comment
         return pid
 
-    s["votes"].append(vote)
-    s["comments"].append(comment)
-    s["ids"].append(pid)
-    s["names"].append(name)
-    return pid
-
-    
-    s = store[code]
-    pid = hash_id(name or str(uuid.uuid4()))
-    
-    # Evitar votos duplicados por nombre
-    if name and name in s["names"]:
-        idx = s["names"].index(name)
-        s["votes"][idx] = vote
-        s["comments"][idx] = comment
-        return pid
-    
     s["votes"].append(vote)
     s["comments"].append(comment)
     s["ids"].append(pid)
