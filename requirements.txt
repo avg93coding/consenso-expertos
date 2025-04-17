@@ -1,0 +1,6 @@
+streamlit
+pandas
+plotly
+qrcode
+openpyxl
+openai
