@@ -1,8 +1,7 @@
 streamlit
 pandas
+numpy
 plotly
 qrcode
-openpyxl
-openai
-numpy
 scipy
+openpyxl
