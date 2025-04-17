@@ -2,7 +2,7 @@ import streamlit as st
 
 # 📌 PRIMERA llamada a Streamlit
 st.set_page_config(
-    page_title='Odds Expert Consensus',
+    page_title='Panel de Consenso',
     page_icon='🎯',
     layout='wide',
     initial_sidebar_state='expanded'
@@ -17,35 +17,35 @@ from datetime import datetime
 import openai
 
 # ----------------------------------------
-# URL BASE PARA QR
+# URL BASE PARA QR (defínela en .streamlit/secrets.toml)
 BASE_URL = st.secrets.get("BASE_URL", "http://localhost:8501")
 
 # ----------------------------------------
-# PALETA OSCURA
-DARK_BG = "#1e1e2f"
+# PALETA OSCURA EN TONOS MORADOS
+FONDO = "#1e1e2f"
 CARD_BG = "#2d0c5e"
 ACCENT = "#6C63FF"
-TEXT_COLOR = "#FFFFFF"
-FONT = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+TEXTO = "#FFFFFF"
+FUENTE = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
 
 # ----------------------------------------
-# CSS GLOBAL (modo oscuro)
+# CSS GLOBAL (modo oscuro completo)
 CSS = f"""
 <style>
-  html, body, [class*="css"] {{
-    background-color: {DARK_BG} !important;
-    color: {TEXT_COLOR} !important;
-    font-family: {FONT} !important;
-  }}
+  /* Aplicar modo oscuro a toda la app */
+  .stApp {{ background-color: {FONDO} !important; }}
+  body, .css-18e3th9, .main {{ background-color: {FONDO} !important; color: {TEXTO} !important; font-family: {FUENTE}; }}
+  /* Encabezado degradado */
   .app-header {{
     background: {ACCENT};
     padding: 2rem;
-    border-radius: 0 0 15px 15px;
+    border-radius: 0 0 20px 20px;
     text-align: center;
-    color: {TEXT_COLOR};
+    color: {TEXTO};
     font-size: 2.5rem;
     font-weight: bold;
   }}
+  /* Tarjetas métricas con hover */
   .metric-card {{
     background: {CARD_BG} !important;
     border-radius: 12px;
@@ -58,9 +58,10 @@ CSS = f"""
     transform: translateY(-4px);
     box-shadow: 0 8px 30px rgba(0,0,0,0.7);
   }}
+  /* Botones llamativos */
   .stButton>button {{
     background-color: {ACCENT} !important;
-    color: {TEXT_COLOR} !important;
+    color: {TEXTO} !important;
     padding: 0.9rem 1.8rem !important;
     font-size: 1.1rem !important;
     border-radius: 10px !important;
@@ -69,12 +70,13 @@ CSS = f"""
   .stButton>button:hover {{
     background-color: {CARD_BG} !important;
   }}
-  input, textarea {{
+  /* Formularios e inputs oscuros */
+  input, textarea, .stTextInput>div>div>input, .stSelectbox>div>div>div>div {{
     background-color: {CARD_BG} !important;
-    color: {TEXT_COLOR} !important;
+    color: {TEXTO} !important;
     border-radius: 6px !important;
-    padding: 0.5rem !important;
   }}
+  /* Oculta barra lateral y toolbars en votación */
   .hide-sidebar [data-testid="stSidebar"] {{ display: none; }}
   .hide-sidebar [data-testid="stToolbar"] {{ display: none; }}
 </style>
@@ -82,7 +84,7 @@ CSS = f"""
 st.markdown(CSS, unsafe_allow_html=True)
 
 # ----------------------------------------
-# DATOS EN MEMORIA
+# ALMACENAMIENTO EN MEMORIA
 @st.cache_resource
 def get_data_store():
     return {'sessions': {}}
@@ -90,46 +92,45 @@ def get_data_store():
 # ----------------------------------------
 # FUNCIONES AUXILIARES
 
-def generate_session_code():
+def generar_codigo():
     return uuid.uuid4().hex[:6].upper()
 
 
-def create_new_session(item_name: str, scale_type: str) -> str:
+def crear_sesion(item: str, escala: str) -> str:
     store = get_data_store()
-    code = generate_session_code()
+    code = generar_codigo()
     store['sessions'][code] = {
-        'items': [{'name': item_name, 'scale': scale_type}],
-        'current_index': 0,
-        'votes': [],
-        'comments': [],
-        'settings': {'consensus_threshold': 0.8}
+        'items': [{'nombre': item, 'escala': escala}],
+        'indice_actual': 0,
+        'votos': [],
+        'comentarios': []
     }
     return code
 
 
-def get_current_item(session: dict) -> dict:
-    return session['items'][session['current_index']]
+def obtener_item(session: dict) -> dict:
+    return session['items'][session['indice_actual']]
 
 
-def record_vote(code: str, vote, comment: str):
+def registrar_voto(code: str, voto, comentario: str):
     sess = get_data_store()['sessions'][code]
-    sess['votes'].append(vote)
-    sess['comments'].append(comment)
+    sess['votos'].append(voto)
+    sess['comentarios'].append(comentario)
 
 
-def compute_consensus(session: dict) -> float:
-    votes = session['votes']
-    if not votes:
+def calcular_consenso(session: dict) -> float:
+    votos = session['votos']
+    if not votos:
         return 0.0
-    item = get_current_item(session)
-    if 'Likert' in item['scale']:
-        count = sum(1 for v in votes if isinstance(v, int) and v >= 7)
+    item = obtener_item(session)
+    if 'Likert' in item['escala']:
+        count = sum(1 for v in votos if isinstance(v, int) and v >= 7)
     else:
-        count = votes.count('Yes')
-    return count / len(votes)
+        count = votos.count('Sí')
+    return count / len(votos)
 
 
-def generate_qr_code(code: str) -> bytes:
+def generar_qr(code: str) -> bytes:
     url = f"{BASE_URL}?session={code}"
     img = qrcode.make(url)
     buf = io.BytesIO()
@@ -137,113 +138,115 @@ def generate_qr_code(code: str) -> bytes:
     return buf.getvalue()
 
 
-def export_to_excel(code: str) -> str:
+def exportar_excel(code: str) -> bytes:
     session = get_data_store()['sessions'][code]
     df = pd.DataFrame({
-        'Item': get_current_item(session)['name'],
-        'Vote': session['votes'],
-        'Comment': session['comments']
+        'Ítem': obtener_item(session)['nombre'],
+        'Voto': session['votos'],
+        'Comentario': session['comentarios']
     })
-    consensus_pct = compute_consensus(session)
-    df['Consensus'] = ['Yes' if consensus_pct >= session['settings']['consensus_threshold'] else 'No'] * len(df)
-    fname = f"results_{code}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    df.to_excel(fname, index=False)
-    return fname
+    df['Consenso'] = ['Sí' if calcular_consenso(session) >= 0.8 else 'No'] * len(df)
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False)
+    buf.seek(0)
+    return buf.getvalue()
 
 
-def summarize_comments(comments: list) -> str:
+def resumen_comentarios(comments: list) -> str:
     if 'OPENAI_API_KEY' in st.secrets:
         openai.api_key = st.secrets['OPENAI_API_KEY']
-        prompt = "Summarize these expert comments briefly:\n" + "\n".join(comments)
+        prompt = "Resume estos comentarios de expertos:\n" + "\n".join(comments)
         resp = openai.ChatCompletion.create(
-            model='gpt-4o-mini',
+            model='gpt-4',
             messages=[{'role': 'user', 'content': prompt}]
         )
         return resp.choices[0].message.content
-    return "OpenAI API key not configured."
+    return "API de OpenAI no configurada."
 
 # ----------------------------------------
-# VOTACIÓN DEDICADA
+# VOTACIÓN DEDICADA (pantalla completa)
 params = st.query_params
 if 'session' in params:
     st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
     code = params['session'][0]
-    st.markdown("<div class='app-header'>Expert Voting</div>", unsafe_allow_html=True)
+    st.markdown("<div class='app-header'>Votación de Expertos</div>", unsafe_allow_html=True)
     sessions = get_data_store()['sessions']
     if code in sessions:
         session = sessions[code]
-        item = get_current_item(session)
-        st.subheader(item['name'], anchor=False)
-        vote = st.slider("Your vote:", 1, 9, 5) if 'Likert' in item['scale'] else st.radio("Your vote:", ['Yes', 'No'])
-        if st.button("Submit Vote"):
-            record_vote(code, vote, '')
-            st.progress(int(compute_consensus(session) * 100))
-            st.success("Thank you for voting!")
+        item = obtener_item(session)
+        st.subheader(item['nombre'])
+        voto = st.slider("Tu voto:", 1,9,5) if 'Likert' in item['escala'] else st.radio("Tu voto:", ['Sí','No'])
+        comentario = st.text_area("Comentario (opcional):")
+        if st.button("Enviar voto"):
+            registrar_voto(code, voto, comentario)
+            st.progress(int(calcular_consenso(session)*100))
+            st.success("¡Gracias! Voto registrado.")
     else:
-        st.error("Invalid session code.")
+        st.error("Código de sesión no válido.")
     st.stop()
 
 # ----------------------------------------
-# PÁGINAS DE ADMIN
+# PÁGINAS ADMIN (barra lateral)
 
-def page_start():
-    st.markdown("<div class='app-header'>Consensus Dashboard</div>", unsafe_allow_html=True)
+def pagina_inicio():
+    st.markdown("<div class='app-header'>Panel de Consenso</div>", unsafe_allow_html=True)
     st.markdown(f"<h3 style='text-align:center; color:{ACCENT};'>Odds Epidemiology</h3>", unsafe_allow_html=True)
-    with st.form("create_form", clear_on_submit=True):
-        item = st.text_input("Voting Item:")
-        scale = st.selectbox("Scale:", ['Likert 1-9', 'Yes/No'])
-        submit = st.form_submit_button("Create Session")
-        if submit and item:
-            code = create_new_session(item, scale)
-            st.success(f"Session code: {code}")
-            st.image(generate_qr_code(code), width=180)
+    with st.form("formulario_crear", clear_on_submit=True):
+        item = st.text_input("Ítem de votación:")
+        escala = st.selectbox("Escala:", ['Likert 1-9', 'Sí/No'])
+        enviado = st.form_submit_button("Crear sesión")
+        if enviado and item:
+            code = crear_sesion(item, escala)
+            st.success(f"Código de sesión: {code}")
+            st.image(generar_qr(code), width=180, caption="Escanea para votar")
 
 
-def page_dashboard():
-    st.header("Admin Dashboard")
-    code = st.text_input("Session Code:")
+def pagina_tablero():
+    st.header("Tablero de Moderador")
+    code = st.text_input("Código de sesión:")
     sessions = get_data_store()['sessions']
     if code in sessions:
         session = sessions[code]
-        votes = session['votes']
-        comments = session['comments']
-        # Metrics cards
+        votos = session['votos']
+        comentarios = session['comentarios']
+        # Métricas
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f"<div class='metric-card'><h4>Total Votes</h4><p style='font-size:2rem;'>{len(votes)}</p></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='metric-card'><h4>Total votos</h4><p style='font-size:2rem;'>{len(votos)}</p></div>", unsafe_allow_html=True)
         with c2:
-            pct = compute_consensus(session)
-            st.markdown(f"<div class='metric-card'><h4>Consensus %</h4><p style='font-size:2rem;'>{pct*100:.1f}%</p></div>", unsafe_allow_html=True)
-        # Controls
+            pct = calcular_consenso(session)
+            st.markdown(f"<div class='metric-card'><h4>% Consenso</h4><p style='font-size:2rem;'>{pct*100:.1f}%</p></div>", unsafe_allow_html=True)
+        # Controles y descarga
         ctrl1, ctrl2, ctrl3 = st.columns(3)
-        if ctrl1.button("End Session"):
+        if ctrl1.button("Terminar sesión"):
             del sessions[code]
-            st.warning("Session ended.")
-        if ctrl2.button("Next Item"):
-            session['current_index'] += 1
+            st.warning("Sesión finalizada.")
+        if ctrl2.button("Siguiente ítem"):
+            session['indice_actual'] += 1
             st.experimental_rerun()
-        if ctrl3.button("Export to Excel"):
-            fname = export_to_excel(code)
-            st.success(f"Saved: {fname}")
-        # Chart
-        if votes:
-            df = pd.DataFrame({'Vote': votes})
-            fig = px.histogram(df, x='Vote', nbins=9 if 'Likert' in get_current_item(session)['scale'] else 2)
-            fig.update_layout(plot_bgcolor=DARK_BG, paper_bgcolor=DARK_BG, colorway=[ACCENT])
+        if ctrl3.download_button("Descargar resultados","","resultados.xlsx", key='dl_excel', data=exportar_excel(code), mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'):
+            pass
+        # Gráfica
+        if votos:
+            df = pd.DataFrame({'Voto': votos})
+            fig = px.histogram(df, x='Voto', nbins=9 if 'Likert' in obtener_item(session)['escala'] else 2)
+            fig.update_layout(plot_bgcolor=FONDO, paper_bgcolor=FONDO, colorway=[ACCENT])
             st.plotly_chart(fig, use_container_width=True)
-        # Comments
-        if comments:
-            st.subheader("Comments")
-            for c in comments:
+        # Comentarios y reporte final
+        if comentarios:
+            st.subheader("Comentarios recibidos")
+            for c in comentarios:
                 st.write(f"- {c}")
-            st.subheader("Comments Summary")
-            st.write(summarize_comments(comments))
+            reporte = resumen_comentarios(comentarios)
+            st.subheader("Reporte final")
+            st.write(reporte)
+            st.download_button("Descargar reporte","","reporte.txt", key='dl_report', data=reporte, mime='text/plain')
     else:
-        st.info("Enter a valid session code.")
+        st.info("Introduce un código válido.")
 
 # ----------------------------------------
 # NAVEGACIÓN LATERAL
-pages = {'Home': page_start, 'Dashboard': page_dashboard}
-st.sidebar.title("Admin Panel")
-selection = st.sidebar.radio("", list(pages.keys()))
-pages[selection]()
+PAGINAS = {'Inicio': pagina_inicio, 'Tablero': pagina_tablero}
+st.sidebar.title("Panel de Administración")
+seleccion = st.sidebar.radio("", list(PAGINAS.keys()))
+PAGINAS[seleccion]()
