@@ -563,12 +563,16 @@ elif menu == "Dashboard":
 
             st.markdown('<div class="card">', unsafe_allow_html=True)
             if votos_actuales < quorum:
-                st.warning(f"⚠️ No se ha alcanzado el quórum mínimo requerido: {quorum} votos.")
+                st.info(f"🕒 Aún no se alcanza el quórum mínimo requerido de {quorum} votos.")
             else:
-                if pct >= 80 and lo >= 7:
-                    st.success("✅ CONSENSO ALCANZADO: Se aprueba la recomendación.")
-                elif pct >= 80 and hi <= 3:
-                    st.error("❌ CONSENSO ALCANZADO: No se aprueba la recomendación.")
+                if pct >= 80 and all([not np.isnan(lo), not np.isnan(hi), 7 <= med <= 9, 7 <= lo <= 9, 7 <= hi <= 9]):
+                    st.success("✅ CONSENSO ALCANZADO: Se aprueba la recomendación (por mediana + IC95%).")
+                elif pct >= 80:
+                    st.success("✅ CONSENSO ALCANZADO: Se aprueba la recomendación (por porcentaje).")
+                elif pct <= 20 and all([not np.isnan(lo), not np.isnan(hi), 1 <= med <= 3, 1 <= lo <= 3, 1 <= hi <= 3]):
+                    st.error("❌ CONSENSO ALCANZADO: No se aprueba la recomendación (por mediana + IC95%).")
+                elif votes.count(1) + votes.count(2) + votes.count(3) >= 0.8 * votos_actuales:
+                    st.error("❌ CONSENSO ALCANZADO: No se aprueba la recomendación (por porcentaje).")
                 else:
                     st.warning("⚠️ CONSENSO NO ALCANZADO: Se recomienda realizar otra ronda.")
 
