@@ -454,7 +454,7 @@ if menu == "Inicio":
     
 
 elif menu == "Crear Sesión":
-    st.subheader("Crear Nueva Sesión de Consenso")
+    st.subheader("Crear Nueva Recomendación")
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
     with st.form("create_form", clear_on_submit=True):
