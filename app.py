@@ -592,6 +592,12 @@ elif menu == "Dashboard":
                 st.success("✅ La sesión ha sido finalizada. Ya no aceptará más votos.")
                 st.rerun()
 
+if st.button("Guardar ronda en historial"):
+    old_round = copy.deepcopy(s)
+    history.setdefault(code, []).append(old_round)
+    st.success(f"📝 Ronda {s['round']} guardada en el historial.")
+
+           
             quorum = s.get("n_participantes", 0) // 2 + 1
             votos_actuales = len(votes)
 
