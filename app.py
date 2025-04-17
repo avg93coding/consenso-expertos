@@ -584,41 +584,31 @@ elif menu == "Dashboard":
                         st.session_state["current_code"] = code
             
             # UI para modificar la recomendación y crear nueva ronda
-            if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
-                with st.form("new_round_form"):
-                    new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
-                    if st.form_submit_button("Iniciar nueva ronda de votación"):
-                        # Guardar la ronda actual en el historial
-                        if code in history:
-                            old = copy.deepcopy(store[code])
-                            history[code].append(old)
-                        ronda = store[code]["round"] + 1
-store[code].update({
-    "desc": nueva_desc,
-    "votes": [],
-    "comments": [],
-    "ids": [],
-    "names": [],
-    "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    "round": ronda
-})
+if st.session_state.get("modify_recommendation", False) and st.session_state.get("current_code") == code:
+    import copy
+    with st.form("new_round_form", clear_on_submit=True):
+        new_desc = st.text_area("Modificar recomendación:", value=s["desc"])
+        if st.form_submit_button("Iniciar nueva ronda de votación"):
+            # 1) Copiar la ronda actual al historial
+            old = copy.deepcopy(store[code])
+            history.setdefault(code, []).append(old)
 
-                        
-                        # Crear nueva ronda
-                        store[code].update({
-                            "desc": new_desc,
-                            "votes": [],
-                            "comments": [],
-                            "ids": [],
-                            "names": [],
-                            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "round": s["round"] + 1
-                        })
-                        
-                        st.success(f"Nueva ronda iniciada. Ronda actual: {s['round'] + 1}")
-                        st.session_state["modify_recommendation"] = False
-                        st.experimental_rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            # 2) Resetear para la nueva ronda
+            next_round = store[code]["round"] + 1
+            store[code].update({
+                "desc": new_desc,
+                "votes": [],
+                "comments": [],
+                "ids": [],
+                "names": [],
+                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "round": next_round
+            })
+
+            st.success(f"Nueva ronda iniciada: Ronda {next_round}")
+            st.session_state["modify_recommendation"] = False
+            st.experimental_rerun()
+
             
             # Visualización de resultados
             if votes:
