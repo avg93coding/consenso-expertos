@@ -522,15 +522,7 @@ elif menu == "Dashboard":
             </div>
             """, unsafe_allow_html=True)
             
-            # Link para votación 
-            st.markdown(f"""
-            <div class="card">
-                <h4>Enlace para votantes</h4>
-                <p>Comparta este enlace o el código QR para que los participantes voten:</p>
-                <code>{create_qr_code_url(code)}</code>
-                {get_qr_code_image_html(code)}
-            </div>
-            """, unsafe_allow_html=True)
+         
             
             # Botón para probar la URL de votación
             if st.button("Probar enlace de votación"):
