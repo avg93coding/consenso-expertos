@@ -340,33 +340,29 @@ if "session" in params:
 
         odds_header()
         st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
-        st.markdown('<div class="card">', unsafe_allow_html=True)
 
         if code not in store:
             st.error(f"Sesión inválida o expirada: '{code}'")
-            st.info("Por favor, contacte al administrador para obtener un nuevo código de sesión.")
-            if st.button("Ver sesiones disponibles"):
-                st.write("Sesiones activas:", list(store.keys()))
-                st.write("Código recibido:", code)
-                st.write("Tipo de código:", type(code))
+            st.info("Por favor, contacte al administrador.")
             st.stop()
 
         s = store[code]
-
         st.subheader(f"Panel de Votación - Ronda {s['round']}")
         st.markdown(f'<div class="session-badge">Sesión: {code}</div>', unsafe_allow_html=True)
 
         name = st.text_input("Nombre del participante:")
 
-        # Si ya votó, no permitir volver a votar
+        # Bloqueo si ya votó
         if name and name in s["names"]:
+            st.balloons()
             st.success("✅ Gracias, su voto ya ha sido registrado.")
-            st.markdown("Puede cerrar esta ventana. 🙏")
+            st.markdown("Puede cerrar esta ventana. 🙌")
             st.stop()
+
+        st.markdown('<div class="card">', unsafe_allow_html=True)
 
         st.markdown("### Recomendación a evaluar:")
         st.markdown(f"**{s['desc']}**")
-
         st.markdown('<div class="helper-text">Evalúe si está de acuerdo con la recomendación según la escala proporcionada.</div>', unsafe_allow_html=True)
 
         if s["scale"].startswith("Likert"):
@@ -388,9 +384,10 @@ if "session" in params:
             else:
                 pid = record_vote(code, vote, comment, name)
                 if pid:
-                    st.success("✅ Gracias, su voto ha sido registrado.")
-                    st.markdown(f"**ID de su voto:** {pid}")
-                    st.markdown("Puede cerrar esta ventana. 🙌")
+                    st.balloons()
+                    st.success("🎉 Gracias por su participación.")
+                    st.markdown(f"**ID de su voto:** `{pid}`")
+                    st.markdown("Puede cerrar esta ventana. 🙏")
                     st.stop()
                 else:
                     st.error("Error al registrar el voto. La sesión puede haber expirado.")
@@ -401,6 +398,7 @@ if "session" in params:
     except Exception as e:
         st.error(f"Error al procesar la sesión: {str(e)}")
         st.info("Por favor, intente escanear el código QR nuevamente o contacte al administrador.")
+
 
 # 6) Panel de administración
 odds_header()
