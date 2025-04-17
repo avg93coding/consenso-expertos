@@ -422,7 +422,7 @@ st.sidebar.markdown("### ODDS Epidemiology")
 menu = st.sidebar.radio("Navegación", ["Inicio", "Crear Sesión", "Dashboard", "Historial"])
 
 if menu == "Inicio":
-    st.markdown("## Bienvenido al Sistema de Consenso de ODDS Epidemiology")
+    st.markdown("## Bienvenido al Sistema de votación para Consenso de expertos de ODDS Epidemiology")
     
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.markdown("""
