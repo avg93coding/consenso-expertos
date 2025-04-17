@@ -51,7 +51,7 @@ if "registro" in params:
             institucion = st.text_input("Institución o afiliación")
             cargo = st.text_input("Cargo profesional")
             participa_en = st.multiselect("¿Participa actualmente en alguno de los siguientes?", [
-                "Industria farmacéutica", "Investigación patrocinada", "Consultoría médica", "Autoría de guías clínicas", "Otro"])
+                "Industria farmacéutica", "Investigación patrocinada", "Consultoría médica", "Autoría de guías clínicas", "Otro", "Ninguno"])
             tiene_conflicto = st.radio("¿Tiene un posible conflicto que pueda influir en esta recomendación?", ["No", "Sí"])
             detalle_conflicto = st.text_area("Describa brevemente su conflicto") if tiene_conflicto == "Sí" else ""
             confirma = st.checkbox("Declaro que la información es verídica y completa", value=False)
