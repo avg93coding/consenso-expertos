@@ -915,74 +915,51 @@ if state_upload is not None:
 
 elif menu == "Registro Previo":
     st.title("📋 Registro Previo - Panel de Consenso")
-    st.markdown("Registros antes de iniciar el consenso.")
+    st.markdown("Comparta los siguientes enlaces con los participantes para que completen sus registros antes de iniciar el consenso.")
 
-    # -------------------------------
-    # 🔐 Declaración de Conflictos
-    # -------------------------------
+    # 🔐 Conflictos de Interés
     st.markdown("### 🔐 Declaración de Conflictos de Interés")
     url_conflicto = "https://consenso-expertos-sfpqj688ihbl7m6tgrdmwb.streamlit.app/?registro=conflicto"
-    st.code(url_conflicto, language="text")
-
+    st.code(url_conflicto)
     qr_conflicto = qrcode.make(url_conflicto)
-    buf_c = io.BytesIO()
-    qr_conflicto.save(buf_c, format="PNG")
-    img_conflicto = base64.b64encode(buf_c.getvalue()).decode("utf-8")
+    buf1 = io.BytesIO()
+    qr_conflicto.save(buf1, format="PNG")
+    img1 = base64.b64encode(buf1.getvalue()).decode()
+    st.markdown(f'<img src="data:image/png;base64,{img1}" width="180">', unsafe_allow_html=True)
 
-    st.markdown(f'''
-    <img src="data:image/png;base64,{img_conflicto}" width="180">
-    <p><em>Escanéelo para registrar conflictos desde el celular</em></p>
-    ''', unsafe_allow_html=True)
-
-    # -------------------------------
-    # 📄 Compromiso de Confidencialidad
-    # -------------------------------
+    # 📄 Confidencialidad
     st.markdown("---")
     st.markdown("### 📄 Compromiso de Confidencialidad")
     url_confid = "https://consenso-expertos-sfpqj688ihbl7m6tgrdmwb.streamlit.app/?registro=confidencialidad"
-    st.code(url_confid, language="text")
-
+    st.code(url_confid)
     qr_confid = qrcode.make(url_confid)
-    buf_d = io.BytesIO()
-    qr_confid.save(buf_d, format="PNG")
-    img_confid = base64.b64encode(buf_d.getvalue()).decode("utf-8")
+    buf2 = io.BytesIO()
+    qr_confid.save(buf2, format="PNG")
+    img2 = base64.b64encode(buf2.getvalue()).decode()
+    st.markdown(f'<img src="data:image/png;base64,{img2}" width="180">', unsafe_allow_html=True)
 
-    st.markdown(f'''
-    <img src="data:image/png;base64,{img_confid}" width="180">
-    <p><em>Escanéelo para registrar confidencialidad desde el celular</em></p>
-    ''', unsafe_allow_html=True)
-
-    # -------------------------------
-    # 📥 Descarga de registros
-    # -------------------------------
+    # 📥 Exportar datos recibidos
     st.markdown("---")
     st.subheader("📥 Exportar registros recibidos")
 
     col1, col2 = st.columns(2)
 
-    if "registro_conflicto" in st.session_state and st.session_state["registro_conflicto"]:
+    if st.session_state["registro_conflicto"]:
         df1 = pd.DataFrame(st.session_state["registro_conflicto"])
         with col1:
-            st.download_button(
-                "⬇️ Descargar Conflictos",
-                df1.to_csv(index=False).encode("utf-8"),
-                file_name="conflictos.csv"
-            )
+            st.download_button("⬇️ Descargar Conflictos", df1.to_csv(index=False).encode(), file_name="conflictos.csv")
     else:
         with col1:
-            st.info("No se han recibido registros de Conflicto de Interés.")
+            st.info("Sin registros aún.")
 
-    if "registro_confidencialidad" in st.session_state and st.session_state["registro_confidencialidad"]:
+    if st.session_state["registro_confidencialidad"]:
         df2 = pd.DataFrame(st.session_state["registro_confidencialidad"])
         with col2:
-            st.download_button(
-                "⬇️ Descargar Confidencialidad",
-                df2.to_csv(index=False).encode("utf-8"),
-                file_name="confidencialidad.csv"
-            )
+            st.download_button("⬇️ Descargar Confidencialidad", df2.to_csv(index=False).encode(), file_name="confidencialidad.csv")
     else:
         with col2:
-            st.info("No se han recibido registros de Confidencialidad.")
+            st.info("Sin registros aún.")
+
 
 
 # Créditos
