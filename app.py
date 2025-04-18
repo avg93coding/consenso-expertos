@@ -73,7 +73,7 @@ if "registro" in params:
                         "participa_en": "; ".join(participa_en),
                         "conflicto": tiene_conflicto,
                         "detalle": detalle_conflicto,
-                        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     }
                     st.session_state["registro_conflicto"].append(nuevo)
                     guardar_registros("registro_conflicto", st.session_state["registro_conflicto"])
