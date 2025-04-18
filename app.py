@@ -488,7 +488,7 @@ odds_header()
 
 st.sidebar.title("Panel de Control")
 st.sidebar.markdown("### ODDS Epidemiology")
-menu = st.sidebar.radio("Navegación", ["Inicio", "Crear Recomendación", "Dashboard",  "Registro Previo", "Generar Reporte"])
+menu = st.sidebar.radio("Navegación", ["Inicio", "Crear Recomendación", "Dashboard",  "Registro Previo", "Reporte Consolidado"])
 
 if menu == "Inicio":
     st.markdown("## Bienvenido al Sistema de votación para Consenso de expertos de ODDS Epidemiology")
@@ -875,8 +875,8 @@ elif menu == "Historial":
                     st.warning("No se alcanzó consenso a pesar de múltiples rondas.")
                 st.markdown("</div>", unsafe_allow_html=True)
 
-elif menu == "Generar Reporte":
-    integrar_seccion_word_report()
+elif menu == "Reporte consolidado":
+     integrar_reporte_todas_recomendaciones()
     
 # Guardar y Cargar Estado - Administración
 st.sidebar.markdown("---")
