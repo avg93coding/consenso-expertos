@@ -73,7 +73,7 @@ if "registro" in params:
                         "participa_en": "; ".join(participa_en),
                         "conflicto": tiene_conflicto,
                         "detalle": detalle_conflicto,
-                        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     }
                     st.session_state["registro_conflicto"].append(nuevo)
                     guardar_registros("registro_conflicto", st.session_state["registro_conflicto"])
@@ -95,7 +95,7 @@ if "registro" in params:
                     nuevo = {
                         "id": str(uuid.uuid4())[:8],
                         "nombre": nombre,
-                        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "acepta": True
                     }
                     st.session_state["registro_confidencialidad"].append(nuevo)
@@ -128,7 +128,7 @@ history = {}
 # 3) Utilidades
 def make_session(desc: str, scale: str) -> str:
     code = uuid.uuid4().hex[:6].upper()
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     store[code] = {
         "desc": desc,
         "scale": scale,
@@ -265,7 +265,7 @@ def crear_reporte_word(code, titulo_personalizado=None):
     titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # Info general
-    doc.add_paragraph().add_run(f"Fecha de generación: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}").italic = True
+    doc.add_paragraph().add_run(f"Fecha de generación: {datetime.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}").italic = True
     doc.add_paragraph().add_run(f"Código de sesión: {code}").bold = True
 
     # Recoger todas las rondas
@@ -334,7 +334,7 @@ def crear_reporte_word(code, titulo_personalizado=None):
 
     # Footer
     footer = doc.sections[0].footer.paragraphs[0]
-    footer.text = f"Reporte generado por ODDS Epidemiology · {datetime.now().strftime('%d-%m-%Y')}"
+    footer.text = f"Reporte generado por ODDS Epidemiology · {datetime.datetime.now().strftime('%d-%m-%Y')}"
     footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     buf = io.BytesIO()
@@ -398,7 +398,7 @@ def integrar_seccion_word_report():
                         word_buffer = crear_reporte_word(code, titulo_personalizado)
                         
                         if word_buffer:
-                            fecha_actual = datetime.now().strftime("%Y%m%d")
+                            fecha_actual = datetime.datetime.now().strftime("%Y%m%d")
                             st.download_button(
                                 label="⬇️ Descargar Reporte Word",
                                 data=word_buffer,
