@@ -649,6 +649,12 @@ elif menu == "Crear Recomendación":
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+import plotly.graph_objects as go
+
+# Define tus colores corporativos al inicio del fichero
+PRIMARY = "#662D91"   # Morado ODDS
+SECONDARY = "#F1592A" # Naranja ODDS (opcional)
+
 elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")
@@ -666,29 +672,42 @@ elif menu == "Dashboard":
             # --- Métricas previas ---
             pct = consensus_pct(votes) * 100  # porcentaje de consenso
 
-            # — Gauge de Consenso —
+            # --- Gauge de Consenso personalizado ---
             fig_gauge = go.Figure(go.Indicator(
-                mode = "gauge+number+delta",
-                value = pct,
-                delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
-                gauge = {
-                    'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkgray"},
-                    'bar': {'color': "darkblue"},
+                mode="gauge+number+delta",
+                value=pct,
+                delta={
+                    'reference': 80,
+                    'increasing': {'color': PRIMARY},
+                    'decreasing': {'color': SECONDARY}
+                },
+                gauge={
+                    'axis':     {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkgray"},
+                    'bar':      {'color': PRIMARY},
                     'steps': [
-                        {'range': [0, 80], 'color': 'lightgray'},
-                        {'range': [80, 100], 'color': 'lightgreen'}
+                        {'range': [0, 80],  'color': 'rgba(102,41,145,0.2)'},
+                        {'range': [80, 100],'color': 'rgba(102,41,145,0.4)'}
                     ],
                     'threshold': {
-                        'line': {'color': "green", 'width': 4},
+                        'line':      {'color': SECONDARY, 'width': 4},
                         'thickness': 0.75,
-                        'value': 80
+                        'value':     80
                     }
                 },
-                title = {'text': "Porcentaje de Consenso", 'font': {'size': 16}}
+                title={'text': "Porcentaje de Consenso", 'font': {'size': 18, 'color': PRIMARY}}
             ))
+
+            # Ajuste de tamaño y márgenes
+            fig_gauge.update_layout(
+                margin={'t': 40, 'b': 0, 'l': 0, 'r': 0},
+                width=600,
+                height=350,
+                paper_bgcolor="white"
+            )
+
             st.plotly_chart(fig_gauge, use_container_width=True)
 
-            # — Resto del dashboard —
+            # --- Resto del dashboard ---
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Finalizar esta sesión"):
@@ -712,7 +731,6 @@ elif menu == "Dashboard":
             </div>
             """, unsafe_allow_html=True)
 
-            # ... sigue con el resto de tu código para mostrar métricas, gráficos y exportaciones ...
 
 
             # Métricas
