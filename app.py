@@ -164,10 +164,9 @@ if "registro" in params:
 
 
 
-# 1) Configuración de la página
 st.set_page_config(
-    page_title="ODDS Epidemiology - Dashboard Consenso de expertos",
-    page_icon="🎯",
+    page_title="ODDS Epidemiology – Dashboard Consenso de expertos",
+    page_icon="https://www.oddsepidemiology.com/favicon.ico",  # <-- URL absoluta
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -546,7 +545,7 @@ if "session" in params:
 odds_header()
 # Logo en la barra lateral
 logo_url = "https://static.wixstatic.com/media/89a9c2_ddc57311fc734357b9ea2b699e107ae2~mv2.png/v1/fill/w_90,h_54,al_c,q_85,usm_0.66_1.00_0.01/Logo%20versi%C3%B3n%20principal.png"
-st.sidebar.image(logo_url, width=150)
+st.sidebar.image(logo_url, width=80)
 
 st.sidebar.title("Panel de Control")
 st.sidebar.markdown("### ODDS Epidemiology")
