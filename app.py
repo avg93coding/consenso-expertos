@@ -19,6 +19,12 @@ import docx
 from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
+import plotly.graph_objects as go
+
+# Define tus colores corporativos al inicio del fichero
+PRIMARY = "#662D91"   # Morado ODDS
+SECONDARY = "#F1592A" # Naranja ODDS (opcional)
+
 
 def to_excel(code: str) -> io.BytesIO:
     if code not in store:
@@ -649,11 +655,6 @@ elif menu == "Crear Recomendación":
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-import plotly.graph_objects as go
-
-# Define tus colores corporativos al inicio del fichero
-PRIMARY = "#662D91"   # Morado ODDS
-SECONDARY = "#F1592A" # Naranja ODDS (opcional)
 
 elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
