@@ -12,6 +12,7 @@ import copy
 import os
 from scipy import stats
 from streamlit_autorefresh import st_autorefresh
+import plotly.graph_objects as go
 
 import os
 import docx
@@ -652,6 +653,29 @@ elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")
 
+# — Gauge de Consenso —
+fig_gauge = go.Figure(go.Indicator(
+    mode = "gauge+number+delta",
+    value = pct,
+    delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
+    gauge = {
+        'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkgray"},
+        'bar': {'color': "darkblue"},
+        'steps': [
+            {'range': [0, 80], 'color': 'lightgray'},
+            {'range': [80, 100], 'color': 'lightgreen'}
+        ],
+        'threshold': {
+            'line': {'color': "green", 'width': 4},
+            'thickness': 0.75,
+            'value': 80
+        }
+    },
+    title = {'text': "Porcentaje de Consenso", 'font': {'size': 16}}
+))
+st.plotly_chart(fig_gauge, use_container_width=True)
+
+    
     active_sessions = [k for k, v in store.items() if v.get("is_active", True)]
     if not active_sessions:
         st.info("No hay sesiones activas. Cree una nueva sesión para comenzar.")
