@@ -875,7 +875,7 @@ elif menu == "Historial":
                     st.warning("No se alcanzó consenso a pesar de múltiples rondas.")
                 st.markdown("</div>", unsafe_allow_html=True)
 
-elif menu == "Reporte consolidado":
+elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
     
 # Guardar y Cargar Estado - Administración
