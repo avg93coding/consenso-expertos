@@ -544,6 +544,9 @@ if "session" in params:
 
 # 6) Panel de administración
 odds_header()
+# Logo en la barra lateral
+logo_url = "https://static.wixstatic.com/media/89a9c2_ddc57311fc734357b9ea2b699e107ae2~mv2.png/v1/fill/w_90,h_54,al_c,q_85,usm_0.66_1.00_0.01/Logo%20versi%C3%B3n%20principal.png"
+st.sidebar.image(logo_url, width=150)
 
 st.sidebar.title("Panel de Control")
 st.sidebar.markdown("### ODDS Epidemiology")
