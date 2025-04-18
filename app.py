@@ -19,6 +19,26 @@ from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 
+def to_excel(code: str) -> io.BytesIO:
+    if code not in store:
+        return io.BytesIO()
+    s = store[code]
+    # arma tu DataFrame con votos, comments, historial...
+    df = pd.DataFrame({
+        "ID anónimo": s["ids"],
+        "Nombre real": s["names"],
+        "Recomendación": [s["desc"]] * len(s["ids"]),
+        "Ronda": [s["round"]] * len(s["ids"]),
+        "Voto": s["votes"],
+        "Comentario": s["comments"],
+        "Fecha": [s["created_at"]] * len(s["ids"])
+    })
+    # si tienes historial, concaténalo aquí...
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False)
+    buf.seek(0)
+    return buf
+
 # Crear carpeta para guardar datos si no existe
 DATA_DIR = "registro_data"
 os.makedirs(DATA_DIR, exist_ok=True)
