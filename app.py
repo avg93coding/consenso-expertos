@@ -549,7 +549,7 @@ st.sidebar.image(logo_url, width=80)
 
 st.sidebar.title("Panel de Control")
 st.sidebar.markdown("### ODDS Epidemiology")
-menu = st.sidebar.radio("Navegación", ["Inicio", "Crear Recomendación", "Dashboard",  "Registro Previo", "Reporte Consolidado"])
+menu = st.sidebar.selectbox("Navegación", ["Inicio", "Crear Recomendación", "Dashboard",  "Registro Previo", "Reporte Consolidado"])
 
 if menu == "Inicio":
     st.markdown("## Bienvenido al Sistema de votación para Consenso de expertos de ODDS Epidemiology")
