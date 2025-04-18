@@ -95,7 +95,7 @@ if "registro" in params:
                     nuevo = {
                         "id": str(uuid.uuid4())[:8],
                         "nombre": nombre,
-                        "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "acepta": True
                     }
                     st.session_state["registro_confidencialidad"].append(nuevo)
@@ -128,7 +128,7 @@ history = {}
 # 3) Utilidades
 def make_session(desc: str, scale: str) -> str:
     code = uuid.uuid4().hex[:6].upper()
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     store[code] = {
         "desc": desc,
         "scale": scale,
@@ -398,7 +398,7 @@ def integrar_seccion_word_report():
                         word_buffer = crear_reporte_word(code, titulo_personalizado)
                         
                         if word_buffer:
-                            fecha_actual = datetime.datetime.now().strftime("%Y%m%d")
+                            fecha_actual = datetime.now().strftime("%Y%m%d")
                             st.download_button(
                                 label="⬇️ Descargar Reporte Word",
                                 data=word_buffer,
