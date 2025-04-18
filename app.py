@@ -343,147 +343,44 @@ def crear_reporte_word(code, titulo_personalizado=None):
     return buf
 
 # ——————————————————————————————
-#  Sección de Streamlit para descargar el reporte
-# ——————————————————————————————
+import datetime  # asegúrate de tenerlo al inicio
+
 def integrar_seccion_word_report():
     st.subheader("📝 Generación de Reporte Word")
 
-    with st.form("form_reporte"):
-        code = st.text_input("Código de sesión", help="Ej: 45B4C9")
-        titulo = st.text_input(
+    # 1) Listado de sesiones disponibles
+    active_sessions = list(store.keys())
+    if not active_sessions:
+        st.info("No hay sesiones disponibles para generar reportes.")
+        return
+
+    # 2) Selector de sesión
+    code = st.selectbox("Seleccionar sesión:", active_sessions)
+
+    # 3) Formulario único (solo inputs + submit)
+    with st.form("form_reporte_unico"):
+        titulo_personalizado = st.text_input(
             "Título personalizado para el reporte",
             value=f"Reporte de Consenso - Sesión {code}"
         )
-        submitted = st.form_submit_button("Generar reporte")
+        submit = st.form_submit_button("Generar Reporte Word")
 
-    if submitted:
-        buffer = crear_reporte_word(code, titulo)
-        if buffer is None:
-            st.error(f"No existe ninguna sesión con código “{code}”")
+    # 4) Fuera del form, al hacer submit, mostramos el botón de descarga
+    if submit:
+        buf = crear_reporte_word(code, titulo_personalizado)
+        if buf is None:
+            st.error(f"No existe ninguna sesión con código «{code}»")
         else:
+            fecha_tag = datetime.datetime.now().strftime("%Y%m%d")
+            filename = f"{titulo_personalizado.replace(' ', '_')}_{fecha_tag}.docx"
+
             st.success("✅ Reporte generado correctamente")
             st.download_button(
                 label="⬇️ Descargar Reporte (.docx)",
-                data=buffer,
-                file_name=f"{titulo.replace(' ','_')}.docx",
+                data=buf,
+                file_name=filename,
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
-
-    st.markdown("""
-    <div class="card">
-    <p>Genere reportes profesionales en formato Word con detalles de todas las rondas de votación.</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Selección de sesión
-    active_sessions = [k for k, v in store.items()]
-    if not active_sessions:
-        st.info("No hay sesiones disponibles para generar reportes.")
-    else:
-        code = st.selectbox("Seleccionar sesión:", active_sessions)
-        
-        if code:
-            # Formulario para generar el reporte
-            with st.form("reporte_word_form"):
-                titulo_personalizado = st.text_input(
-                    "Título personalizado para el reporte:", 
-                    value=f"Reporte de Consenso - Sesión {code}"
-                )
-                
-                submit = st.form_submit_button("Generar Reporte Word")
-                
-                if submit:
-                    try:
-                        # Generar el reporte Word
-                        word_buffer = crear_reporte_word(code, titulo_personalizado)
-                        
-                        if word_buffer:
-                            fecha_actual = datetime.datetime.now().strftime("%Y%m%d")
-                            st.download_button(
-                                label="⬇️ Descargar Reporte Word",
-                                data=word_buffer,
-                                file_name=f"reporte_consenso_{code}_{fecha_actual}.docx",
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                            )
-                            st.success("✅ Reporte generado exitosamente.")
-                        else:
-                            st.error("No se pudo generar el reporte. La sesión puede no existir.")
-                    except Exception as e:
-                        st.error(f"Error al generar el reporte: {str(e)}")
-                        st.error("Asegúrese de tener la biblioteca python-docx instalada: pip install python-docx")
-def to_excel(code: str) -> io.BytesIO:
-    if code not in store:
-        return io.BytesIO()
-    
-    s = store[code]
-    df = pd.DataFrame({
-        "ID anónimo": s["ids"],
-        "Nombre real": s["names"],
-        "Recomendación": [s["desc"]] * len(s["ids"]),
-        "Ronda": [s["round"]] * len(s["ids"]),
-        "Voto": s["votes"],
-        "Comentario": s["comments"],
-        "Fecha": [s["created_at"]] * len(s["ids"])
-    })
-    
-    # Añadir datos de rondas anteriores del historial
-    if code in history:
-        for past_round in history[code]:  # Todas las rondas pasadas
-            hist_df = pd.DataFrame({
-                "ID anónimo": past_round["ids"],
-                "Nombre real": past_round["names"],
-                "Recomendación": [past_round["desc"]] * len(past_round["ids"]),
-                "Ronda": [past_round["round"]] * len(past_round["ids"]),
-                "Voto": past_round["votes"],
-                "Comentario": past_round["comments"],
-                "Fecha": [past_round["created_at"]] * len(past_round["ids"])
-            })
-            df = pd.concat([df, hist_df])
-    
-    pct = consensus_pct(s["votes"])
-    df["Consenso"] = ["Sí" if pct >= 0.8 else "No"] * len(df)
-    
-    buf = io.BytesIO()
-    df.to_excel(buf, index=False)
-    buf.seek(0)
-    return buf
-
-def create_report(code: str) -> str:
-    if code not in store:
-        return "Sesión inválida"
-    
-    s = store[code]
-    pct = consensus_pct(s["votes"]) * 100
-    med, lo, hi = median_ci(s["votes"])
-    
-    report = f"""REPORTE DE CONSENSO - ODDS EPIDEMIOLOGY
-Código de sesión: {code}
-Fecha: {s["created_at"]}
-Ronda: {s['round']}
-Recomendación: {s["desc"]}
-    
-MÉTRICAS:
-- Votos totales: {len(s["votes"])}
-- Porcentaje de consenso: {pct:.1f}%
-- Mediana (IC 95%): {med:.1f} [{lo:.1f}, {hi:.1f}]
-- Resultado: {"APROBADO" if pct >= 80 and lo >= 7 else "NO APROBADO" if pct >= 80 and hi <= 3 else "REQUIERE SEGUNDA RONDA"}
-
-COMENTARIOS:
-"""
-    for i, (pid, comment) in enumerate(zip(s["ids"], s["comments"])):
-        if comment:
-            report += f"{i+1}. {pid}: {comment}\n"
-    
-    # Añadir historial de rondas anteriores
-    if code in history and len(history[code]) > 0:
-        report += "\nHISTORIAL DE RONDAS ANTERIORES:\n"
-        for i, past_round in enumerate(history[code]):
-            round_pct = consensus_pct(past_round["votes"]) * 100
-            report += f"\nRonda {past_round['round']} - {past_round['created_at']}\n"
-            report += f"Recomendación: {past_round['desc']}\n"
-            report += f"Consenso: {round_pct:.1f}%\n"
-    
-    return report
 
 # 4) CSS y estilo visual para ODDS Epidemiology
 def inject_css():
