@@ -39,6 +39,45 @@ def to_excel(code: str) -> io.BytesIO:
     buf.seek(0)
     return buf
 
+def create_report(code: str) -> str:
+    """
+    Genera un reporte de texto plano con métricas y comentarios de la sesión actual
+    (incluye también el historial de rondas anteriores si lo hay).
+    """
+    if code not in store:
+        return "Sesión inválida"
+    s = store[code]
+    pct = consensus_pct(s["votes"]) * 100
+    med, lo, hi = median_ci(s["votes"])
+    # Cabecera
+    lines = [
+        f"REPORTE DE CONSENSO - Sesión {code}",
+        f"Fecha de generación: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}",
+        "",
+        f"Recomendación: {s['desc']}",
+        f"Ronda actual: {s['round']}",
+        f"Votos totales: {len(s['votes'])}",
+        f"% Consenso: {pct:.1f}%",
+        f"Mediana (IC95%): {med:.1f} [{lo:.1f}, {hi:.1f}]",
+        "",
+        "Comentarios:",
+    ]
+    # Comentarios de la ronda actual
+    for pid, name, vote, com in zip(s["ids"], s["names"], s["votes"], s["comments"]):
+        if com:
+            lines.append(f"- {name} (ID {pid}): “{com}”")
+    # Historial de rondas anteriores
+    if code in history and history[code]:
+        lines.append("\nHistorial de rondas anteriores:")
+        for past in history[code]:
+            ppct = consensus_pct(past["votes"]) * 100
+            lines.append(
+                f"  * Ronda {past['round']} [{past['created_at']}]: "
+                f"%Consenso={ppct:.1f}%, Mediana={median_ci(past['votes'])[0]:.1f}"
+            )
+    return "\n".join(lines)
+
+
 # Crear carpeta para guardar datos si no existe
 DATA_DIR = "registro_data"
 os.makedirs(DATA_DIR, exist_ok=True)
