@@ -653,29 +653,6 @@ elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")
 
-# — Gauge de Consenso —
-fig_gauge = go.Figure(go.Indicator(
-    mode = "gauge+number+delta",
-    value = pct,
-    delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
-    gauge = {
-        'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkgray"},
-        'bar': {'color': "darkblue"},
-        'steps': [
-            {'range': [0, 80], 'color': 'lightgray'},
-            {'range': [80, 100], 'color': 'lightgreen'}
-        ],
-        'threshold': {
-            'line': {'color': "green", 'width': 4},
-            'thickness': 0.75,
-            'value': 80
-        }
-    },
-    title = {'text': "Porcentaje de Consenso", 'font': {'size': 16}}
-))
-st.plotly_chart(fig_gauge, use_container_width=True)
-
-    
     active_sessions = [k for k, v in store.items() if v.get("is_active", True)]
     if not active_sessions:
         st.info("No hay sesiones activas. Cree una nueva sesión para comenzar.")
@@ -686,6 +663,32 @@ st.plotly_chart(fig_gauge, use_container_width=True)
             s = store[code]
             votes, comments, ids = s["votes"], s["comments"], s["ids"]
 
+            # --- Métricas previas ---
+            pct = consensus_pct(votes) * 100  # porcentaje de consenso
+
+            # — Gauge de Consenso —
+            fig_gauge = go.Figure(go.Indicator(
+                mode = "gauge+number+delta",
+                value = pct,
+                delta = {'reference': 80, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
+                gauge = {
+                    'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkgray"},
+                    'bar': {'color': "darkblue"},
+                    'steps': [
+                        {'range': [0, 80], 'color': 'lightgray'},
+                        {'range': [80, 100], 'color': 'lightgreen'}
+                    ],
+                    'threshold': {
+                        'line': {'color': "green", 'width': 4},
+                        'thickness': 0.75,
+                        'value': 80
+                    }
+                },
+                title = {'text': "Porcentaje de Consenso", 'font': {'size': 16}}
+            ))
+            st.plotly_chart(fig_gauge, use_container_width=True)
+
+            # — Resto del dashboard —
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Finalizar esta sesión"):
@@ -708,6 +711,9 @@ st.plotly_chart(fig_gauge, use_container_width=True)
                 <strong>Votos recibidos:</strong> {votos_actuales}
             </div>
             """, unsafe_allow_html=True)
+
+            # ... sigue con el resto de tu código para mostrar métricas, gráficos y exportaciones ...
+
 
             # Métricas
             col1, col2, col3 = st.columns(3)
