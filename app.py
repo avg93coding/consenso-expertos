@@ -985,11 +985,11 @@ if state_upload is not None:
         st.sidebar.error(f"Error al cargar el estado: {str(e)}")
 
 elif menu == "Registro Previo":
-    st.title("📋 Registro Previo - Panel de Consenso")
+    st.title("Registro Previo - Panel de Consenso")
     st.markdown("Comparta los siguientes enlaces con los participantes para que completen sus registros antes de iniciar el consenso.")
 
-    # 🔐 Conflictos de Interés
-    st.markdown("### 🔐 Declaración de Conflictos de Interés")
+    #  Conflictos de Interés
+    st.markdown("###  Declaración de Conflictos de Interés")
     url_conflicto = "https://consenso-expertos-sfpqj688ihbl7m6tgrdmwb.streamlit.app/?registro=conflicto"
     st.code(url_conflicto)
     qr_conflicto = qrcode.make(url_conflicto)
@@ -1000,7 +1000,7 @@ elif menu == "Registro Previo":
 
     # 📄 Confidencialidad
     st.markdown("---")
-    st.markdown("### 📄 Compromiso de Confidencialidad")
+    st.markdown("###  Compromiso de Confidencialidad")
     url_confid = "https://consenso-expertos-sfpqj688ihbl7m6tgrdmwb.streamlit.app/?registro=confidencialidad"
     st.code(url_confid)
     qr_confid = qrcode.make(url_confid)
@@ -1011,7 +1011,7 @@ elif menu == "Registro Previo":
 
     # 📥 Exportar datos recibidos
     st.markdown("---")
-    st.subheader("📥 Exportar registros recibidos")
+    st.subheader(" Exportar registros recibidos")
 
     col1, col2 = st.columns(2)
 
