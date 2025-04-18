@@ -1106,7 +1106,9 @@ elif menu == "Historial":
                     st.warning("No se alcanzó consenso a pesar de múltiples rondas.")
                 st.markdown("</div>", unsafe_allow_html=True)
 
-
+elif menu == "Generar Reporte":
+    integrar_seccion_word_report()
+    
 # Guardar y Cargar Estado - Administración
 st.sidebar.markdown("---")
 st.sidebar.subheader("Administración")
