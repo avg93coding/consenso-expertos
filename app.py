@@ -656,6 +656,8 @@ elif menu == "Crear Recomendación":
 
 
 
+
+
 elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")
@@ -678,35 +680,37 @@ elif menu == "Dashboard":
                 mode="gauge+number+delta",
                 value=pct,
                 delta={
-                    'reference': 80,
-                    'increasing': {'color': PRIMARY},
-                    'decreasing': {'color': SECONDARY}
+                    "reference": 80,
+                    "increasing": {"color": PRIMARY},
+                    "decreasing": {"color": SECONDARY}
                 },
                 gauge={
-                    'axis':     {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkgray"},
-                    'bar':      {'color': PRIMARY},
-                    'steps': [
-                        {'range': [0, 80],  'color': 'rgba(102,41,145,0.2)'},
-                        {'range': [80, 100],'color': 'rgba(102,41,145,0.4)'}
+                    "axis":     {"range": [0, 100], "tickwidth": 1, "tickcolor": "darkgray"},
+                    "bar":      {"color": PRIMARY, "thickness": 0.3},
+                    "steps": [
+                        {"range": [0, 80],  "color": "rgba(102,41,145,0.2)"},
+                        {"range": [80, 100],"color": "rgba(102,41,145,0.4)"}
                     ],
-                    'threshold': {
-                        'line':      {'color': SECONDARY, 'width': 4},
-                        'thickness': 0.75,
-                        'value':     80
+                    "threshold": {
+                        "line":      {"color": SECONDARY, "width": 3},
+                        "thickness": 0.6,
+                        "value":     80
                     }
                 },
-                title={'text': "Porcentaje de Consenso", 'font': {'size': 18, 'color': PRIMARY}}
+                title={"text": "Consensus %", "font": {"size": 12, "color": PRIMARY}},
+                number={"font": {"size": 16}}
             ))
 
-            # Ajuste de tamaño y márgenes
+            # Ajuste de tamaño y márgenes (muy pequeño)
             fig_gauge.update_layout(
-                margin={'t': 40, 'b': 0, 'l': 0, 'r': 0},
-                width=600,
-                height=350,
+                autosize=False,
+                width=250,
+                height=140,
+                margin={"t": 30, "b": 0, "l": 0, "r": 0},
                 paper_bgcolor="white"
             )
 
-            st.plotly_chart(fig_gauge, use_container_width=True)
+            st.plotly_chart(fig_gauge, use_container_width=False)
 
             # --- Resto del dashboard ---
             col1, col2 = st.columns(2)
@@ -731,6 +735,7 @@ elif menu == "Dashboard":
                 <strong>Votos recibidos:</strong> {votos_actuales}
             </div>
             """, unsafe_allow_html=True)
+
 
 
 
