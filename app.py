@@ -383,7 +383,7 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
 #  Integración en Streamlit
 # ——————————————————————————————
 def integrar_reporte_todas_recomendaciones():
-    st.subheader("📑 Descargar Reporte Consolidado de Recomendaciones")
+    st.subheader(" Descargar Reporte Consolidado de Recomendaciones")
 
     if not store:
         st.info("No hay recomendaciones registradas aún.")
