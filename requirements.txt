@@ -6,4 +6,5 @@ qrcode
 scipy
 openpyxl
 streamlit-autorefresh
+python-docx
 
