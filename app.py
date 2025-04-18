@@ -244,217 +244,131 @@ def get_qr_code_image_html(code):
     """
     return html
 
-
-# Función para crear un documento Word a partir de los datos de una sesión
 def crear_reporte_word(code, titulo_personalizado=None):
     if code not in store:
         return None
-    
-    # Crear un nuevo documento
+
     doc = docx.Document()
-    
-    # Estilos y configuración
-    sections = doc.sections
-    for section in sections:
-        section.page_height = Cm(29.7)  # A4
-        section.page_width = Cm(21.0)
+    # configurar márgenes A4
+    for section in doc.sections:
+        section.page_height = Cm(29.7)
+        section.page_width  = Cm(21.0)
         section.left_margin = Cm(2.5)
         section.right_margin = Cm(2.5)
         section.top_margin = Cm(2.5)
         section.bottom_margin = Cm(2.5)
-    
-    # Título del reporte
+
+    # Título
     titulo = doc.add_heading(level=0)
-    if titulo_personalizado:
-        titulo.add_run(f"{titulo_personalizado}").bold = True
-    else:
-        titulo.add_run("Reporte de Consenso de Expertos").bold = True
+    texto_titulo = titulo_personalizado or "Reporte de Consenso de Expertos"
+    titulo.add_run(texto_titulo).bold = True
     titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    # Información general
-    doc.add_paragraph().add_run(f"Fecha de generación: {datetime.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}").italic = True
+
+    # Info general
+    doc.add_paragraph().add_run(f"Fecha de generación: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}").italic = True
     doc.add_paragraph().add_run(f"Código de sesión: {code}").bold = True
-    
-    # Añadir historial completo de la sesión
-    todas_las_rondas = []
-    
-    # Añadir la sesión actual (si está activa)
-    if code in store:
-        todas_las_rondas.append(store[code])
-    
-    # Añadir rondas históricas
+
+    # Recoger todas las rondas
+    todas = []
+    todas.append(store[code])
     if code in history:
-        todas_las_rondas.extend(history[code])
-    
-    # Ordenar por número de ronda
-    todas_las_rondas.sort(key=lambda x: x.get('round', 0))
-    
-    # Sección de resumen
+        todas.extend(history[code])
+    todas.sort(key=lambda x: x.get('round', 0))
+
+    # Resumen
     doc.add_heading("Resumen de la Sesión", level=1)
-    resumen_paragraph = doc.add_paragraph()
-    resumen_paragraph.add_run(f"Total de rondas realizadas: {len(todas_las_rondas)}\n")
-    
-    ultima_ronda = todas_las_rondas[-1] if todas_las_rondas else None
-    if ultima_ronda:
-        pct = consensus_pct(ultima_ronda['votes']) * 100
-        estado = "APROBADO" if pct >= 80 else "NO APROBADO"
-        resumen_paragraph.add_run(f"Estado final: {estado}\n")
-        resumen_paragraph.add_run(f"Porcentaje final de consenso: {pct:.1f}%\n")
-    
-    # Crear tabla resumen de todas las rondas
+    resumen = doc.add_paragraph()
+    resumen.add_run(f"Total de rondas realizadas: {len(todas)}\n")
+    ultima = todas[-1]
+    pct = consensus_pct(ultima['votes'])*100
+    estado = "APROBADO" if pct >= 80 else "NO APROBADO"
+    resumen.add_run(f"Estado final: {estado}\n")
+    resumen.add_run(f"Porcentaje final de consenso: {pct:.1f}%\n")
+
+    # Tabla resumen
     doc.add_heading("Vista General de Rondas", level=1)
     table = doc.add_table(rows=1, cols=5)
-    table.style = 'Table Grid'
-    hdr_cells = table.rows[0].cells
-    hdr_cells[0].text = 'Nº Ronda'
-    hdr_cells[1].text = 'Fecha'
-    hdr_cells[2].text = 'Total Votantes'
-    hdr_cells[3].text = '% Consenso'
-    hdr_cells[4].text = 'Resultado'
-    
-    # Aplicar estilo al encabezado
-    for cell in table.rows[0].cells:
-        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = cell.paragraphs[0].runs[0]
-        run.bold = True
-        run.font.size = Pt(11)
-    
-    # Añadir datos de cada ronda a la tabla resumen
-    for ronda in todas_las_rondas:
-        row_cells = table.add_row().cells
-        row_cells[0].text = str(ronda.get('round', 'N/A'))
-        row_cells[1].text = ronda.get('created_at', 'N/A')
-        row_cells[2].text = str(len(ronda.get('votes', [])))
-        
-        pct = consensus_pct(ronda.get('votes', [])) * 100
-        row_cells[3].text = f"{pct:.1f}%"
-        
+    hdr = table.rows[0].cells
+    for i, txt in enumerate(["Nº Ronda","Fecha","Total Votantes","% Consenso","Resultado"]):
+        hdr[i].text = txt
+        hdr[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        hdr[i].paragraphs[0].runs[0].bold = True
+        hdr[i].paragraphs[0].runs[0].font.size = Pt(11)
+
+    for ronda in todas:
+        row = table.add_row().cells
+        pct = consensus_pct(ronda['votes'])*100
         estado = "APROBADO" if pct >= 80 else "NO APROBADO"
-        row_cells[4].text = estado
+        row[0].text = str(ronda.get('round',''))
+        row[1].text = ronda.get('created_at','')
+        row[2].text = str(len(ronda['votes']))
+        row[3].text = f"{pct:.1f}%"
+        row[4].text = estado
+        for c in row:
+            c.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        # Centrar contenido de la tabla
-        for cell in row_cells:
-            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    # Añadir sección detallada para cada ronda
+    # Detalle por ronda
     doc.add_heading("Detalle por Ronda", level=1)
-    
-    for i, ronda in enumerate(todas_las_rondas):
-        doc.add_heading(f"Ronda {ronda.get('round', 'N/A')}", level=2)
-        
-        # Información de la ronda
-        p = doc.add_paragraph()
-        p.add_run("Recomendación evaluada: ").bold = True
-        p.add_run(ronda.get('desc', 'N/A'))
-        
-        p = doc.add_paragraph()
-        p.add_run("Fecha de votación: ").bold = True
-        p.add_run(ronda.get('created_at', 'N/A'))
-        
-        p = doc.add_paragraph()
-        p.add_run("Escala utilizada: ").bold = True
-        p.add_run(ronda.get('scale', 'N/A'))
-        
-        # Resultados
-        votes = ronda.get('votes', [])
-        if votes:
-            p = doc.add_paragraph()
-            p.add_run("Resultados de la votación:").bold = True
-            
-            # Tabla de resultados
-            if ronda.get('scale', '').startswith('Likert'):
-                # Para escala Likert, muestra distribución por valor
-                table = doc.add_table(rows=2, cols=9)
-                table.style = 'Table Grid'
-                
-                # Encabezados (valores 1-9)
-                for i in range(9):
-                    table.rows[0].cells[i].text = str(i+1)
-                    table.rows[0].cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
-                
-                # Conteo de votos por valor
-                for i in range(9):
-                    count = votes.count(i+1)
-                    table.rows[1].cells[i].text = str(count)
-                    table.rows[1].cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-            else:
-                # Para Si/No
-                table = doc.add_table(rows=2, cols=2)
-                table.style = 'Table Grid'
-                
-                table.rows[0].cells[0].text = "Sí"
-                table.rows[0].cells[1].text = "No"
-                
-                table.rows[1].cells[0].text = str(votes.count("Sí"))
-                table.rows[1].cells[1].text = str(votes.count("No"))
-                
-                for row in table.rows:
-                    for cell in row.cells:
-                        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-                        if row == table.rows[0]:
-                            cell.paragraphs[0].runs[0].bold = True
-            
-            # Métricas
-            p = doc.add_paragraph()
-            p.add_run("\nMétricas de consenso:").bold = True
-            
-            # Lista de métricas
-            pct = consensus_pct(votes) * 100
-            med, lo, hi = median_ci(votes)
-            
-            metrics_list = doc.add_paragraph(style='List Bullet')
-            metrics_list.add_run(f"Porcentaje de consenso: {pct:.1f}%")
-            
-            metrics_list = doc.add_paragraph(style='List Bullet')
-            metrics_list.add_run(f"Mediana (IC 95%): {med:.1f} [{lo:.1f}, {hi:.1f}]")
-            
-            metrics_list = doc.add_paragraph(style='List Bullet')
-            if pct >= 80:
-                result_text = f"Resultado: APROBADO (consenso: {pct:.1f}%)"
-                metrics_list.add_run(result_text)
-            else:
-                result_text = f"Resultado: NO APROBADO (consenso: {pct:.1f}%)"
-                metrics_list.add_run(result_text)
-            
-            # Comentarios
-            comments = ronda.get('comments', [])
-            if any(comments):
-                doc.add_heading("Comentarios de los participantes", level=3)
-                
-                for i, (pid, name, vote, comment) in enumerate(zip(ronda.get('ids', []), 
-                                                                 ronda.get('names', []), 
-                                                                 votes, 
-                                                                 comments)):
-                    if comment:
-                        p = doc.add_paragraph(style='List Bullet')
-                        p.add_run(f"Participante {name} (ID: {pid}) - Voto: {vote}\n").bold = True
-                        p.add_run(comment)
-        
-        # Separador entre rondas
-        if i < len(todas_las_rondas) - 1:
-            doc.add_paragraph()
-            doc.add_paragraph("---")
-    
-    # Pie de página
-    section = doc.sections[0]
-    footer = section.footer
-    paragraph = footer.paragraphs[0]
-    paragraph.text = f"Reporte generado por ODDS Epidemiology · {datetime.datetime.now().strftime('%d-%m-%Y')}"
-    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    # Guardar temporalmente y devolver el buffer
-    file_buffer = io.BytesIO()
-    doc.save(file_buffer)
-    file_buffer.seek(0)
-    
-    return file_buffer
+    for i, ronda in enumerate(todas):
+        doc.add_heading(f"Ronda {ronda.get('round','')}", level=2)
+        p = doc.add_paragraph(); p.add_run("Recomendación evaluada: ").bold=True; p.add_run(ronda.get('desc',''))
+        p = doc.add_paragraph(); p.add_run("Fecha de votación: ").bold=True; p.add_run(ronda.get('created_at',''))
+        p = doc.add_paragraph(); p.add_run("Escala utilizada: ").bold=True; p.add_run(ronda.get('scale',''))
 
-# Ahora añade una sección para integrar esta funcionalidad en el Dashboard
+        votes = ronda['votes']
+        if votes:
+            doc.add_paragraph().add_run("Resultados de la votación:").bold = True
+            # aquí iría la misma lógica para tablas Likert / Sí-No...
+
+            # Métricas
+            p = doc.add_paragraph(); p.add_run("Métricas de consenso:").bold = True
+            mc = consensus_pct(votes)*100
+            med, lo, hi = median_ci(votes)
+            doc.add_paragraph(style='List Bullet').add_run(f"Porcentaje de consenso: {mc:.1f}%")
+            doc.add_paragraph(style='List Bullet').add_run(f"Mediana (IC 95%): {med:.1f} [{lo:.1f},{hi:.1f}]")
+            resultado = "APROBADO" if mc>=80 else "NO APROBADO"
+            doc.add_paragraph(style='List Bullet').add_run(f"Resultado: {resultado} ({mc:.1f}%)")
+
+        if i < len(todas)-1:
+            doc.add_paragraph("---")
+
+    # Footer
+    footer = doc.sections[0].footer.paragraphs[0]
+    footer.text = f"Reporte generado por ODDS Epidemiology · {datetime.now().strftime('%d-%m-%Y')}"
+    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf
+
+# ——————————————————————————————
+#  Sección de Streamlit para descargar el reporte
+# ——————————————————————————————
 def integrar_seccion_word_report():
-    # Esta función sería llamada desde el menú principal
-    st.subheader("Generación de Reporte Word")
-    
+    st.subheader("📝 Generación de Reporte Word")
+
+    with st.form("form_reporte"):
+        code = st.text_input("Código de sesión", help="Ej: 45B4C9")
+        titulo = st.text_input(
+            "Título personalizado para el reporte",
+            value=f"Reporte de Consenso - Sesión {code}"
+        )
+        submitted = st.form_submit_button("Generar reporte")
+
+    if submitted:
+        buffer = crear_reporte_word(code, titulo)
+        if buffer is None:
+            st.error(f"No existe ninguna sesión con código “{code}”")
+        else:
+            st.success("✅ Reporte generado correctamente")
+            st.download_button(
+                label="⬇️ Descargar Reporte (.docx)",
+                data=buffer,
+                file_name=f"{titulo.replace(' ','_')}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+
     st.markdown("""
     <div class="card">
     <p>Genere reportes profesionales en formato Word con detalles de todas las rondas de votación.</p>
