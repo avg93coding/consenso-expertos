@@ -52,6 +52,22 @@ def odds_header():
     """
     st.markdown(header_html, unsafe_allow_html=True)
 
+# ──────────────────────────────────────────────────────────────
+#  Dominios GRADE para decisión típica (lista de opciones)
+# ──────────────────────────────────────────────────────────────
+DOMINIOS_GRADE = {
+    "efectos_deseables":   ["Trivial", "Pequeños", "Moderados", "Grandes"],
+    "efectos_indeseables": ["Triviales", "Pequeños", "Moderados", "Grandes"],
+    "certeza":             ["Muy baja", "Baja", "Moderada", "Alta"],
+    "benef_riesgo":        ["Definitivamente no", "Probablemente no",
+                            "Incertidumbre", "Probablemente sí", "Definitivamente sí"],
+    "valores":             ["Muy variable", "Algo variable", "Consistencia"],
+    "recursos":            ["No", "Probablemente no", "Incertidumbre",
+                            "Probablemente sí", "Sí"],
+    "equidad":             ["Reduce equidad", "No cambia", "Aumenta equidad"],
+    "aceptabilidad":       ["Poco aceptable", "Dudosamente aceptable", "Aceptable"],
+    "factibilidad":        ["Difícil", "Moderadamente factible", "Factible"],
+}
 
 
 def shade_cell(cell, fill_hex: str):
