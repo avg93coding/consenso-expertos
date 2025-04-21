@@ -974,6 +974,12 @@ elif menu == "Dashboard":
 elif menu == "Evaluar con GRADE":
     st.subheader("Evaluación GRADE (un único set de dominios)")
 
+    # --- Nombre del votante (requerido para el ID) ---
+    name = st.text_input("Nombre del participante:", key="name_input")
+    if not name:
+        st.warning("Por favor, ingrese su nombre antes de votar.")
+        st.stop()
+
     # 1) Listar paquetes GRADE activos
     paquetes = {
         k: v for k, v in store.items()
@@ -992,10 +998,14 @@ elif menu == "Evaluar con GRADE":
     s = store[code]
 
     # 3) Contador de participantes que ya votaron
-    n_votantes = len(next(iter(s["dominios"].values()))["ids"])
+    #    Asumimos que todos los dominios tienen el mismo número de envíos
+    votos_ids = next(iter(s["dominios"].values()))["ids"]
+    n_votantes = len(votos_ids)
     st.markdown(f"**Participantes que ya han votado:** {n_votantes}/{s['n_participantes']}")
 
-    # 4) Formulario dinámico con tus preguntas
+    st.markdown("---")
+
+    # 4) Formulario dinámico con preguntas y radio buttons
     votos, comentarios = {}, {}
     for dom, pregunta in PREGUNTAS_GRADE.items():
         st.markdown(f"**{pregunta}**")
@@ -1005,18 +1015,29 @@ elif menu == "Evaluar con GRADE":
         comentarios[dom] = st.text_area(
             "Comentario (opcional):", key=f"com_{dom}", height=60
         )
+        st.markdown("")  # un pequeño espacio
 
     # 5) Botón de envío
     if st.button("Enviar votos GRADE"):
-        if not st.session_state.get("name_input"):
-            st.warning("Primero ingresa tu nombre arriba.")
-        else:
-            name = st.session_state["name_input"]
-            pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-            for dom, meta in s["dominios"].items():
-                meta["votes"].append(votos[dom])
-                meta["comments"].append(comentarios[dom])
-                meta["ids
+        pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+        for dom, meta in s["dominios"].items():
+            meta["votes"].append(votos[dom])
+            meta["comments"].append(comentarios[dom])
+            meta["ids"].append(pid)
+            meta["names"].append(name)
+        st.balloons()
+        st.success(f"🎉 Votos registrados. ID de participación: `{pid}`")
+
+    st.markdown("---")
+
+    # 6) Botón de descarga transpuesta (participantes × dominios)
+    buf = to_excel(code)
+    st.download_button(
+        "⬇️ Descargar Excel (participantes × dominios)",
+        data=buf,
+        file_name=f"GRADE_{code}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 
 elif menu == "Reporte Consolidado":
