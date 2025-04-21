@@ -497,10 +497,13 @@ def integrar_reporte_todas_recomendaciones():
 # ─────────────────────────────────────────────────────────────
 # 5)  Página de votación (se adapta al tipo de sesión)
 # ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# 5)  Página de votación (adaptable al tipo de sesión)
+# ─────────────────────────────────────────────────────────────
 params = st.query_params
 if "session" in params:
     try:
-        raw = params.get("session")
+        raw  = params.get("session")
         code = raw[0] if isinstance(raw, list) else raw
         code = str(code).strip().upper()
 
@@ -508,38 +511,35 @@ if "session" in params:
         st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
 
         if code not in store:
-            st.error(f"Sesión inválida o expirada: '{code}'")
+            st.error(f"Sesión inválida: {code}")
             st.stop()
 
-        s = store[code]
-        tipo = s.get("tipo", "STD")        # STD por defecto
+        s    = store[code]
+        tipo = s.get("tipo", "STD")      # STD por defecto
 
-        # ────────── datos comunes ──────────
+        # ───────────── Datos comunes ─────────────
         st.subheader(f"Panel de votación — Sesión {code}")
         name  = st.text_input("Nombre del participante:")
         email = st.text_input("Correo electrónico (si aplica):")
 
-        # evita votos duplicados
-        if name and (
-            (tipo == "STD"  and name in s["names"]) or
-            (tipo == "GRADE_PKG" and any(
-                name in dom["names"]
-                for rc in s["recs"]
-                for dom in s["dominios"][rc].values()
-            ))
-        ):
-            st.success("✅ Ya se registró su participación.")
+        # Evita votos duplicados
+        ya_voto = (
+            tipo == "STD"  and name in s["names"] or
+            tipo == "GRADE_PKG" and name and name in s["dominios"]["certeza"]["names"]
+        )
+        if ya_voto:
+            st.success("✅ Ya registró su participación.")
             st.stop()
 
-        # ───────────────────────────────────
-        #  A. Sesión estándar (Likert / Sí‑No)
-        # ───────────────────────────────────
+        # ─────────────────────────────────────────
+        #  A.  SESIÓN ESTÁNDAR
+        # ─────────────────────────────────────────
         if tipo == "STD":
-            st.markdown("### Recomendación a evaluar:")
+            st.markdown("### Recomendación a evaluar")
             st.markdown(f"**{s['desc']}**")
 
             if s["scale"].startswith("Likert"):
-                st.markdown("1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo")
+                st.markdown("1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo")
                 vote = st.slider("Su voto:", 1, 9, 5)
             else:
                 vote = st.radio("Su voto:", ["Sí", "No"])
@@ -550,41 +550,39 @@ if "session" in params:
                 if not name:
                     st.warning("Ingrese su nombre.")
                     st.stop()
+
                 pid = record_vote(code, vote, comment, name, email)
                 if pid:
                     st.balloons()
-                    st.success("🎉 Gracias, su voto fue registrado.")
-                    st.markdown(f"**ID de voto:** `{pid}`")
+                    st.success("🎉 Gracias.  ID de voto: `{}`".format(pid))
                     st.stop()
                 else:
                     st.error("No se pudo registrar el voto.")
 
-        # ───────────────────────────────────
-        #  B. Paquete GRADE (varias recs)
-        # ───────────────────────────────────
+        # ─────────────────────────────────────────
+        #  B.  PAQUETE GRADE (un único set de dominios)
+        # ─────────────────────────────────────────
         elif tipo == "GRADE_PKG":
-            st.write(f"### Evaluación GRADE para un paquete de {len(s['recs'])} recomendaciones")
-
+            st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
             st.markdown("**Recomendaciones incluidas:**")
             for rc in s["recs"]:
                 st.markdown(f"• **{rc}** — {store[rc]['desc']}")
 
-            votos = {}
-            comentarios = {}
+            votos, comentarios = {}, {}
             for dom, meta in s["dominios"].items():
                 st.markdown(f"#### {dom.replace('_',' ').title()}")
                 votos[dom] = st.radio(
-                    label="Seleccione una opción:",
-                    options=meta["opciones"],
+                    "Seleccione una opción:",
+                    meta["opciones"],
                     key=f"radio_{dom}"
                 )
                 comentarios[dom] = st.text_area(
                     "Comentario (opcional):",
                     key=f"com_{dom}",
-                    height=80     # ≥ 68 px para Streamlit
+                    height=80      # ≥ 68 px
                 )
 
-            if st.button("Enviar votos GRADE"):
+            if st.button("Enviar votos GRADE"):
                 if not name:
                     st.warning("Ingrese su nombre.")
                     st.stop()
@@ -597,9 +595,16 @@ if "session" in params:
                     meta["names"].append(name)
 
                 st.balloons()
-                st.success("🎉 Votos registrados para el paquete GRADE.")
-                st.markdown(f"**ID de participación:** `{pid}`")
+                st.success("🎉 Votos registrados.  ID: `{}`".format(pid))
                 st.stop()
+
+        else:
+            st.error(f"Tipo de sesión no soportado: {tipo}")
+
+    except Exception as e:
+        st.error("Error al procesar la sesión.")
+        st.exception(e)
+
 
 
 # 6) Panel de administración
