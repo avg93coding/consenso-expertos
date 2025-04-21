@@ -1,20 +1,33 @@
+# Básicos y manejo de datos
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import uuid, qrcode, io, hashlib, datetime, base64, copy, os
-from scipy import stats
-from streamlit_autorefresh import st_autorefresh
-import requests
+import uuid
+import io
+import hashlib
+import datetime
+import base64
+import copy
+import os
 from io import BytesIO
-# Reemplaza tus líneas de import de docx por esto:
+import requests
+
+# Visualización y gráficos
+import plotly.express as px
+import qrcode
+
+# Estadísticas
+from scipy import stats
+
+# Auto-refresh (solo usado en dashboard)
+from streamlit_autorefresh import st_autorefresh
+
+# Manipulación de documentos Word (optimizado)
 from docx import Document
+from docx.shared import Cm  # Solo este se usa realmente
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
-
 
 # 1) set_page_config debe ir primero
 st.set_page_config(
@@ -24,17 +37,33 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2) Único inject_css() con metric‑cards y botones
 def inject_css():
     css = """
     <style>
+      /* Mantener estos selectores principales */
       .stApp { background-color:#F7F7F7 !important; color:#333333; font-family:'Segoe UI', Tahoma, Verdana, sans-serif; }
       .app-header { background-color:#662D91; padding:1.5rem; border-radius:0 0 10px 10px; text-align:center; color:white; margin-bottom:20px; }
-      .odds-logo { font-size:2rem; font-weight:bold; letter-spacing:1px; padding-bottom:5px; border-bottom:2px solid #F1592A; display:inline-block; }
-      .metric-card { width:140px; padding:12px; margin-bottom:10px; background: linear-gradient(to bottom right, #662D91, #F1592A); color:white; border-radius:8px; box-sizing:border-box; white-space:normal !important; word-wrap:break-word !important; }
-      .metric-label { font-size:0.9rem; opacity:0.8; text-align:center; }
-      .metric-value { font-size:1.4rem; font-weight:bold; text-align:center; margin-top:4px; }
-      .stButton>button { background-color:#662D91; color:white; border:none; padding:0.5rem 1rem; border-radius:5px; }
+      
+      /* Optimizar estas clases */
+      .metric-card {
+        width:140px; 
+        padding:12px; 
+        margin-bottom:10px; 
+        background: linear-gradient(to bottom right, #662D91, #F1592A); 
+        color:white; 
+        border-radius:8px; 
+        box-sizing:border-box; 
+        white-space:normal !important; 
+        word-wrap:break-word !important; 
+      }
+      .stButton>button { 
+        background-color:#662D91; 
+        color:white; 
+        border:none; 
+        padding:0.5rem 1rem; 
+        border-radius:5px; 
+        transition: background-color 0.3s ease; /* Agregado para mejor hover */
+      }
       .stButton>button:hover { background-color:#F1592A; }
     </style>
     """
@@ -42,15 +71,18 @@ def inject_css():
 
 inject_css()
 
-# 3) odds_header(), para mostrar logo y título
 def odds_header():
-    header_html = """
+    st.markdown("""
     <div class="app-header">
-      <div class="odds-logo">ODDS EPIDEMIOLOGY</div>
-      <div class="odds-subtitle">Sistema de Votación</div>
+      <div style="font-size:2rem; font-weight:bold; letter-spacing:1px; 
+           padding-bottom:5px; border-bottom:2px solid #F1592A; display:inline-block;">
+        ODDS EPIDEMIOLOGY
+      </div>
+      <div style="margin-top:10px; font-size:1.1rem;">
+        Sistema de Votación
+      </div>
     </div>
-    """
-    st.markdown(header_html, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 DOMINIOS_GRADE = {
     "prioridad_problema": [
