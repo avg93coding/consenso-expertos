@@ -575,128 +575,130 @@ if menu == "Inicio":
 elif menu == "Crear Recomendación":
     st.subheader("Crear Nueva Recomendación")
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    
-    # Agregamos la sección para cargar recomendaciones desde Excel
+
+    # ───────────────────────── CARGAR BANCO DESDE EXCEL ──────────────────────────
     st.markdown("### Cargar recomendaciones desde Excel")
-    excel_file = st.file_uploader("Cargar archivo Excel con recomendaciones", type=["xlsx", "xls"])
-    
-    # Variable para almacenar las recomendaciones cargadas
-    recomendaciones_cargadas = []
-    
-    if excel_file is not None:
+    excel_file = st.file_uploader(
+        "Suba archivo .xlsx/.xls con columnas 'ronda' y 'recomendacion'",
+        type=["xlsx", "xls"]
+    )
+
+    if excel_file and 'df_rec' not in st.session_state:
         try:
-            # Cargar el Excel como DataFrame
-            df_recomendaciones = pd.read_excel(excel_file)
-            
-            # Verificar que tenga las columnas necesarias
-            if 'ronda' in df_recomendaciones.columns and 'recomendacion' in df_recomendaciones.columns:
-                # Almacenar las recomendaciones en una lista para el selector
-                recomendaciones_cargadas = [(row['ronda'], row['recomendacion']) 
-                                           for _, row in df_recomendaciones.iterrows()]
-                
-                # Crear un selector para elegir una recomendación
-                opciones = [f"{r[0]}: {r[1][:50]}..." for r in recomendaciones_cargadas]
-                opciones = ["Seleccione una recomendación..."] + opciones
-                seleccion = st.selectbox("Elegir recomendación:", opciones)
-                
-                # Si se selecciona una recomendación (no la primera opción)
-                if seleccion != opciones[0] and len(recomendaciones_cargadas) > 0:
-                    idx = opciones.index(seleccion) - 1  # Restar 1 por la opción "Seleccione..."
-                    ronda_seleccionada = recomendaciones_cargadas[idx][0]
-                    recomendacion_seleccionada = recomendaciones_cargadas[idx][1]
-                    
-                    # Guardar en session_state para usar en el formulario
-                    st.session_state['ronda_precargada'] = ronda_seleccionada
-                    st.session_state['recomendacion_precargada'] = recomendacion_seleccionada
-                    
-                    st.success(f"✅ Recomendación seleccionada. Complete el resto del formulario y cree la sesión.")
+            df = pd.read_excel(excel_file, engine="openpyxl")  # openpyxl recomendado
+            df.columns = df.columns.str.strip().str.lower()    # normaliza encabezados
+            req_cols = {'ronda', 'recomendacion'}
+            if not req_cols.issubset(df.columns):
+                st.error("⚠️ El Excel debe tener columnas 'ronda' y 'recomendacion'.")
             else:
-                st.error("El archivo Excel debe contener columnas llamadas 'ronda' y 'recomendacion'.")
+                df = df.dropna(subset=['ronda', 'recomendacion'])
+                st.session_state['df_rec'] = df
+                st.success(f"✅ {len(df)} filas cargadas.")
         except Exception as e:
-            st.error(f"Error al procesar el archivo: {str(e)}")
-    
+            st.error(f"Error al leer el archivo: {e}")
+
+    # Selector solo si el DataFrame ya está en memoria
+    if 'df_rec' in st.session_state:
+        df_rec = st.session_state['df_rec']
+        opciones = (
+            ["Seleccione una…"] +
+            [f"{r.ronda}: {r.recomendacion[:60]}" for r in df_rec.itertuples()]
+        )
+        sel = st.selectbox("Elegir recomendación precargada:", opciones)
+
+        if sel != opciones[0]:  # se eligió algo
+            fila = df_rec.iloc[opciones.index(sel) - 1]
+            st.session_state['ronda_precargada'] = fila.ronda
+            st.session_state['recomendacion_precargada'] = fila.recomendacion
+            st.success("Recomendación precargada. Complete el formulario y cree la sesión.")
+
     st.markdown("<hr>", unsafe_allow_html=True)
-    
-    # Continuamos con el formulario original
+
+    # ───────────────────────── FORMULARIO DE CREACIÓN ───────────────────────────
     with st.form("create_form", clear_on_submit=True):
-        nombre_ronda = st.text_input("Nombre de la ronda:", 
-                                  value=st.session_state.get('ronda_precargada', ''))
-        desc = st.text_area("Recomendación a evaluar:", 
-                           value=st.session_state.get('recomendacion_precargada', ''), 
-                           height=100)
+        nombre_ronda = st.text_input(
+            "Nombre de la ronda:",
+            value=st.session_state.pop('ronda_precargada', '')
+        )
+        desc = st.text_area(
+            "Recomendación a evaluar:",
+            value=st.session_state.pop('recomendacion_precargada', ''),
+            height=100
+        )
         scale = st.selectbox("Escala de votación:", ["Likert 1-9", "Sí/No"])
         n_participantes = st.number_input(
-            "¿Cuántos participantes están habilitados para votar?", min_value=1, step=1)
+            "¿Cuántos participantes están habilitados para votar?", min_value=1, step=1
+        )
         es_privada = st.checkbox("¿Esta recomendación será privada?")
+
+        # ─ Carga de correos autorizados (opcional) ─
         correos_autorizados = []
-        archivo_correos = st.file_uploader("📧 Subir lista de correos autorizados (CSV con columna 'correo')", type=["csv"])
+        archivo_correos = st.file_uploader(
+            "📧 Subir lista de correos autorizados (CSV con columna 'correo')",
+            type=["csv"]
+        )
         if archivo_correos is not None:
             try:
                 df_correos = pd.read_csv(archivo_correos)
                 if 'correo' in df_correos.columns:
-                    correos_autorizados = df_correos['correo'].astype(str).str.strip().tolist()
-                    st.success(f"Se cargaron {len(correos_autorizados)} correos autorizados correctamente.")
+                    correos_autorizados = (
+                        df_correos['correo'].astype(str).str.strip().tolist()
+                    )
+                    st.success(
+                        f"Se cargaron {len(correos_autorizados)} correos autorizados."
+                    )
                 else:
-                    st.error("El archivo debe contener una columna llamada 'correo'.")
+                    st.error("El CSV debe contener una columna llamada 'correo'.")
             except Exception as e:
-                st.error(f"Error al leer el archivo: {str(e)}")
+                st.error(f"Error al leer el CSV: {e}")
+
         st.markdown("""
         <div class="helper-text">
-        La escala Likert 1-9 permite evaluar el grado de acuerdo donde:
-        - 1-3: Desacuerdo
-        - 4-6: Neutral
-        - 7-9: Acuerdo
-        Se considera consenso cuando ≥80% de los votos son ≥7, y se ha alcanzado el quórum mínimo (mitad + 1 de los votantes esperados).
+        Escala Likert 1‑9:<br>
+        • 1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo<br>
+        Se considera consenso cuando ≥80 % de votos son ≥7 y hay quórum (mitad + 1).
         </div>
         """, unsafe_allow_html=True)
+
+        # ───── BOTÓN CREAR ─────
         if st.form_submit_button("Crear Recomendación"):
-            if desc:
-                code = uuid.uuid4().hex[:6].upper()
-                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                descripcion_final = f"{desc} ({nombre_ronda})" if nombre_ronda else desc
-                store[code] = {
-                    "desc": descripcion_final,
-                    "scale": scale,
-                    "votes": [],
-                    "comments": [],
-                    "ids": [],
-                    "names": [],
-                    "created_at": timestamp,
-                    "round": 1,
-                    "is_active": True,
-                    "n_participantes": int(n_participantes),
-                    "privado": es_privada,
-                    "correos_autorizados": correos_autorizados
-                }
-                history[code] = []
-                st.success(f"Sesión creada exitosamente")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="metric-label">Código de sesión</div>
-                        <div class="metric-value">{code}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with col2:
-                    st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
-                url = create_qr_code_url(code)
-                st.info(f"URL para compartir: {url}")
-                st.write(f"Para probar: [Abrir página de votación]({url})")
-                st.markdown("""
-                <div class="helper-text">
-                <strong>Instrucciones:</strong> Comparta el código QR o la URL con los participantes. 
-                La URL debe incluir el parámetro de sesión exactamente como se muestra arriba.
+            if not desc:
+                st.warning("Ingrese una recomendación.")
+                st.stop()
+
+            code = uuid.uuid4().hex[:6].upper()
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            descripcion_final = f"{desc} ({nombre_ronda})" if nombre_ronda else desc
+
+            store[code] = {
+                "desc": descripcion_final,
+                "scale": scale,
+                "votes": [], "comments": [],
+                "ids": [], "names": [],
+                "created_at": timestamp, "round": 1,
+                "is_active": True,
+                "n_participantes": int(n_participantes),
+                "privado": es_privada,
+                "correos_autorizados": correos_autorizados
+            }
+            history[code] = []
+
+            st.success("Sesión creada exitosamente.")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                  <div class="metric-label">Código de sesión</div>
+                  <div class="metric-value">{code}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                # Limpiar valores precargados después de crear la recomendación
-                if 'ronda_precargada' in st.session_state:
-                    del st.session_state['ronda_precargada']
-                if 'recomendacion_precargada' in st.session_state:
-                    del st.session_state['recomendacion_precargada']
-            else:
-                st.warning("Por favor, ingrese una recomendación.")
+            with col2:
+                st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
+
+            url = create_qr_code_url(code)
+            st.info(f"URL para compartir: {url}")
+            st.write(f"[Abrir página de votación]({url})")
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 
