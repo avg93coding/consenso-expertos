@@ -329,73 +329,49 @@ def get_qr_code_image_html(code):
     """
     return html
 
-def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> BytesIO:
+def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.BytesIO:
     """
-    Genera un .docx con un apartado por cada recomendación (cada código),
-    incluyendo logo, título coloreado, métricas, estado de consenso y detalle de rondas.
+    Genera un .docx con, para cada recomendación:
+      - Encabezado con el código
+      - Descripción
+      - Fecha de creación
+      - Tabla de métricas (Total votos, % Consenso, Mediana, IC95%)
+      - Estado de consenso
     """
-    # 1. Crear documento
     doc = docx.Document()
 
-    # 2. Descargar e insertar logo en la cabecera
-    logo_url = (
-        "https://static.wixstatic.com/media/89a9c2_ddc57311fc734357b9ea2b699e107ae2"
-        "~mv2.png/v1/fill/w_90,h_54,al_c,q_85,usm_0.66_1.00_0.01/"
-        "Logo%20versión%20principal.png"
-    )
-    resp = requests.get(logo_url)
-    if resp.status_code == 200:
-        img_stream = BytesIO(resp.content)
-        header = doc.sections[0].header
-        p = header.paragraphs[0]
-        run = p.add_run()
-        run.add_picture(img_stream, width=Cm(4))    # ajusta ancho si lo deseas
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    # 3. Márgenes A4
+    # Márgenes A4 (opcional)
     for sec in doc.sections:
         sec.page_height = Cm(29.7)
         sec.page_width  = Cm(21.0)
         sec.left_margin = Cm(2.5)
         sec.right_margin = Cm(2.5)
-        sec.top_margin = Cm(2.0)
+        sec.top_margin = Cm(2.5)
         sec.bottom_margin = Cm(2.5)
 
-    # 4. Título general con color corporativo
-    titulo = doc.add_heading("Reporte Consolidado de Recomendaciones", level=0)
-    titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_t = titulo.runs[0]
-    run_t.font.color.rgb = RGBColor(0x66, 0x2D, 0x91)  # Morado ODDS
-    run_t.font.size = Pt(20)
-    doc.add_paragraph(
-        f"Fecha de generación: {datetime.datetime.now():%d-%m-%Y %H:%M:%S}"
-    ).italic = True
-    doc.add_paragraph()
-
-    # 5. Iterar cada recomendación
     for code, rec in store.items():
-        # 5.1 Encabezado de recomendación
+        # --- Encabezado ---
         h = doc.add_heading(level=1)
         h.add_run(f"Recomendación {code}").bold = True
         h.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-        # 5.2 Descripción y metadatos
+        # --- Descripción ---
         doc.add_paragraph().add_run("Descripción: ").bold = True
         doc.add_paragraph(rec["desc"])
-        doc.add_paragraph().add_run("Ronda actual: ").bold = True
-        doc.add_paragraph(str(rec["round"]))
-        doc.add_paragraph().add_run("Fecha creación: ").bold = True
+
+        # --- Fecha de creación ---
+        doc.add_paragraph().add_run("Fecha de creación: ").bold = True
         doc.add_paragraph(rec["created_at"])
 
-        # 5.3 Tabla de métricas (encabezados en negrita, sin colores)
+        # --- Tabla de métricas ---
         votos = rec["votes"]
         pct = consensus_pct(votos) * 100
         med, lo, hi = median_ci(votos)
 
         tbl = doc.add_table(rows=1, cols=4, style="Table Grid")
         hdr_cells = tbl.rows[0].cells
-        headers = ["Total votos", "% Consenso", "Mediana", "IC95%"]
-        for idx, title in enumerate(headers):
+        titles = ["Total votos", "% Consenso", "Mediana", "IC95%"]
+        for idx, title in enumerate(titles):
             cell = hdr_cells[idx]
             cell.text = ""
             p = cell.paragraphs[0]
@@ -403,8 +379,12 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> Byt
             run.bold = True
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        # fila de datos
-        values = [str(len(votos)), f"{pct:.1f}%", f"{med:.1f}", f"[{lo:.1f}, {hi:.1f}]"]
+        values = [
+            str(len(votos)),
+            f"{pct:.1f}%",
+            f"{med:.1f}",
+            f"[{lo:.1f}, {hi:.1f}]"
+        ]
         row_cells = tbl.add_row().cells
         for idx, val in enumerate(values):
             cell = row_cells[idx]
@@ -413,40 +393,31 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> Byt
 
         doc.add_paragraph()
 
-        # 5.4 Estado de consenso
+        # --- Estado de consenso ---
         total = len(votos)
         if pct >= 80 and 7 <= med <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
-            status = "✅ CONSENSO ALCANZADO: Aprobado (por mediana + IC95%)."
+            status = "✅ CONSENSO ALCANZADO (por mediana + IC95%)."
         elif pct >= 80:
-            status = "✅ CONSENSO ALCANZADO: Aprobado (por porcentaje)."
+            status = "✅ CONSENSO ALCANZADO (por porcentaje)."
         elif pct <= 20 and 1 <= med <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
-            status = "❌ CONSENSO ALCANZADO: No aprobado (por mediana + IC95%)."
+            status = "❌ NO APROBADO (por mediana + IC95%)."
         elif sum(1 for v in votos if isinstance(v, (int, float)) and v <= 3) >= 0.8 * total:
-            status = "❌ CONSENSO ALCANZADO: No aprobado (por porcentaje)."
+            status = "❌ NO APROBADO (por porcentaje)."
         else:
-            status = "⚠️ CONSENSO NO ALCANZADO: Se recomienda otra ronda."
+            status = "⚠️ NO SE ALCANZÓ CONSENSO."
 
         doc.add_paragraph().add_run("Estado de consenso: ").bold = True
         doc.add_paragraph(status)
 
-        # 5.5 Detalle de rondas
-        rondas = [rec] + history.get(code, [])
-        doc.add_heading("Detalle de Rondas", level=2)
-        for r in rondas:
-            num = doc.add_paragraph(style="List Number")
-            num.add_run(f"Ronda {r['round']} — {r['created_at']}").bold = True
-            bullet = doc.add_paragraph(style="List Bullet")
-            bullet.add_run(
-                f"• Votos: {len(r['votes'])}   • Consenso: {consensus_pct(r['votes'])*100:.1f}%"
-            )
-
         doc.add_page_break()
 
-    # 6. Guardar en buffer y devolver
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
+    # Guardar y devolver buffer
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
     return buffer
+
+    
 # ——————————————————————————————
 #  Integración en Streamlit
 # ——————————————————————————————
