@@ -902,13 +902,14 @@ elif menu == "Dashboard":
         for pid, name, vote, com in zip(ids, s["names"], votes, comments):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
-
 elif menu == "Evaluar con GRADE":
     st.subheader("Evaluación GRADE (un único set de dominios)")
 
     # 1) Recomendaciones estándar activas
-    elegibles = {k: v for k, v in store.items()
-                 if v.get("tipo", "STD") == "STD" and v.get("is_active", True)}
+    elegibles = {
+        k: v for k, v in store.items()
+        if v.get("tipo", "STD") == "STD" and v.get("is_active", True)
+    }
     if not elegibles:
         st.info("No hay recomendaciones activas.")
         st.stop()
@@ -928,26 +929,29 @@ elif menu == "Evaluar con GRADE":
             st.stop()
 
         code = uuid.uuid4().hex[:6].upper()
-        ts   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # —— GRADE con dominios ÚNICOS (no por recomendación) ——
-       store[code] = {
-       "tipo": "GRADE_PKG",
-       "recs": sel,                               # lista informativa
-       "desc": f"Paquete de {len(sel)} recomendaciones",
-       "created_at": ts,
-       "is_active": True,
-       "n_participantes": int(n_participantes),
-       # ▸ Dominios únicos para el paquete completo
-       "dominios": {
-        d: {
-            "opciones": DOMINIOS_GRADE[d],
-            "votes":    [], "comments": [],
-            "ids":      [], "names": [],
-            "round":    1
-        } for d in DOMINIOS_GRADE
-    }
-}
+        # —— GRADE con dominios ÚNICOS (uno para todo el paquete) ——
+        store[code] = {
+            "tipo": "GRADE_PKG",
+            "recs": sel,                              # referencias informativas
+            "desc": f"Paquete de {len(sel)} recomendaciones",
+            "created_at": ts,
+            "is_active": True,
+            "n_participantes": int(n_participantes),
+            "dominios": {
+                d: {
+                    "opciones": DOMINIOS_GRADE[d],
+                    "votes": [], "comments": [],
+                    "ids":   [], "names": [],
+                    "round": 1
+                } for d in DOMINIOS_GRADE
+            }
+        }
+        history[code] = {}
+        st.success(f"Paquete GRADE {code} creado.")
+        st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
+        st.info(f"URL: {create_qr_code_url(code)}")
 
         history[code] = {}
         st.success(f"Paquete GRADE {code} creado.")
