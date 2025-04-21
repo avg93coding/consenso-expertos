@@ -907,7 +907,7 @@ elif menu == "Dashboard":
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
 
 elif menu == "Evaluar con GRADE":
-    st.subheader("Armar paquete de recomendaciones para evaluación GRADE")
+    st.subheader("Evaluación GRADE")
 
     # 1) elegibles = sesiones estándar activas
     elegibles = {k:v for k,v in store.items()
