@@ -615,7 +615,8 @@ if "session" in params:
                 st.error("No se pudo registrar el voto.")
         st.stop()
 
-elif tipo == "GRADE_PKG":
+    
+    elif tipo == "GRADE_PKG":
     st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
     st.markdown("**Recomendaciones incluidas:**")
     for rc in s["recs"]:
