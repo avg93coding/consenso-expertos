@@ -583,7 +583,7 @@ def integrar_reporte_todas_recomendaciones():
 # ─────────────────────────────────────────────────────────────
 params = st.query_params
 if "session" in params:
-    raw  = params.get("session")
+    raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
@@ -605,8 +605,8 @@ if "session" in params:
         st.stop()
 
     # Evita doble voto
-    if (tipo == "STD" and name in s["names"]) \
-    or (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"]):
+    if ((tipo == "STD" and name in s["names"]) or
+        (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])):
         st.success("✅ Ya registró su participación.")
         st.stop()
 
@@ -631,52 +631,51 @@ if "session" in params:
         st.stop()
 
     # ——— PAQUETE GRADE ———
-elif tipo == "GRADE_PKG":
-    st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
-    st.markdown("**Recomendaciones incluidas:**")
-    for rc in s["recs"]:
-        st.markdown(f"- **{rc}** — {store[rc]['desc']}")
+    elif tipo == "GRADE_PKG":
+        st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
+        st.markdown("**Recomendaciones incluidas:**")
+        for rc in s["recs"]:
+            st.markdown(f"- **{rc}** — {store[rc]['desc']}")
 
-    # Creamos un form para agrupar los widgets
-    with st.form(f"form_grade_{code}"):
-        votos, comentarios = {}, {}
-        for dom in PREGUNTAS_GRADE:
-            st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
-            votos[dom] = st.radio(
-                label="",
-                options=DOMINIOS_GRADE[dom],
-                key=f"{code}_grade_vote_{dom}"
-            )
-            comentarios[dom] = st.text_area(
-                label="Comentario (opcional):",
-                key=f"{code}_grade_comment_{dom}",
-                height=60
-            )
-
-        # Botón dentro del form
-        enviado = st.form_submit_button("Enviar votos GRADE")
-        if enviado:
-            pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+        # Creamos un form para agrupar los widgets
+        with st.form(f"form_grade_{code}"):
+            votos, comentarios = {}, {}
             for dom in PREGUNTAS_GRADE:
-                m = s["dominios"][dom]
-                m["ids"].append(pid)
-                m["names"].append(name)
-                m["votes"].append(votos[dom])
-                m["comments"].append(comentarios[dom])
-            st.balloons()
-            st.success(f"🎉 Votos registrados. ID: `{pid}`")
+                st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
+                votos[dom] = st.radio(
+                    label="",
+                    options=DOMINIOS_GRADE[dom],
+                    key=f"{code}_grade_vote_{dom}"
+                )
+                comentarios[dom] = st.text_area(
+                    label="Comentario (opcional):",
+                    key=f"{code}_grade_comment_{dom}",
+                    height=60
+                )
 
-    # Botón de descarga fuera del form
-    buf = to_excel(code)
-    st.download_button(
-        label="⬇️ Descargar Excel (dominios × participantes)",
-        data=buf,
-        file_name=f"GRADE_{code}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key=f"{code}_grade_download"
-    )
-    st.stop()
+            # Botón dentro del form
+            enviado = st.form_submit_button("Enviar votos GRADE")
+            if enviado:
+                pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+                for dom in PREGUNTAS_GRADE:
+                    m = s["dominios"][dom]
+                    m["ids"].append(pid)
+                    m["names"].append(name)
+                    m["votes"].append(votos[dom])
+                    m["comments"].append(comentarios[dom])
+                st.balloons()
+                st.success(f"🎉 Votos registrados. ID: `{pid}`")
 
+        # Botón de descarga fuera del form
+        buf = to_excel(code)
+        st.download_button(
+            label="⬇️ Descargar Excel (dominios × participantes)",
+            data=buf,
+            file_name=f"GRADE_{code}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"{code}_grade_download"
+        )
+        st.stop()
 
 # 6) Panel de administración
 odds_header()
