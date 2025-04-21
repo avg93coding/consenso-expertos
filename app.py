@@ -368,7 +368,7 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
 
         doc.add_paragraph()
 
-      votos = rec["votes"]
+        votos = rec["votes"]
         total = len(votos)
         pct = consensus_pct(votos) * 100
         med, lo, hi = median_ci(votos)
