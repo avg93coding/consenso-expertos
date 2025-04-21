@@ -7,6 +7,14 @@ from scipy import stats
 from streamlit_autorefresh import st_autorefresh
 import requests
 from io import BytesIO
+# Reemplaza tus líneas de import de docx por esto:
+from docx import Document
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Cm, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
+
 
 # 1) set_page_config debe ir primero
 st.set_page_config(
