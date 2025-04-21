@@ -632,45 +632,50 @@ if "session" in params:
 
     # ——— PAQUETE GRADE ———
     elif tipo == "GRADE_PKG":
-        st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
-        st.markdown("**Recomendaciones incluidas:**")
-        for rc in s["recs"]:
-            st.markdown(f"- **{rc}** — {store[rc]['desc']}")
+    st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
+    st.markdown("**Recomendaciones incluidas:**")
+    for rc in s["recs"]:
+        st.markdown(f"- **{rc}** — {store[rc]['desc']}")
 
+    # Creamos un form para agrupar los widgets
+    with st.form(f"form_grade_{code}"):
         votos, comentarios = {}, {}
         for dom in PREGUNTAS_GRADE:
             st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
             votos[dom] = st.radio(
-                "",
-                DOMINIOS_GRADE[dom],
-                key=f"{code}-vote-{dom}"
+                label="",
+                options=DOMINIOS_GRADE[dom],
+                key=f"{code}_grade_vote_{dom}"
             )
             comentarios[dom] = st.text_area(
-                "Comentario (opcional):",
-                key=f"{code}-com-{dom}",
+                label="Comentario (opcional):",
+                key=f"{code}_grade_comment_{dom}",
                 height=60
             )
 
-        if st.button("Enviar votos GRADE"):
+        # Botón dentro del form
+        enviado = st.form_submit_button("Enviar votos GRADE")
+        if enviado:
             pid = hashlib.sha256(name.encode()).hexdigest()[:8]
             for dom in PREGUNTAS_GRADE:
-                meta = s["dominios"][dom]
-                meta["ids"].append(pid)
-                meta["names"].append(name)
-                meta["votes"].append(votos[dom])
-                meta["comments"].append(comentarios[dom])
+                m = s["dominios"][dom]
+                m["ids"].append(pid)
+                m["names"].append(name)
+                m["votes"].append(votos[dom])
+                m["comments"].append(comentarios[dom])
             st.balloons()
             st.success(f"🎉 Votos registrados. ID: `{pid}`")
-            # no st.stop() para que salga el botón de descarga
 
-        buf = to_excel(code)
-        st.download_button(
-            "⬇️ Descargar Excel (dominios × participantes)",
-            data=buf,
-            file_name=f"GRADE_{code}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        st.stop()
+    # Botón de descarga fuera del form
+    buf = to_excel(code)
+    st.download_button(
+        label="⬇️ Descargar Excel (dominios × participantes)",
+        data=buf,
+        file_name=f"GRADE_{code}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key=f"{code}_grade_download"
+    )
+    st.stop()
 
 
 # 6) Panel de administración
