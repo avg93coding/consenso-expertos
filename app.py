@@ -970,34 +970,35 @@ elif menu == "Dashboard":
         for pid, name, vote, com in zip(ids, s["names"], votes, comments):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
+                
 elif menu == "Evaluar con GRADE":
     st.subheader("Evaluación GRADE (un único set de dominios)")
 
-    # 1) Recomendaciones activas
-    elegibles = {
+    # 1) Listar paquetes GRADE activos
+    paquetes = {
         k: v for k, v in store.items()
-        if v.get("tipo", "") == "GRADE_PKG" and v.get("is_active", True)
+        if v.get("tipo") == "GRADE_PKG" and v.get("is_active", True)
     }
-    if not elegibles:
+    if not paquetes:
         st.info("No hay paquetes GRADE activos.")
         st.stop()
 
     # 2) Selección de paquete
     code = st.selectbox(
         "Elige el paquete GRADE:",
-        options=list(elegibles.keys()),
+        options=list(paquetes.keys()),
         format_func=lambda k: f"{k} – {store[k]['desc']}"
     )
     s = store[code]
 
-    # 3) Contador de participantes ya votados
-    total_votos = len(next(iter(s["dominios"].values()))["ids"])
-    st.markdown(f"**Participantes que ya han votado:** {total_votos}/{s['n_participantes']}")
+    # 3) Contador de participantes que ya votaron
+    n_votantes = len(next(iter(s["dominios"].values()))["ids"])
+    st.markdown(f"**Participantes que ya han votado:** {n_votantes}/{s['n_participantes']}")
 
-    # 4) Formulario de votación
+    # 4) Formulario dinámico con tus preguntas
     votos, comentarios = {}, {}
-    for dom in PREGUNTAS_GRADE:
-        st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
+    for dom, pregunta in PREGUNTAS_GRADE.items():
+        st.markdown(f"**{pregunta}**")
         votos[dom] = st.radio(
             "", DOMINIOS_GRADE[dom], key=f"radio_{dom}"
         )
@@ -1005,29 +1006,18 @@ elif menu == "Evaluar con GRADE":
             "Comentario (opcional):", key=f"com_{dom}", height=60
         )
 
-    # 5) Envío de votos
+    # 5) Botón de envío
     if st.button("Enviar votos GRADE"):
-        if not name:
-            st.warning("Ingrese su nombre.")
-            st.stop()
-        pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-        for dom, meta in s["dominios"].items():
-            meta["votes"].append(votos[dom])
-            meta["comments"].append(comentarios[dom])
-            meta["ids"].append(pid)
-            meta["names"].append(name)
-        st.balloons()
-        st.success(f"🎉 Votos registrados.  ID: `{pid}`")
+        if not st.session_state.get("name_input"):
+            st.warning("Primero ingresa tu nombre arriba.")
+        else:
+            name = st.session_state["name_input"]
+            pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+            for dom, meta in s["dominios"].items():
+                meta["votes"].append(votos[dom])
+                meta["comments"].append(comentarios[dom])
+                meta["ids
 
-    # 6) Botón de descarga transpuesta
-    #    Filas = dominios, columnas = votantes
-    buf = to_excel(code)
-    st.download_button(
-        "⬇️ Descargar Excel (dominios × votantes)",
-        data=buf,
-        file_name=f"grade_{code}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
 
 elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
