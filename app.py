@@ -631,7 +631,7 @@ if "session" in params:
         st.stop()
 
     # ——— PAQUETE GRADE ———
-    elif tipo == "GRADE_PKG":
+elif tipo == "GRADE_PKG":
         st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
         st.markdown("**Recomendaciones incluidas:**")
         for rc in s["recs"]:
