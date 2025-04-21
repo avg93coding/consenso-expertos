@@ -574,16 +574,60 @@ if menu == "Inicio":
 
 elif menu == "Crear Recomendación":
     st.subheader("Crear Nueva Recomendación")
-
     st.markdown('<div class="card">', unsafe_allow_html=True)
+    
+    # Agregamos la sección para cargar recomendaciones desde Excel
+    st.markdown("### Cargar recomendaciones desde Excel")
+    excel_file = st.file_uploader("Cargar archivo Excel con recomendaciones", type=["xlsx", "xls"])
+    
+    # Variable para almacenar las recomendaciones cargadas
+    recomendaciones_cargadas = []
+    
+    if excel_file is not None:
+        try:
+            # Cargar el Excel como DataFrame
+            df_recomendaciones = pd.read_excel(excel_file)
+            
+            # Verificar que tenga las columnas necesarias
+            if 'ronda' in df_recomendaciones.columns and 'recomendacion' in df_recomendaciones.columns:
+                # Almacenar las recomendaciones en una lista para el selector
+                recomendaciones_cargadas = [(row['ronda'], row['recomendacion']) 
+                                           for _, row in df_recomendaciones.iterrows()]
+                
+                # Crear un selector para elegir una recomendación
+                opciones = [f"{r[0]}: {r[1][:50]}..." for r in recomendaciones_cargadas]
+                opciones = ["Seleccione una recomendación..."] + opciones
+                seleccion = st.selectbox("Elegir recomendación:", opciones)
+                
+                # Si se selecciona una recomendación (no la primera opción)
+                if seleccion != opciones[0] and len(recomendaciones_cargadas) > 0:
+                    idx = opciones.index(seleccion) - 1  # Restar 1 por la opción "Seleccione..."
+                    ronda_seleccionada = recomendaciones_cargadas[idx][0]
+                    recomendacion_seleccionada = recomendaciones_cargadas[idx][1]
+                    
+                    # Guardar en session_state para usar en el formulario
+                    st.session_state['ronda_precargada'] = ronda_seleccionada
+                    st.session_state['recomendacion_precargada'] = recomendacion_seleccionada
+                    
+                    st.success(f"✅ Recomendación seleccionada. Complete el resto del formulario y cree la sesión.")
+            else:
+                st.error("El archivo Excel debe contener columnas llamadas 'ronda' y 'recomendacion'.")
+        except Exception as e:
+            st.error(f"Error al procesar el archivo: {str(e)}")
+    
+    st.markdown("<hr>", unsafe_allow_html=True)
+    
+    # Continuamos con el formulario original
     with st.form("create_form", clear_on_submit=True):
-        nombre_ronda = st.text_input("Nombre de la ronda:")
-        desc = st.text_area("Recomendación a evaluar:", height=100)
+        nombre_ronda = st.text_input("Nombre de la ronda:", 
+                                  value=st.session_state.get('ronda_precargada', ''))
+        desc = st.text_area("Recomendación a evaluar:", 
+                           value=st.session_state.get('recomendacion_precargada', ''), 
+                           height=100)
         scale = st.selectbox("Escala de votación:", ["Likert 1-9", "Sí/No"])
         n_participantes = st.number_input(
             "¿Cuántos participantes están habilitados para votar?", min_value=1, step=1)
         es_privada = st.checkbox("¿Esta recomendación será privada?")
-
         correos_autorizados = []
         archivo_correos = st.file_uploader("📧 Subir lista de correos autorizados (CSV con columna 'correo')", type=["csv"])
         if archivo_correos is not None:
@@ -596,18 +640,15 @@ elif menu == "Crear Recomendación":
                     st.error("El archivo debe contener una columna llamada 'correo'.")
             except Exception as e:
                 st.error(f"Error al leer el archivo: {str(e)}")
-
         st.markdown("""
         <div class="helper-text">
         La escala Likert 1-9 permite evaluar el grado de acuerdo donde:
         - 1-3: Desacuerdo
         - 4-6: Neutral
         - 7-9: Acuerdo
-
         Se considera consenso cuando ≥80% de los votos son ≥7, y se ha alcanzado el quórum mínimo (mitad + 1 de los votantes esperados).
         </div>
         """, unsafe_allow_html=True)
-
         if st.form_submit_button("Crear Recomendación"):
             if desc:
                 code = uuid.uuid4().hex[:6].upper()
@@ -629,7 +670,6 @@ elif menu == "Crear Recomendación":
                 }
                 history[code] = []
                 st.success(f"Sesión creada exitosamente")
-
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown(f"""
@@ -638,10 +678,8 @@ elif menu == "Crear Recomendación":
                         <div class="metric-value">{code}</div>
                     </div>
                     """, unsafe_allow_html=True)
-
                 with col2:
                     st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
-
                 url = create_qr_code_url(code)
                 st.info(f"URL para compartir: {url}")
                 st.write(f"Para probar: [Abrir página de votación]({url})")
@@ -651,12 +689,15 @@ elif menu == "Crear Recomendación":
                 La URL debe incluir el parámetro de sesión exactamente como se muestra arriba.
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # Limpiar valores precargados después de crear la recomendación
+                if 'ronda_precargada' in st.session_state:
+                    del st.session_state['ronda_precargada']
+                if 'recomendacion_precargada' in st.session_state:
+                    del st.session_state['recomendacion_precargada']
             else:
                 st.warning("Por favor, ingrese una recomendación.")
     st.markdown("</div>", unsafe_allow_html=True)
-
-
-
 
 
 elif menu == "Dashboard":
