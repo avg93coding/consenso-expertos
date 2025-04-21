@@ -719,326 +719,379 @@ if menu == "Inicio":
 # ──────────────────────────────────────────────────────────────────────────────
 elif menu == "Crear Recomendación":
     st.subheader("Crear Nueva Recomendación")
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    
+    # --- Sección 1: Carga desde Excel ---
+    with st.expander("📤 Cargar desde Excel", expanded=False):
+        if "uploader_key" not in st.session_state:
+            st.session_state.uploader_key = 0
+            
+        uploaded_file = st.file_uploader(
+            "Subir archivo Excel (columnas 'ronda' y 'recomendacion')",
+            type=["xlsx", "xls"],
+            key=f"excel_upload_{st.session_state.uploader_key}"
+        )
+        
+        if uploaded_file:
+            try:
+                df = pd.read_excel(uploaded_file, engine="openpyxl")
+                df.columns = df.columns.str.strip().str.lower()
+                
+                if not {"ronda", "recomendacion"}.issubset(df.columns):
+                    st.error("El archivo debe contener las columnas requeridas")
+                else:
+                    st.session_state.excel_data = df.dropna(subset=["ronda", "recomendacion"])
+                    st.success(f"{len(st.session_state.excel_data)} recomendaciones cargadas")
+                    
+                    if st.button("Limpiar datos cargados"):
+                        del st.session_state.excel_data
+                        st.session_state.uploader_key += 1
+                        st.rerun()
+                        
+            except Exception as e:
+                st.error(f"Error al procesar el archivo: {str(e)}")
 
-    # ─────────── 1.  Cargar banco de Excel (opcional) ────────────
-    st.markdown("### Cargar recomendaciones desde Excel")
-
-    # key dinámico → permite “vaciar” el uploader sin recargar la página
-    if "uploader_key" not in st.session_state:
-        st.session_state.uploader_key = 0
-
-    excel_file = st.file_uploader(
-        "Suba archivo .xlsx/.xls con columnas 'ronda' y 'recomendacion'",
-        type=["xlsx", "xls"],
-        key=f"excel_{st.session_state.uploader_key}"
-    )
-
-    # Si se sube un archivo por primera vez (o con la nueva key)
-    if excel_file and "df_rec" not in st.session_state:
-        try:
-            df = pd.read_excel(excel_file, engine="openpyxl")
-            df.columns = df.columns.str.strip().str.lower()
-            req = {"ronda", "recomendacion"}
-            if not req.issubset(df.columns):
-                st.error("El Excel debe tener columnas 'ronda' y 'recomendacion'.")
+    # --- Sección 2: Formulario de creación ---
+    with st.form("recommendation_form"):
+        # Precargar datos si existen
+        if "excel_data" in st.session_state:
+            selected = st.selectbox(
+                "Seleccionar recomendación precargada",
+                options=[""] + list(st.session_state.excel_data.itertuples()),
+                format_func=lambda x: f"{x.ronda}: {x.recomendacion[:60]}..." if x else ""
+            )
+            
+            if selected:
+                default_round = selected.ronda
+                default_desc = selected.recomendacion
             else:
-                df = df.dropna(subset=["ronda", "recomendacion"])
-                st.session_state["df_rec"] = df
-                st.success(f"✅ {len(df)} recomendaciones cargadas.")
-        except Exception as e:
-            st.error(f"Error al leer el archivo: {e}")
-
-    # Muestra selector si el DataFrame está en memoria
-    if "df_rec" in st.session_state:
-        df_rec = st.session_state["df_rec"]
-
-        # Botón para quitar el archivo cargado y resetear el uploader
-        if st.button("❌ Quitar archivo cargado"):
-            for k in ["df_rec", "ronda_precargada", "recomendacion_precargada"]:
-                st.session_state.pop(k, None)
-            st.session_state.uploader_key += 1  # fuerza un uploader nuevo vacío
-            st.experimental_rerun()
-
-        opciones = (
-            ["Seleccione una…"] +
-            [f"{r.ronda}: {r.recomendacion[:60]}" for r in df_rec.itertuples()]
-        )
-        sel = st.selectbox("Elegir recomendación precargada:", opciones)
-
-        if sel != opciones[0]:
-            fila = df_rec.iloc[opciones.index(sel) - 1]
-            st.session_state["ronda_precargada"] = fila.ronda
-            st.session_state["recomendacion_precargada"] = fila.recomendacion
-            st.success("Recomendación precargada. Complete el formulario y cree la sesión.")
-
-    st.markdown("<hr>", unsafe_allow_html=True)
-
-    # ─────────── 2.  Formulario de creación (manual o precargado) ────────────
-    with st.form("create_form", clear_on_submit=True):
-        nombre_ronda = st.text_input(
-            "Nombre de la ronda:",
-            value=st.session_state.pop("ronda_precargada", "")
-        )
-        desc = st.text_area(
-            "Recomendación a evaluar:",
-            value=st.session_state.pop("recomendacion_precargada", ""),
+                default_round = ""
+                default_desc = ""
+        else:
+            default_round = ""
+            default_desc = ""
+        
+        # Campos del formulario
+        round_name = st.text_input("Nombre de la ronda", value=default_round)
+        recommendation_text = st.text_area(
+            "Texto de la recomendación", 
+            value=default_desc,
             height=100
         )
-        scale = st.selectbox("Escala de votación:", ["Likert 1-9", "Sí/No"])
-        n_participantes = st.number_input(
-            "¿Cuántos participantes están habilitados para votar?",
-            min_value=1, step=1
-        )
-        es_privada = st.checkbox("¿Esta recomendación será privada?")
-
-        # —— Lista de correos autorizados (opcional) ——
-        correos_autorizados = []
-        archivo_correos = st.file_uploader(
-            "📧 Lista de correos autorizados (CSV con columna 'correo')",
-            type=["csv"]
-        )
-        if archivo_correos:
-            try:
-                df_correos = pd.read_csv(archivo_correos)
-                if "correo" in df_correos.columns:
-                    correos_autorizados = (
-                        df_correos["correo"].astype(str).str.strip().tolist()
-                    )
-                    st.success(f"{len(correos_autorizados)} correos cargados.")
-                else:
-                    st.error("El CSV debe contener una columna llamada 'correo'.")
-            except Exception as e:
-                st.error(f"No se pudo leer el CSV: {e}")
-
-        st.markdown("""
-        <div class="helper-text">
-        Escala Likert 1‑9:<br>
-        • 1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo<br>
-        Se alcanza consenso cuando ≥80 % de votos son ≥7 y hay quórum (mitad + 1).
-        </div>
-        """, unsafe_allow_html=True)
-
-        # ———  Botón de creación  ———
-        if st.form_submit_button("Crear Recomendación"):
-            if not desc:
-                st.warning("Por favor, ingrese la recomendación.")
-                st.stop()
-
-            code = uuid.uuid4().hex[:6].upper()
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            descripcion_final = (
-                f"{desc} ({nombre_ronda})" if nombre_ronda else desc
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            voting_scale = st.selectbox(
+                "Escala de votación",
+                options=["Likert 1-9", "Sí/No"]
             )
-
-            store[code] = {
-                "desc": descripcion_final,
-                "scale": scale,
-                "votes": [], "comments": [],
-                "ids": [], "names": [],
-                "created_at": timestamp, "round": 1,
+        with col2:
+            participants = st.number_input(
+                "Número de participantes",
+                min_value=1,
+                value=5
+            )
+        
+        is_private = st.checkbox("Sesión privada (requiere lista de correos)")
+        if is_private:
+            emails = st.text_area(
+                "Correos autorizados (separados por comas o saltos de línea)",
+                placeholder="usuario1@mail.com, usuario2@mail.com\nusuario3@mail.com"
+            )
+            authorized_emails = [e.strip() for e in emails.replace("\n", ",").split(",") if e.strip()]
+        
+        if st.form_submit_button("Crear Recomendación"):
+            if not recommendation_text:
+                st.error("El texto de la recomendación es obligatorio")
+                st.stop()
+                
+            # Generar ID y timestamp
+            session_id = uuid.uuid4().hex[:6].upper()
+            created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Guardar en el store
+            store[session_id] = {
+                "desc": f"{recommendation_text} ({round_name})" if round_name else recommendation_text,
+                "scale": voting_scale,
+                "votes": [],
+                "comments": [],
+                "ids": [],
+                "names": [],
+                "created_at": created_at,
+                "round": 1,
                 "is_active": True,
-                "n_participantes": int(n_participantes),
-                "privado": es_privada,
-                "correos_autorizados": correos_autorizados
+                "n_participantes": participants,
+                "privado": is_private,
+                "correos_autorizados": authorized_emails if is_private else []
             }
-            history[code] = []
-
-            st.success("Sesión creada exitosamente.")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"""
-                <div class="metric-card">
-                  <div class="metric-label">Código de sesión</div>
-                  <div class="metric-value">{code}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            with col2:
-                st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
-
-            url = create_qr_code_url(code)
-            st.info(f"URL para compartir: {url}")
-            st.write(f"[Abrir página de votación]({url})")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-
+            
+            # Mostrar resultados
+            st.success("Recomendación creada exitosamente")
+            
+            with st.container():
+                st.subheader("Detalles de la sesión")
+                cols = st.columns([1, 2])
+                with cols[0]:
+                    st.metric("Código", session_id)
+                    st.image(make_qr(session_id), width=150)
+                with cols[1]:
+                    st.code(f"URL de acceso: {create_qr_code_url(session_id)}")
+                    
 elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
-    st_autorefresh(interval=5000, key="refresh_dashboard")
+    st_autorefresh(interval=5000, key="dashboard_refresh")
 
-    # 1) Seleccionar sesión activa
-    active_sessions = [k for k, v in store.items() if v.get("is_active", True)]
+    # 1) Filtrado de sesiones activas con información enriquecida
+    active_sessions = {
+        k: v for k, v in store.items() 
+        if v.get("is_active", True)
+    }
+    
     if not active_sessions:
-        st.info("No hay sesiones activas. Cree una nueva sesión para comenzar.")
+        st.info("No hay sesiones activas disponibles")
         st.stop()
 
-    code = st.selectbox("Seleccionar sesión activa:", active_sessions)
-    if not code:
-        st.stop()
-
-    # 2) Cálculo de métricas
-    s = store[code]
-    votes, comments, ids = s["votes"], s["comments"], s["ids"]
-    pct = consensus_pct(votes) * 100
-    med, lo, hi = (None, None, None)
-    if votes:
-        med, lo, hi = median_ci(votes)
-    quorum = s.get("n_participantes", 0) // 2 + 1
-    votos_actuales = len(votes)
-
-    # 3) Tres columnas: Resumen | Metric‑Cards | Gráfico
-    col_res, col_kpi, col_chart = st.columns([2, 1, 3])
-
-    # Columna 1: Resumen
-    with col_res:
-        if st.button("Finalizar esta sesión"):
-            store[code]["is_active"] = False
-            history.setdefault(code, []).append(copy.deepcopy(s))
-            st.success("✅ Sesión finalizada.")
-            st.rerun()
-
-        st.markdown(f"""
-        **Recomendación:** {s['desc']}  
-        **Ronda actual:** {s['round']}  
-        **Creada:** {s['created_at']}  
-        **Votos esperados:** {s.get('n_participantes','?')} | **Quórum:** {quorum}  
-        **Votos recibidos:** {votos_actuales}
-        """)
-
-    # Columna 2: Metric‑Cards (degradado morado→naranja)
-    with col_kpi:
-        st.markdown(f"""
-        <div class="metric-card">
-          <div class="metric-label">Total votos</div>
-          <div class="metric-value">{votos_actuales}</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">% Consenso</div>
-          <div class="metric-value">{pct:.1f}%</div>
-        </div>
-        {f'''
-        <div class="metric-card">
-          <div class="metric-label">Mediana (IC95%)</div>
-          <div class="metric-value">{med:.1f} [{lo:.1f}, {hi:.1f}]</div>
-        </div>''' if votes else ''}
-        """, unsafe_allow_html=True)
-
-    # Columna 3: Histograma morado estrecho
-    with col_chart:
-        if votes:
-            df = pd.DataFrame({"Voto": votes})
-            fig = px.histogram(
-                df,
-                x="Voto",
-                nbins=9,
-                labels={"Voto":"Escala 1–9","count":"Frecuencia"},
-                color_discrete_sequence=[PRIMARY]
-            )
-            fig.update_traces(marker_line_width=0)
-            fig.update_layout(
-                bargap=0.4,
-                xaxis=dict(tickmode='linear', tick0=1, dtick=1),
-                margin=dict(t=30, b=0, l=0, r=0),
-                height=300,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)'
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("🔍 Aún no hay votos para mostrar.")
-
-    # 4) Estado de consenso bajo las columnas
-    st.markdown("---")
-    if votos_actuales < quorum:
-        st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
-    else:
-        if pct >= 80 and votes and 7 <= med <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
-            st.success("✅ CONSENSO ALCANZADO (mediana + IC95%)")
-        elif pct >= 80:
-            st.success("✅ CONSENSO ALCANZADO (% votos)")
-        elif pct <= 20 and votes and 1 <= med <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
-            st.error("❌ NO APROBADO (mediana + IC95%)")
-        elif sum(1 for v in votes if isinstance(v, (int, float)) and v <= 3) >= 0.8 * votos_actuales:
-            st.error("❌ NO APROBADO (% votos)")
-        else:
-            st.warning("⚠️ NO SE ALCANZÓ CONSENSO")
-
-    # 5) Acciones y exportes
-    st.subheader("Acciones y Exportación")
-    if st.button("Iniciar nueva ronda"):
-        history.setdefault(code, []).append(copy.deepcopy(s))
-        st.session_state.modify_recommendation = True
-        st.session_state.current_code = code
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.download_button("⬇️ Descargar Excel", to_excel(code),
-                           file_name=f"consenso_{code}.xlsx")
-    with c2:
-        st.download_button("⬇️ Descargar TXT", create_report(code),
-                           file_name=f"reporte_{code}.txt")
-
-    # 6) Comentarios
-    if comments:
-        st.subheader("Comentarios de Participantes")
-        for pid, name, vote, com in zip(ids, s["names"], votes, comments):
-            if com:
-                st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
-                
-elif menu == "Crear Paquete GRADE":
-    st.subheader("Crear Paquete GRADE")
-    
-    # 1) Filtra recomendaciones votadas y completadas
-    recomendaciones_votadas = [
-        (codigo, datos) for codigo, datos in store.items()
-        if datos.get("tipo", "STD") == "STD" 
-        and not datos.get("is_active", True)  # Solo sesiones cerradas
-        and len(datos.get("votes", [])) > 0   # Con votos registrados
-    ]
-    
-    if not recomendaciones_votadas:
-        st.warning("No hay recomendaciones finalizadas con votos disponibles")
-        st.stop()
-    
-    # 2) Selección con detalles de votación
-    seleccionados = st.multiselect(
-        "Recomendaciones disponibles:",
-        options=[codigo for codigo, _ in recomendaciones_votadas],
-        format_func=lambda k: f"{k} - {store[k]['desc'][:40]}... (Votos: {len(store[k]['votes'])})"
+    # 2) Selector mejorado con métricas clave
+    selected_session = st.selectbox(
+        "Seleccionar sesión:",
+        options=list(active_sessions.keys()),
+        format_func=lambda k: (
+            f"{k} - {active_sessions[k]['desc'][:30]}... | "
+            f"Votos: {len(active_sessions[k]['votes'])}/{active_sessions[k]['n_participantes']}"
+        )
     )
     
-    if not seleccionados:
+    session_data = active_sessions[selected_session]
+    votes = session_data["votes"]
+    comments = session_data["comments"]
+    participants = session_data["names"]
+
+    # 3) Cálculo de métricas (con manejo de casos vacíos)
+    consensus = consensus_pct(votes) * 100 if votes else 0
+    median_data = median_ci(votes) if votes else (None, None, None)
+    quorum = session_data["n_participantes"] // 2 + 1
+    current_votes = len(votes)
+
+    # 4) Layout mejorado con pestañas
+    tab_main, tab_data, tab_comments = st.tabs(["Resumen", "Datos", "Comentarios"])
+
+    with tab_main:
+        # Sección de estado
+        status_col, action_col = st.columns([3, 1])
+        
+        with status_col:
+            st.markdown(f"""
+            ### {session_data['desc']}
+            **Ronda:** {session_data['round']} | **Creada:** {session_data['created_at']}
+            **Participación:** {current_votes}/{session_data['n_participantes']} | **Quórum:** {quorum}
+            """)
+            
+        with action_col:
+            if st.button("Finalizar sesión", type="primary"):
+                store[selected_session]["is_active"] = False
+                history.setdefault(selected_session, []).append(copy.deepcopy(session_data))
+                st.success("Sesión finalizada")
+                st.rerun()
+                
+            if st.button("Nueva ronda"):
+                history.setdefault(selected_session, []).append(copy.deepcopy(session_data))
+                st.session_state.edit_session = selected_session
+                st.rerun()
+
+        # Métricas visuales
+        metric_col1, metric_col2, metric_col3 = st.columns(3)
+        
+        with metric_col1:
+            st.metric("Votos registrados", f"{current_votes}/{session_data['n_participantes']}")
+            
+        with metric_col2:
+            st.metric("% Consenso", f"{consensus:.1f}%")
+            
+        with metric_col3:
+            if votes:
+                st.metric("Mediana (IC95%)", 
+                         f"{median_data[0]:.1f} [{median_data[1]:.1f}, {median_data[2]:.1f}]")
+
+        # Gráfico y estado de consenso
+        st.markdown("---")
+        
+        if votes:
+            # Histograma mejorado
+            fig = px.histogram(
+                pd.DataFrame({"Voto": votes}),
+                x="Voto",
+                nbins=9,
+                range_x=[1,9],
+                color_discrete_sequence=[PRIMARY],
+                labels={"Voto": "Escala de votación", "count": "Participantes"}
+            )
+            fig.update_layout(
+                bargap=0.2,
+                xaxis=dict(tickmode='linear', dtick=1),
+                yaxis_title="Número de votos",
+                margin=dict(t=20),
+                height=300
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Estado de consenso
+            if current_votes < quorum:
+                st.warning(f"Quórum no alcanzado ({current_votes}/{quorum})")
+            elif consensus >= 80 and all(7 <= x <= 9 for x in median_data if x is not None):
+                st.success("CONSENSO ALCANZADO (mediana + IC95%)")
+            elif consensus >= 80:
+                st.success("CONSENSO ALCANZADO (% votos)")
+            elif consensus <= 20 and all(1 <= x <= 3 for x in median_data if x is not None):
+                st.error("NO APROBADO (mediana + IC95%)")
+            else:
+                st.info("No se alcanzó consenso")
+        else:
+            st.info("Aún no hay votos registrados")
+
+    with tab_data:
+        # Exportación de datos
+        st.download_button(
+            "Descargar Excel completo",
+            data=to_excel(selected_session),
+            file_name=f"consenso_{selected_session}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        
+        st.download_button(
+            "Descargar reporte ejecutivo",
+            data=create_report(selected_session),
+            file_name=f"reporte_{selected_session}.txt"
+        )
+        
+        if votes:
+            st.dataframe(pd.DataFrame({
+                "Participante": session_data["names"],
+                "ID": session_data["ids"],
+                "Voto": votes,
+                "Comentario": comments
+            }), hide_index=True)
+
+    with tab_comments:
+        if comments:
+            for name, pid, vote, comment in zip(participants, session_data["ids"], votes, comments):
+                if comment:
+                    with st.expander(f"{name} (ID: {pid}) - Voto: {vote}"):
+                        st.write(comment)
+        else:
+            st.info("No hay comentarios registrados")
+                
+elif menu == "Crear Paquete GRADE":
+    st.subheader("Creación de Paquete GRADE")
+    
+    # 1) Filtrado avanzado de recomendaciones disponibles
+    recomendaciones_disponibles = [
+        (codigo, datos) for codigo, datos in store.items()
+        if (datos.get("tipo", "STD") == "STD" and                    # Solo sesiones estándar
+           not datos.get("is_active", True) and                      # Sesiones finalizadas
+           len(datos.get("votes", [])) >= 3 and                      # Mínimo 3 votos
+           consensus_pct(datos.get("votes", [])) >= 0.5              # Algo de consenso (50%)
+    ]
+    
+    if not recomendaciones_disponibles:
+        st.warning("""
+        No hay recomendaciones elegibles para paquetes GRADE. Requisitos:
+        - Sesiones finalizadas
+        - Mínimo 3 votos registrados
+        - Al menos 50% de consenso inicial
+        """)
         st.stop()
-    
-    # 3) Configuración mínima
-    num_expertos = st.number_input("Número de expertos para evaluación GRADE:", min_value=1, value=5)
-    
-    if st.button("Generar Paquete GRADE"):
-        codigo_paquete = uuid.uuid4().hex[:6].upper()
+
+    # 2) Interfaz de selección mejorada
+    with st.expander("📋 Recomendaciones disponibles", expanded=True):
+        cols = st.columns(2)
+        selected_codes = []
         
-        store[codigo_paquete] = {
-            "tipo": "GRADE_PKG",
-            "desc": f"Evaluación GRADE para {len(seleccionados)} recomendaciones",
-            "recs": seleccionados,
-            "dominios": {
-                dominio: {"ids": [], "names": [], "votes": [], "comments": []}
-                for dominio in DOMINIOS_GRADE
-            },
-            "n_participantes": num_expertos,
-            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "is_active": True
-        }
+        for idx, (codigo, datos) in enumerate(recomendaciones_disponibles):
+            with cols[idx % 2]:
+                if st.checkbox(
+                    f"**{codigo}** - {datos['desc'][:50]}...\n"
+                    f"Votos: {len(datos['votes'])} | "
+                    f"Consenso: {consensus_pct(datos['votes']) * 100:.1f}%",
+                    key=f"pkg_{codigo}"
+                ):
+                    selected_codes.append(codigo)
+
+    if not selected_codes:
+        st.stop()
+
+    # 3) Configuración del paquete
+    with st.form("grade_package_form"):
+        st.write("**Configuración del paquete**")
         
-        # Generar enlace directo a la votación GRADE
-        enlace_votacion = f"{get_base_url()}/?session={codigo_paquete}"
+        col1, col2 = st.columns(2)
+        with col1:
+            num_expertos = st.number_input(
+                "Número de evaluadores:",
+                min_value=3,
+                max_value=50,
+                value=10,
+                help="Mínimo 3 expertos para evaluación GRADE"
+            )
+            
+        with col2:
+            pkg_name = st.text_input(
+                "Nombre descriptivo:",
+                value=f"Paquete GRADE {datetime.date.today().strftime('%Y-%m-%d')}",
+                help="Ej: 'Evaluación estrategias prevención COVID-19'"
+            )
         
-        # Mostrar resultados
-        st.success(f"Paquete GRADE creado: {codigo_paquete}")
-        st.image(make_qr(codigo_paquete), width=200)
-        st.text("Enlace para evaluación:")
-        st.code(enlace_votacion)
+        if st.form_submit_button("🛠️ Crear Paquete GRADE"):
+            # Validación final
+            if len(selected_codes) < 1:
+                st.error("Seleccione al menos una recomendación")
+                st.stop()
+                
+            # Generación del código
+            pkg_code = uuid.uuid4().hex[:6].upper()
+            
+            # Estructura de datos del paquete
+            store[pkg_code] = {
+                "tipo": "GRADE_PKG",
+                "desc": pkg_name,
+                "recs": selected_codes,
+                "dominios": {
+                    dominio: {
+                        "ids": [],
+                        "names": [],
+                        "votes": [],
+                        "comments": [],
+                        "opciones": DOMINIOS_GRADE[dominio]
+                    } for dominio in DOMINIOS_GRADE
+                },
+                "n_participantes": num_expertos,
+                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "is_active": True,
+                "metadata": {
+                    "recomendaciones_incluidas": selected_codes,
+                    "votos_previos": {code: len(store[code]["votes"]) for code in selected_codes}
+                }
+            }
+            
+            history[pkg_code] = []
+            
+            # Generación de enlace
+            voting_url = create_qr_code_url(pkg_code)
+            
+            # Visualización de resultados
+            st.success(f"Paquete creado con código: **{pkg_code}**")
+            
+            tab1, tab2 = st.tabs(["Código QR", "Enlace directo"])
+            with tab1:
+                st.image(make_qr(pkg_code), width=250)
+                st.caption("Escanee este código para acceder a la evaluación")
+                
+            with tab2:
+                st.code(voting_url, language="text")
+                st.download_button(
+                    "Copiar enlace",
+                    data=voting_url,
+                    file_name=f"enlace_GRADE_{pkg_code}.txt",
+                    mime="text/plain"
+                )
 
 elif menu == "Registro Previo":
     st.title("Registro Previo - Panel de Consenso")
