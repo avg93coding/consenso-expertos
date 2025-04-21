@@ -955,7 +955,87 @@ elif menu == "Dashboard":
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
                 
-
+elif menu == "Crear Paquete GRADE":
+    st.subheader("Crear Paquete GRADE")
+    
+    # 1) Selecciona las recomendaciones existentes
+    options = list(store.keys())
+    sel = st.multiselect(
+        "Elige los códigos de recomendación para el paquete GRADE:",
+        options,
+        format_func=lambda c: f"{c} – {store[c]['desc']}"
+    )
+    
+    # 2) Número de participantes esperados
+    n_part = st.number_input("¿Cuántos expertos participarán?", min_value=1, step=1, value=10)
+    
+    # 3) Botón para crear el paquete
+    if st.button("Crear Paquete GRADE"):
+        if not sel:
+            st.warning("Debe seleccionar al menos una recomendación")
+        else:
+            code = uuid.uuid4().hex[:6].upper()
+            # Inicializa dominios con listas vacías
+            dominios = {
+                dom: {"ids":[], "names":[], "votes":[], "comments":[], "opciones": DOMINIOS_GRADE[dom]}
+                for dom in DOMINIOS_GRADE
+            }
+            store[code] = {
+                "tipo": "GRADE_PKG",
+                "desc": f"Paquete de {len(sel)} recomendaciones",
+                "recs": sel,
+                "dominios": dominios,
+                "n_participantes": n_part,
+                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "is_active": True
+            }
+            history[code] = []
+            
+            # 4) Mostrar resultados del paquete creado
+            st.success(f"✅ Paquete GRADE creado con código {code}")
+            
+            # 5) Mostrar el QR más prominente
+            url = create_qr_code_url(code)
+            st.markdown(f"### URL para participantes: [Abrir página de votación]({url})")
+            st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
+            
+            # 6) Botón de descarga Excel (si hay datos)
+            if code in store:
+                buf = to_excel(code)
+                st.download_button(
+                    "⬇️ Descargar Excel (dominios × participantes)",
+                    data=buf,
+                    file_name=f"GRADE_{code}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+    
+    # 7) Mostrar paquetes GRADE existentes
+    st.markdown("---")
+    st.subheader("Paquetes GRADE existentes")
+    
+    grade_pkgs = {k: v for k, v in store.items() if v.get("tipo") == "GRADE_PKG"}
+    
+    if not grade_pkgs:
+        st.info("No hay paquetes GRADE creados aún.")
+    else:
+        for code, pkg in grade_pkgs.items():
+            with st.expander(f"{code} - {pkg['desc']} - {pkg['created_at']}"):
+                st.write(f"Recomendaciones incluidas: {len(pkg['recs'])}")
+                st.write(f"Participantes esperados: {pkg['n_participantes']}")
+                st.write(f"Votos recibidos: {len(pkg['dominios']['prioridad_problema']['votes'])}")
+                
+                # URL y QR para este paquete
+                url = create_qr_code_url(code)
+                st.markdown(f"URL de votación: [Abrir]({url})")
+                
+                # Botón de descarga Excel
+                buf = to_excel(code)
+                st.download_button(
+                    "⬇️ Descargar Excel de resultados",
+                    data=buf,
+                    file_name=f"GRADE_{code}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
 elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
