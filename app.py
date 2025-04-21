@@ -343,7 +343,7 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
     """
     doc = docx.Document()
 
-    # 1. Insertar logo en la cabecera, alineado a la derecha
+    # 1. Descargar el logo
     logo_url = (
         "https://static.wixstatic.com/media/89a9c2_ddc57311fc734357b9ea2b699e107ae2"
         "~mv2.png/v1/fill/w_90,h_54,al_c,q_85,usm_0.66_1.00_0.01/"
@@ -351,14 +351,19 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
     )
     resp = requests.get(logo_url)
     if resp.status_code == 200:
-        stream = BytesIO(resp.content)
+        img_stream = BytesIO(resp.content)
+        # 2. Obtener (o crear) el párrafo del encabezado
         header = doc.sections[0].header
-        p = header.paragraphs[0]
-        run = p.add_run()
-        run.add_picture(stream, width=Cm(4))
-        p.alignment = WD_ALIGN_PARAGRAPH.RIGHT   # <-- aquí: alineado a la derecha
+        if header.paragraphs:
+            header_para = header.paragraphs[0]
+        else:
+            header_para = header.add_paragraph()
+        # 3. Insertar la imagen y alinearla a la derecha
+        run = header_para.add_run()
+        run.add_picture(img_stream, width=Cm(4))
+        header_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
-    # 2. Márgenes A4
+    # 4. Ajustar márgenes A4
     for sec in doc.sections:
         sec.page_height = Cm(29.7)
         sec.page_width  = Cm(21.0)
@@ -367,65 +372,66 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
         sec.top_margin = Cm(2.5)
         sec.bottom_margin = Cm(2.5)
 
-    # 3. Para cada recomendación:
+    # 5. Iterar cada recomendación
     for code, rec in store.items():
-        # Encabezado
+        # 5.1 Encabezado de recomendación
         h = doc.add_heading(level=1)
         h.add_run(f"Recomendación {code}").bold = True
         h.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-        # Descripción
+        # 5.2 Descripción
         doc.add_paragraph().add_run("Descripción: ").bold = True
         doc.add_paragraph(rec["desc"])
 
-        # Fecha de creación
+        # 5.3 Fecha de creación
         doc.add_paragraph().add_run("Fecha de creación: ").bold = True
         doc.add_paragraph(rec["created_at"])
 
-        # Tabla de métricas
+        # 5.4 Tabla de métricas
         votos = rec["votes"]
         pct = consensus_pct(votos) * 100
         med, lo, hi = median_ci(votos)
 
         tbl = doc.add_table(rows=1, cols=4, style="Table Grid")
-        hdr = tbl.rows[0].cells
-        for i, title in enumerate(["Total votos", "% Consenso", "Mediana", "IC95%"]):
-            cell = hdr[i]
+        hdr_cells = tbl.rows[0].cells
+        titles = ["Total votos", "% Consenso", "Mediana", "IC95%"]
+        for idx, title in enumerate(titles):
+            cell = hdr_cells[idx]
             cell.text = ""
             p = cell.paragraphs[0]
             run = p.add_run(title)
             run.bold = True
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        datos = [str(len(votos)), f"{pct:.1f}%", f"{med:.1f}", f"[{lo:.1f}, {hi:.1f}]"]
-        fila = tbl.add_row().cells
-        for i, val in enumerate(datos):
-            cell = fila[i]
+        values = [str(len(votos)), f"{pct:.1f}%", f"{med:.1f}", f"[{lo:.1f}, {hi:.1f}]"]
+        row_cells = tbl.add_row().cells
+        for idx, val in enumerate(values):
+            cell = row_cells[idx]
             cell.text = val
             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         doc.add_paragraph()
 
-        # Estado de consenso
+        # 5.5 Estado de consenso
         total = len(votos)
         if pct >= 80 and 7 <= med <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
-            estado = "CONSENSO ALCANZADO (por mediana + IC95%)."
+            estado = "✅ CONSENSO ALCANZADO (por mediana + IC95%)."
         elif pct >= 80:
-            estado = "CONSENSO ALCANZADO (por porcentaje)."
+            estado = "✅ CONSENSO ALCANZADO (por porcentaje)."
         elif pct <= 20 and 1 <= med <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
-            estado = "NO APROBADO (por mediana + IC95%)."
+            estado = "❌ NO APROBADO (por mediana + IC95%)."
         elif sum(1 for v in votos if isinstance(v, (int, float)) and v <= 3) >= 0.8 * total:
-            estado = "NO APROBADO (por porcentaje)."
+            estado = "❌ NO APROBADO (por porcentaje)."
         else:
-            estado = "NO SE ALCANZÓ CONSENSO."
+            estado = "⚠️ NO SE ALCANZÓ CONSENSO."
 
         doc.add_paragraph().add_run("Estado de consenso: ").bold = True
         doc.add_paragraph(estado)
 
         doc.add_page_break()
 
-    # 4. Guardar y devolver buffer
-    buffer = BytesIO()
+    # 6. Guardar y devolver buffer
+    buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer
