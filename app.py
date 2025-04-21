@@ -96,30 +96,36 @@ def to_excel(code: str) -> io.BytesIO:
     # —— A. Sesión estándar ——
     if s.get("tipo", "STD") == "STD":
         df = pd.DataFrame({
-            "ID anónimo":   s["ids"],
-            "Nombre real":  s["names"],
+            "ID anónimo":    s["ids"],
+            "Nombre real":   s["names"],
             "Recomendación": [s["desc"]] * len(s["ids"]),
-            "Ronda":        [s["round"]] * len(s["ids"]),
-            "Voto":         s["votes"],
-            "Comentario":   s["comments"],
-            "Fecha":        [s["created_at"]] * len(s["ids"])
+            "Ronda":         [s["round"]] * len(s["ids"]),
+            "Voto":          s["votes"],
+            "Comentario":    s["comments"],
+            "Fecha":         [s["created_at"]] * len(s["ids"])
         })
 
-    # —— B. Paquete GRADE ——
+    # —— B. Paquete GRADE (filas=participantes, columnas=dominios) ——
     elif s.get("tipo") == "GRADE_PKG":
+        dominios = list(s["dominios"].keys())
+        # supongo que cada dominio tuvo el mismo # de envíos
+        primero = s["dominios"][dominios[0]]
+        n_envios = len(primero["votes"])
+
         filas = []
-        for dom, meta in s["dominios"].items():
-            for op, com, nom, pid in zip(
-                meta["votes"], meta["comments"], meta["names"], meta["ids"]
-            ):
-                filas.append({
-                    "Dominio":    dom,
-                    "Opción":     op,
-                    "Comentario": com,
-                    "Nombre":     nom,
-                    "ID":         pid,
-                    "Fecha":      s["created_at"]
-                })
+        for i in range(n_envios):
+            fila = {
+                "ID":    primero["ids"][i],
+                "Nombre":primero["names"][i],
+                "Fecha": s["created_at"]
+            }
+            # por cada dominio metemos voto + comentario
+            for d in dominios:
+                meta = s["dominios"][d]
+                fila[d] = meta["votes"][i]
+                fila[f"{d}_comentario"] = meta["comments"][i]
+            filas.append(fila)
+
         df = pd.DataFrame(filas)
 
     # —— Guardar en buffer y devolver ——
@@ -127,6 +133,7 @@ def to_excel(code: str) -> io.BytesIO:
     df.to_excel(buf, index=False)
     buf.seek(0)
     return buf
+
 
 
 def create_report(code: str) -> str:
