@@ -951,7 +951,7 @@ elif menu == "Evaluar con GRADE":
             st.stop()
 
         code = uuid.uuid4().hex[:6].upper()
-        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ts   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # —— GRADE con dominios ÚNICOS (uno para todo el paquete) ——
         store[code] = {
@@ -964,16 +964,26 @@ elif menu == "Evaluar con GRADE":
             "dominios": {
                 d: {
                     "opciones": DOMINIOS_GRADE[d],
-                    "votes": [], "comments": [],
-                    "ids":   [], "names": [],
-                    "round": 1
+                    "votes":    [], "comments": [],
+                    "ids":      [], "names": [],
+                    "round":    1
                 } for d in DOMINIOS_GRADE
             }
         }
         history[code] = {}
+
         st.success(f"Paquete GRADE {code} creado.")
+        # QR + URL
         st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
-        st.info(f"URL: {create_qr_code_url(code)}")
+        st.info(f"URL para votación: {create_qr_code_url(code)}")
+
+        # ———> Botón de descarga en esta misma sección:
+        st.download_button(
+            label="⬇️ Descargar Excel del paquete GRADE",
+            data=to_excel(code),
+            file_name=f"grade_{code}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
         
 elif menu == "Reporte Consolidado":
