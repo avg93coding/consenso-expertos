@@ -360,7 +360,8 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
       - Tabla de métricas (Total votos, % Consenso, Mediana, IC95%)
       - Estado de consenso
     """
-    doc = docx.Document()
+    doc = Document()
+
 
     # 1. Descargar el logo
     logo_url = (
