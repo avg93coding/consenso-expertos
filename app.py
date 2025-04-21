@@ -845,6 +845,55 @@ elif menu == "Dashboard":
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
 
+elif menu == "Evaluar con GRADE":
+    st.subheader("Armar paquete de recomendaciones para evaluación GRADE")
+
+    # 1) elegibles = sesiones estándar activas
+    elegibles = {k:v for k,v in store.items()
+                 if v.get("tipo","STD")=="STD" and v.get("is_active",True)}
+    if not elegibles:
+        st.info("No hay recomendaciones activas.")
+        st.stop()
+
+    # 2) multiselect
+    sel = st.multiselect(
+        "Seleccione las recomendaciones a incluir",
+        options=list(elegibles.keys()),
+        format_func=lambda k: f"{k} – {elegibles[k]['desc'][:60]}"
+    )
+
+    n_participantes = st.number_input("Expertos esperados", 1, step=1, value=10)
+
+    if st.button("➕ Crear paquete GRADE"):
+        if len(sel) < 2:
+            st.warning("Seleccione al menos dos recomendaciones.")
+            st.stop()
+
+        code = uuid.uuid4().hex[:6].upper()
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        store[code] = {
+            "tipo": "GRADE_PKG",
+            "recs": sel,
+            "desc": f"Paquete de {len(sel)} recomendaciones",
+            "created_at": ts,
+            "is_active": True,
+            "n_participantes": int(n_participantes),
+            "dominios": {
+                rc: {
+                    d: {
+                        "opciones": DOMINIOS_GRADE[d],
+                        "votes": [], "comments": [],
+                        "ids": [], "names": [],
+                        "round": 1
+                    } for d in DOMINIOS_GRADE
+                } for rc in sel
+            }
+        }
+        history[code] = {}
+        st.success(f"Paquete GRADE {code} creado.")
+        st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
+        st.info(f"URL: {create_qr_code_url(code)}")
+
 
                 
 elif menu == "Historial":
