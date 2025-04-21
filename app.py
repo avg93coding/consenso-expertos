@@ -565,8 +565,8 @@ def integrar_reporte_todas_recomendaciones():
 # ─────────────────────────────────────────────────────────────
 # 5)  Página de votación (se adapta al tipo de sesión)
 # ─────────────────────────────────────────────────────────────
-# ─────────────────────────────────────────────────────────────
 # 5) Página de votación (adaptable al tipo de sesión)
+# ─────────────────────────────────────────────────────────────
 params = st.query_params
 if "session" in params:
     raw  = params.get("session")
@@ -627,13 +627,13 @@ if "session" in params:
         for dom in PREGUNTAS_GRADE:
             st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
             votos[dom] = st.radio(
-                "", 
-                DOMINIOS_GRADE[dom], 
+                "",
+                DOMINIOS_GRADE[dom],
                 key=f"{code}-vote-{dom}"
             )
             comentarios[dom] = st.text_area(
-                "Comentario (opcional):", 
-                key=f"{code}-com-{dom}", 
+                "Comentario (opcional):",
+                key=f"{code}-com-{dom}",
                 height=60
             )
 
@@ -647,7 +647,7 @@ if "session" in params:
                 meta["comments"].append(comentarios[dom])
             st.balloons()
             st.success(f"🎉 Votos registrados. ID: `{pid}`")
-            # No st.stop() para que aparezca el botón de descarga
+            # no st.stop() para que salga el botón de descarga
 
         buf = to_excel(code)
         st.download_button(
