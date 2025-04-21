@@ -932,14 +932,14 @@ elif menu == "Evaluar con GRADE":
 
         # —— GRADE con dominios ÚNICOS (no por recomendación) ——
        store[code] = {
-    "tipo": "GRADE_PKG",
-    "recs": sel,                               # lista informativa
-    "desc": f"Paquete de {len(sel)} recomendaciones",
-    "created_at": ts,
-    "is_active": True,
-    "n_participantes": int(n_participantes),
-    # ▸ Dominios únicos para el paquete completo
-    "dominios": {
+       "tipo": "GRADE_PKG",
+       "recs": sel,                               # lista informativa
+       "desc": f"Paquete de {len(sel)} recomendaciones",
+       "created_at": ts,
+       "is_active": True,
+       "n_participantes": int(n_participantes),
+       # ▸ Dominios únicos para el paquete completo
+       "dominios": {
         d: {
             "opciones": DOMINIOS_GRADE[d],
             "votes":    [], "comments": [],
