@@ -392,6 +392,20 @@ def median_ci(votes):
     res = stats.bootstrap((arr,), np.median, confidence_level=0.95, n_resamples=1000)
     return med, res.confidence_interval.low, res.confidence_interval.high
 
+def mean_std_ci(votes):
+    arr = np.array([v for v in votes if isinstance(v, (int, float))], dtype=float)
+    n = len(arr)
+    if n < 2:
+        return (arr.mean() if n else 0.0), 0.0, 0.0, 0.0
+    mean = arr.mean()
+    std = arr.std(ddof=1)
+    se = std / np.sqrt(n)
+    t_crit = stats.t.ppf(0.975, df=n-1)
+    lo = mean - t_crit * se
+    hi = mean + t_crit * se
+    return mean, std, lo, hi
+
+
 def get_base_url():
     # URL específica para aplicación en Streamlit Cloud
     return "https://consenso-expertos-sfpqj688ihbl7m6tgrdmwb.streamlit.app"
@@ -834,6 +848,7 @@ elif menu == "Crear Recomendación":
 
 elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
+    # Recarga automática cada 5 s
     st_autorefresh(interval=5000, key="refresh_dashboard")
 
     # 1) Seleccionar sesión activa
@@ -848,11 +863,17 @@ elif menu == "Dashboard":
 
     # 2) Cálculo de métricas
     s = store[code]
-    votes, comments, ids = s["votes"], s["comments"], s["ids"]
+    votes = s["votes"]
+    comments = s["comments"]
+    ids = s["ids"]
+
     pct = consensus_pct(votes) * 100
-    med, lo, hi = (None, None, None)
+
+    # Calculamos media, DE y su IC95%
+    mean, std, lo, hi = (None, None, None, None)
     if votes:
-        med, lo, hi = median_ci(votes)
+        mean, std, lo, hi = mean_std_ci(votes)
+
     quorum = s.get("n_participantes", 0) // 2 + 1
     votos_actuales = len(votes)
 
@@ -875,7 +896,7 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # Columna 2: Metric‑Cards (degradado morado→naranja)
+    # Columna 2: Metric‑Cards con media, DE e IC95%
     with col_kpi:
         st.markdown(f"""
         <div class="metric-card">
@@ -888,12 +909,20 @@ elif menu == "Dashboard":
         </div>
         {f'''
         <div class="metric-card">
-          <div class="metric-label">Mediana (IC95%)</div>
-          <div class="metric-value">{med:.1f} [{lo:.1f}, {hi:.1f}]</div>
+          <div class="metric-label">Media</div>
+          <div class="metric-value">{mean:.2f}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Desv. Estándar</div>
+          <div class="metric-value">{std:.2f}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Media (IC95%)</div>
+          <div class="metric-value">{mean:.2f} [{lo:.2f}, {hi:.2f}]</div>
         </div>''' if votes else ''}
         """, unsafe_allow_html=True)
 
-    # Columna 3: Histograma morado estrecho
+    # Columna 3: Histograma
     with col_chart:
         if votes:
             df = pd.DataFrame({"Voto": votes})
@@ -901,7 +930,7 @@ elif menu == "Dashboard":
                 df,
                 x="Voto",
                 nbins=9,
-                labels={"Voto":"Escala 1–9","count":"Frecuencia"},
+                labels={"Voto": "Escala 1–9", "count": "Frecuencia"},
                 color_discrete_sequence=[PRIMARY]
             )
             fig.update_traces(marker_line_width=0)
@@ -917,17 +946,17 @@ elif menu == "Dashboard":
         else:
             st.info("🔍 Aún no hay votos para mostrar.")
 
-    # 4) Estado de consenso bajo las columnas
+    # 4) Estado de consenso
     st.markdown("---")
     if votos_actuales < quorum:
         st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
     else:
-        if pct >= 80 and votes and 7 <= med <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
-            st.success("✅ CONSENSO ALCANZADO (mediana + IC95%)")
+        if pct >= 80 and votes and (7 <= mean <= 9) and (7 <= lo <= 9) and (7 <= hi <= 9):
+            st.success("✅ CONSENSO ALCANZADO (media + IC95%)")
         elif pct >= 80:
             st.success("✅ CONSENSO ALCANZADO (% votos)")
-        elif pct <= 20 and votes and 1 <= med <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
-            st.error("❌ NO APROBADO (mediana + IC95%)")
+        elif pct <= 20 and votes and (1 <= mean <= 3) and (1 <= lo <= 3) and (1 <= hi <= 3):
+            st.error("❌ NO APROBADO (media + IC95%)")
         elif sum(1 for v in votes if isinstance(v, (int, float)) and v <= 3) >= 0.8 * votos_actuales:
             st.error("❌ NO APROBADO (% votos)")
         else:
@@ -948,13 +977,13 @@ elif menu == "Dashboard":
         st.download_button("⬇️ Descargar TXT", create_report(code),
                            file_name=f"reporte_{code}.txt")
 
-    # 6) Comentarios
+    # 6) Comentarios de participantes
     if comments:
         st.subheader("Comentarios de Participantes")
         for pid, name, vote, com in zip(ids, s["names"], votes, comments):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
-                
+
 elif menu == "Evaluar con GRADE":
     st.subheader("Evaluación GRADE (paquete de recomendaciones)")
 
