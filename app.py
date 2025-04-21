@@ -996,28 +996,31 @@ elif menu == "Evaluar con GRADE":
     registrados = len(primer_dom["ids"])
     st.markdown(f"**Participantes que ya han votado:** {registrados}/{s['n_participantes']}")
 
-    # 4) Pedimos el nombre ANTES de mostrar las preguntas
+    # 4) Pedimos el nombre ANTES de las preguntas
     name = st.text_input("Nombre del participante:")
+    if not name:
+        st.warning("Por favor ingresa tu nombre para continuar.")
+        st.stop()
 
     # 5) Formulario dinámico de preguntas y opciones
     votos, comentarios = {}, {}
-    for dom, opciones in DOMINIOS_GRADE.items():
+    for dom in PREGUNTAS_GRADE:
+        # Mostramos la pregunta
         st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
+        # Radio con sus opciones
         votos[dom] = st.radio(
-            "", opciones,
+            "", DOMINIOS_GRADE[dom],
             key=f"vote_{dom}"
         )
+        # Textarea para comentario
         comentarios[dom] = st.text_area(
             "Comentario (opcional):",
             key=f"com_{dom}",
             height=60
         )
 
-    # 6) Envío de votos
+    # 6) Botón de envío
     if st.button("Enviar votos GRADE"):
-        if not name:
-            st.warning("Ingrese su nombre antes de votar.")
-            st.stop()
         pid = hashlib.sha256(name.encode()).hexdigest()[:8]
         for dom in s["dominios"]:
             s["dominios"][dom]["ids"].append(pid)
@@ -1027,7 +1030,7 @@ elif menu == "Evaluar con GRADE":
         st.balloons()
         st.success(f"🎉 Votos registrados. ID: `{pid}`")
 
-    # 7) Botón para descargar la matriz transpuesta
+    # 7) Botón de descarga transpuesta
     buf = to_excel(code)
     st.download_button(
         "⬇️ Descargar Excel (dominios × participantes)",
