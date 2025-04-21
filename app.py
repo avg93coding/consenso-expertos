@@ -2,34 +2,19 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import uuid
-import qrcode
-import io
-import hashlib
-import datetime
-import base64
-import copy
-import os
+import uuid, qrcode, io, hashlib, datetime, base64, copy, os
 from scipy import stats
 from streamlit_autorefresh import st_autorefresh
-import plotly.graph_objects as go
-import requests
-from io import BytesIO
-import docx
-from docx.shared import Cm, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-import os
-import docx
-from docx.shared import Pt, Cm, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
-import plotly.graph_objects as go
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
 import requests
 from io import BytesIO
 
-import streamlit as st
+st.set_page_config(
+    page_title="ODDS Epidemiology – Dashboard Consenso de expertos",
+    page_icon="https://www.oddsepidemiology.com/favicon.ico",  # <-- URL absoluta
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 
 # 1) Inyecta tu estilo para las metric‑cards
 def inject_css():
@@ -214,12 +199,6 @@ if "registro" in params:
 
 
 
-st.set_page_config(
-    page_title="ODDS Epidemiology – Dashboard Consenso de expertos",
-    page_icon="https://www.oddsepidemiology.com/favicon.ico",  # <-- URL absoluta
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
 
 # 2) Almacenamiento persistente utilizando session_state
 # Esto asegura que las sesiones persistan incluso cuando Streamlit se reinicia
