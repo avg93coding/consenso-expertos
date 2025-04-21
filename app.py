@@ -500,77 +500,7 @@ def integrar_reporte_todas_recomendaciones():
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
 
-# 4) CSS y estilo visual para ODDS Epidemiology
-def inject_css():
-    PRIMARY = "#662D91"    # Morado principal
-    SECONDARY = "#F1592A"  # Naranja vibrante
-    LIGHT_BG = "#F7F7F7"   # Fondo claro
-    TEXT = "#333333"
-    FONT = "'Segoe UI', Tahoma, Verdana, sans-serif"
 
-    css = f"""
-    <style>
-      .stApp {{background-color:{LIGHT_BG} !important; color:{TEXT}; font-family:{FONT};}}
-
-      .app-header {{
-        background-color:{PRIMARY};
-        padding:1.5rem;
-        border-radius:0 0 10px 10px;
-        text-align:center;
-        color:white;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      }}
-
-      .odds-logo {{
-        font-size: 2rem;
-        font-weight: bold;
-        letter-spacing: 1px;
-        padding-bottom: 5px;
-        border-bottom: 2px solid {SECONDARY};
-        display: inline-block;
-      }}
-
-      .metric-card {{
-        text-align: center;
-        padding: 15px;
-        background: linear-gradient(to bottom right, {PRIMARY}, {SECONDARY});
-        color: white;
-        border-radius: 8px;
-      }}
-
-      .metric-value {{
-        font-size: 1.8rem;
-        font-weight: bold;
-      }}
-
-      .stButton>button {{
-        background-color: {PRIMARY};
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 5px;
-      }}
-
-      .stButton>button:hover {{
-        background-color: {SECONDARY};
-      }}
-    </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
-
-
-def odds_header():
-    header_html = """
-    <div class="app-header">
-        <div class="odds-logo">ODDS EPIDEMIOLOGY</div>
-        <div class="odds-subtitle">Sistema de Votación</div>
-    </div>
-    """
-    st.markdown(header_html, unsafe_allow_html=True)
-
-# Aplicar estilos
-inject_css()
 
 # 5) Página de votación solo si ?session=
 params = st.query_params
