@@ -8,84 +8,42 @@ from streamlit_autorefresh import st_autorefresh
 import requests
 from io import BytesIO
 
+# 1) set_page_config debe ir primero
 st.set_page_config(
     page_title="ODDS Epidemiology – Dashboard Consenso de expertos",
-    page_icon="https://www.oddsepidemiology.com/favicon.ico",  # <-- URL absoluta
+    page_icon="https://www.oddsepidemiology.com/favicon.ico",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-
-# 1) Inyecta tu estilo para las metric‑cards
+# 2) Único inject_css() con metric‑cards y botones
 def inject_css():
     css = """
     <style>
-      /* Estilos generales ODDS */
       .stApp { background-color:#F7F7F7 !important; color:#333333; font-family:'Segoe UI', Tahoma, Verdana, sans-serif; }
-
-      .app-header {
-        background-color:#662D91;
-        padding:1.5rem;
-        border-radius:0 0 10px 10px;
-        text-align:center;
-        color:white;
-        margin-bottom:20px;
-        box-shadow:0 4px 6px rgba(0,0,0,0.1);
-      }
-      .odds-logo {
-        font-size:2rem; font-weight:bold; letter-spacing:1px;
-        padding-bottom:5px; border-bottom:2px solid #F1592A;
-      }
-
-      /* Metric‑cards: degradado + ancho + word‑wrap */
-      .metric-card {
-        width:140px;                    /* ancho suficiente */
-        padding:12px;
-        margin-bottom:10px;
-        background: linear-gradient(to bottom right, #662D91, #F1592A);
-        color:white;
-        border-radius:8px;
-        box-sizing:border-box;
-        white-space:normal !important;  /* permite saltos de línea */
-        word-wrap:break-word !important;
-      }
-      .metric-label {
-        font-size:0.9rem;
-        opacity:0.8;
-        text-align:center;
-      }
-      .metric-value {
-        font-size:1.4rem;
-        font-weight:bold;
-        text-align:center;
-        margin-top:4px;
-      }
-
-      /* Botones ODDS */
-      .stButton>button {
-        background-color:#662D91;
-        color:white;
-        border:none;
-        padding:0.5rem 1rem;
-        border-radius:5px;
-      }
-      .stButton>button:hover {
-        background-color:#F1592A;
-      }
+      .app-header { background-color:#662D91; padding:1.5rem; border-radius:0 0 10px 10px; text-align:center; color:white; margin-bottom:20px; }
+      .odds-logo { font-size:2rem; font-weight:bold; letter-spacing:1px; padding-bottom:5px; border-bottom:2px solid #F1592A; display:inline-block; }
+      .metric-card { width:140px; padding:12px; margin-bottom:10px; background: linear-gradient(to bottom right, #662D91, #F1592A); color:white; border-radius:8px; box-sizing:border-box; white-space:normal !important; word-wrap:break-word !important; }
+      .metric-label { font-size:0.9rem; opacity:0.8; text-align:center; }
+      .metric-value { font-size:1.4rem; font-weight:bold; text-align:center; margin-top:4px; }
+      .stButton>button { background-color:#662D91; color:white; border:none; padding:0.5rem 1rem; border-radius:5px; }
+      .stButton>button:hover { background-color:#F1592A; }
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
 
 inject_css()
 
+# 3) odds_header(), para mostrar logo y título
 def odds_header():
     header_html = """
     <div class="app-header">
-        <div class="odds-logo">ODDS EPIDEMIOLOGY</div>
-        <div class="odds-subtitle">Sistema de Votación</div>
+      <div class="odds-logo">ODDS EPIDEMIOLOGY</div>
+      <div class="odds-subtitle">Sistema de Votación</div>
     </div>
     """
     st.markdown(header_html, unsafe_allow_html=True)
+
 
 
 def shade_cell(cell, fill_hex: str):
@@ -693,6 +651,7 @@ elif menu == "Crear Recomendación":
 
 
 elif menu == "Dashboard":
+    odds_header()
     st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")
 
