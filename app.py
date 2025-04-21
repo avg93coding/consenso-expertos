@@ -761,7 +761,7 @@ elif menu == "Dashboard":
             st.warning("⚠️ NO SE ALCANZÓ CONSENSO")
 
     # 5) Acciones y exportes
-    st.subheader("Acciones y Exportes")
+    st.subheader("Acciones y Exportación")
     if st.button("Iniciar nueva ronda"):
         history.setdefault(code, []).append(copy.deepcopy(s))
         st.session_state.modify_recommendation = True
