@@ -52,22 +52,61 @@ def odds_header():
     """
     st.markdown(header_html, unsafe_allow_html=True)
 
-# ──────────────────────────────────────────────────────────────
-#  Dominios GRADE para decisión típica (lista de opciones)
-# ──────────────────────────────────────────────────────────────
 DOMINIOS_GRADE = {
-    "efectos_deseables":   ["Trivial", "Pequeños", "Moderados", "Grandes"],
-    "efectos_indeseables": ["Triviales", "Pequeños", "Moderados", "Grandes"],
-    "certeza":             ["Muy baja", "Baja", "Moderada", "Alta"],
-    "benef_riesgo":        ["Definitivamente no", "Probablemente no",
-                            "Incertidumbre", "Probablemente sí", "Definitivamente sí"],
-    "valores":             ["Muy variable", "Algo variable", "Consistencia"],
-    "recursos":            ["No", "Probablemente no", "Incertidumbre",
-                            "Probablemente sí", "Sí"],
-    "equidad":             ["Reduce equidad", "No cambia", "Aumenta equidad"],
-    "aceptabilidad":       ["Poco aceptable", "Dudosamente aceptable", "Aceptable"],
-    "factibilidad":        ["Difícil", "Moderadamente factible", "Factible"],
+    "prioridad_problema": [
+        "No", "Probablemente no", "Probablemente sí", "Sí", "Varía", "No sabemos"
+    ],
+    "efectos_deseables": [
+        "No importante", "Pequeña", "Moderada", "Grande", "Varía", "No se sabe"
+    ],
+    "efectos_indeseables": [
+        "No importante", "Pequeña", "Moderada", "Grande", "Varía", "No se sabe"
+    ],
+    "certeza_evidencia": [
+        "Muy baja", "Baja", "Moderada", "Alta", "No hay estudios incluidos"
+    ],
+    "balance_efectos": [
+        "Favorece al comparador",
+        "Probablemente favorece al comparador",
+        "No favorece ni al comparador ni a la intervención",
+        "Probablemente favorece a la intervención",
+        "Favorece la intervención",
+        "Es variable",
+        "No es posible saber"
+    ],
+    "recursos": [
+        "Costos altos/recursos",
+        "Costos moderados/recursos",
+        "Costos o ahorro mínimo/recursos insignificantes",
+        "Ahorro moderado",
+        "Gran ahorro",
+        "Variable",
+        "No se sabe"
+    ],
+    "aceptabilidad": [
+        "No", "Probablemente no", "Probablemente sí", "Sí", "Varía", "No se sabe"
+    ],
+    "factibilidad": [
+        "No", "Probablemente no", "Probablemente sí", "Sí", "Varía", "No se sabe"
+    ],
+    "equidad": [
+        "Reducido", "Probablemente reducido", "Probablemente no impacta",
+        "Probablemente incrementa", "Incrementa", "Varía", "No se sabe"
+    ],
 }
+
+PREGUNTAS_GRADE = {
+    "prioridad_problema":   "¿Constituye el problema una prioridad?",
+    "efectos_deseables":    "¿Cuál es la magnitud de los efectos deseados que se prevén?",
+    "efectos_indeseables":  "¿Cuál es la magnitud de los efectos no deseados que se prevén?",
+    "certeza_evidencia":    "¿Cuál es la certeza global de la evidencia de los efectos?",
+    "balance_efectos":      "¿Qué balance entre efectos deseables y no deseables favorece?",
+    "recursos":             "¿Cuál es la magnitud de los recursos necesarios (costos)?",
+    "aceptabilidad":        "¿Es aceptable la intervención para los grupos clave?",
+    "factibilidad":         "¿Es factible la implementación de la intervención?",
+    "equidad":              "¿Cuál sería el impacto sobre la equidad en salud?",
+}
+# ------------------------------------------------------------
 
 
 def shade_cell(cell, fill_hex: str):
@@ -934,83 +973,61 @@ elif menu == "Dashboard":
 elif menu == "Evaluar con GRADE":
     st.subheader("Evaluación GRADE (un único set de dominios)")
 
-    # 1) Recomendaciones estándar activas
+    # 1) Recomendaciones activas
     elegibles = {
         k: v for k, v in store.items()
-        if v.get("tipo", "STD") == "STD" and v.get("is_active", True)
+        if v.get("tipo", "") == "GRADE_PKG" and v.get("is_active", True)
     }
     if not elegibles:
-        st.info("No hay recomendaciones activas.")
+        st.info("No hay paquetes GRADE activos.")
         st.stop()
 
-    # 2) Selección múltiple para crear paquete
-    sel = st.multiselect(
-        "Seleccione las recomendaciones que se evaluarán en conjunto",
+    # 2) Selección de paquete
+    code = st.selectbox(
+        "Elige el paquete GRADE:",
         options=list(elegibles.keys()),
-        format_func=lambda k: f"{k} – {elegibles[k]['desc'][:60]}"
+        format_func=lambda k: f"{k} – {store[k]['desc']}"
     )
-    n_participantes = st.number_input("Expertos esperados", 1, step=1, value=10)
+    s = store[code]
 
-    # 3) Botón de creación
-    if st.button("➕ Crear paquete GRADE"):
-        if len(sel) < 2:
-            st.warning("Seleccione al menos dos recomendaciones.")
+    # 3) Contador de participantes ya votados
+    total_votos = len(next(iter(s["dominios"].values()))["ids"])
+    st.markdown(f"**Participantes que ya han votado:** {total_votos}/{s['n_participantes']}")
+
+    # 4) Formulario de votación
+    votos, comentarios = {}, {}
+    for dom in PREGUNTAS_GRADE:
+        st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
+        votos[dom] = st.radio(
+            "", DOMINIOS_GRADE[dom], key=f"radio_{dom}"
+        )
+        comentarios[dom] = st.text_area(
+            "Comentario (opcional):", key=f"com_{dom}", height=60
+        )
+
+    # 5) Envío de votos
+    if st.button("Enviar votos GRADE"):
+        if not name:
+            st.warning("Ingrese su nombre.")
             st.stop()
+        pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+        for dom, meta in s["dominios"].items():
+            meta["votes"].append(votos[dom])
+            meta["comments"].append(comentarios[dom])
+            meta["ids"].append(pid)
+            meta["names"].append(name)
+        st.balloons()
+        st.success(f"🎉 Votos registrados.  ID: `{pid}`")
 
-        code = uuid.uuid4().hex[:6].upper()
-        ts   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        store[code] = {
-            "tipo": "GRADE_PKG",
-            "recs": sel,
-            "desc": f"Paquete de {len(sel)} recomendaciones",
-            "created_at": ts,
-            "is_active": True,
-            "n_participantes": int(n_participantes),
-            "dominios": {
-                d: {
-                    "opciones": DOMINIOS_GRADE[d],
-                    "votes":    [], "comments": [],
-                    "ids":      [], "names": [],
-                    "round":    1
-                } for d in DOMINIOS_GRADE
-            }
-        }
-        history[code] = {}
-
-        st.success(f"Paquete GRADE {code} creado.")
-        st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
-        st.info(f"URL para votación: {create_qr_code_url(code)}")
-
-    st.markdown("---")
-
-    # 4) Listado de paquetes GRADE ya creados
-    grade_pkgs = {
-        k: v for k, v in store.items()
-        if v.get("tipo") == "GRADE_PKG"
-    }
-    if grade_pkgs:
-        st.markdown("## Paquetes GRADE existentes")
-        for pkg_code, pkg in grade_pkgs.items():
-            st.markdown(f"**{pkg_code}** — {pkg['desc']} _(creado: {pkg['created_at']})_")
-
-            # 4a) Conteo de quienes completaron TODOS los dominios
-            ids_por_dom = [set(dom_meta["ids"]) for dom_meta in pkg["dominios"].values()]
-            completaron = set.intersection(*ids_por_dom) if ids_por_dom else set()
-            esperado = pkg.get("n_participantes", "?")
-            st.info(f"👥 Completaron la evaluación: {len(completaron)}/{esperado}")
-
-            # 4b) Botón de descarga del Excel
-            st.download_button(
-                label="⬇️ Descargar Excel",
-                data=to_excel(pkg_code),
-                file_name=f"grade_{pkg_code}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-            st.markdown("---")
-    else:
-        st.info("Aún no hay paquetes GRADE creados.")
-
+    # 6) Botón de descarga transpuesta
+    #    Filas = dominios, columnas = votantes
+    buf = to_excel(code)
+    st.download_button(
+        "⬇️ Descargar Excel (dominios × votantes)",
+        data=buf,
+        file_name=f"grade_{code}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
