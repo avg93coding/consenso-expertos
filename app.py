@@ -988,184 +988,53 @@ elif menu == "Dashboard":
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
                 
 elif menu == "Crear Paquete GRADE":
-    st.subheader("🛠️ Crear Nuevo Paquete GRADE")
+    st.subheader("Crear Paquete GRADE")
     
-    # 1) Filtramos recomendaciones elegibles (solo sesiones estándar completadas)
-    recomendaciones_elegibles = {
-        k: v for k, v in store.items() 
-        if v.get("tipo") == "STD" and not v.get("is_active", True)
-    }
+    # 1) Selección de recomendaciones existentes
+    options = [k for k in store.keys() if store[k].get("tipo") == "STD"]
     
-    if not recomendaciones_elegibles:
-        st.warning("No hay recomendaciones completadas disponibles para crear paquetes")
+    if not options:
+        st.warning("No hay recomendaciones disponibles para crear paquetes")
         st.stop()
-
-    # 2) Selección de recomendaciones con visualización mejorada
-    with st.expander("📋 Recomendaciones disponibles", expanded=True):
-        cols = st.columns(3)
-        selected = []
-        
-        for i, (code, data) in enumerate(recomendaciones_elegibles.items()):
-            with cols[i % 3]:
-                if st.checkbox(
-                    f"**{code}**: {data['desc'][:50]}...",
-                    key=f"grade_pkg_{code}"
-                ):
-                    selected.append(code)
     
-    # 3) Configuración del paquete
-    with st.form("grade_package_form"):
-        n_part = st.number_input(
-            "Número de expertos participantes:",
-            min_value=1,
-            max_value=50,
-            value=10,
-            step=1
-        )
-        
-        pkg_name = st.text_input(
-            "Nombre descriptivo del paquete:",
-            help="Ej: 'Vacunación COVID-19 - Estrategias primarias'"
-        )
-        
-        if st.form_submit_button("📦 Crear Paquete GRADE"):
-            if not selected:
-                st.error("Selecciona al menos una recomendación")
-                st.stop()
-                
-            # Generación del paquete
-            code = uuid.uuid4().hex[:6].upper()
-            store[code] = {
-                "tipo": "GRADE_PKG",
-                "desc": pkg_name or f"Paquete GRADE de {len(selected)} recomendaciones",
-                "recs": selected,
-                "dominios": {
-                    dom: {
-                        "ids": [], "names": [], 
-                        "votes": [], "comments": [],
-                        "opciones": DOMINIOS_GRADE[dom]
-                    } for dom in DOMINIOS_GRADE
-                },
-                "n_participantes": n_part,
-                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "is_active": True
-            }
-            
-            history[code] = []
-            
-            # Mostrar resultados
-            st.success(f"✅ Paquete creado con código: **{code}**")
-            
-            # Panel de control con QR y enlace
-            with st.container():
-                st.subheader("📤 Compartir paquete")
-                tab1, tab2 = st.tabs(["Código QR", "Enlace directo"])
-                
-                with tab1:
-                    st.image(make_qr(code), width=200)
-                
-                with tab2:
-                    url = create_qr_code_url(code)
-                    st.code(url, language="text")
-                    st.download_button(
-                        "📋 Copiar enlace",
-                        data=url,
-                        file_name=f"enlace_GRADE_{code}.txt",
-                        mime="text/plain"
-                    )
-
-elif menu == "Evaluar con GRADE":
-    st.subheader("📝 Evaluación GRADE en Tiempo Real")
-    st_autorefresh(interval=10000, key="grade_autorefresh")
-    
-    # 1) Filtramos paquetes activos con visualización mejorada
-    elegibles = {
-        k: v for k, v in store.items()
-        if v.get("tipo") == "GRADE_PKG" and v.get("is_active", True)
-    }
-    
-    if not elegibles:
-        st.info("No hay paquetes GRADE activos disponibles")
-        st.stop()
-
-    # 2) Selector con información enriquecida
-    code = st.selectbox(
-        "Selecciona el paquete a evaluar:",
-        options=list(elegibles.keys()),
-        format_func=lambda k: (
-            f"{k} - {store[k]['desc']} "
-            f"({len(store[k]['dominios']['prioridad_problema']['votes'])}/"
-            f"{store[k]['n_participantes']} votos)"
-        )
+    selected = st.multiselect(
+        "Seleccione las recomendaciones a incluir:",
+        options,
+        format_func=lambda k: f"{k} - {store[k]['desc'][:50]}..."
     )
-    s = store[code]
     
-    # 3) Verificación de participante
-    with st.expander("🔐 Identificación del participante", expanded=True):
-        name = st.text_input("Nombre completo:")
-        email = st.text_input("Email (opcional pero recomendado):")
+    # 2) Configuración básica
+    n_part = st.number_input("Número de participantes esperados:", min_value=1, step=1)
+    
+    if st.button("Crear Paquete GRADE") and selected:
+        code = uuid.uuid4().hex[:6].upper()
         
-        if not name:
-            st.warning("Debes ingresar tu nombre para continuar")
-            st.stop()
-            
-        # Verificación para sesiones privadas
-        if s.get("privado", False) and not correo_autorizado(email, code):
-            st.error("No estás autorizado para votar en este paquete privado")
-            st.stop()
-
-    # 4) Formulario GRADE dinámico
-    with st.form("grade_evaluation_form"):
-        votos = {}
-        comentarios = {}
+        # Estructura del paquete GRADE
+        store[code] = {
+            "tipo": "GRADE_PKG",
+            "desc": f"Paquete de {len(selected)} recomendaciones",
+            "recs": selected,
+            "dominios": {
+                dom: {"ids": [], "names": [], "votes": [], "comments": []}
+                for dom in DOMINIOS_GRADE
+            },
+            "n_participantes": n_part,
+            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "is_active": True
+        }
         
-        for dominio in PREGUNTAS_GRADE:
-            st.markdown(f"### {PREGUNTAS_GRADE[dominio]}")
-            votos[dominio] = st.radio(
-                "Selecciona tu evaluación:",
-                DOMINIOS_GRADE[dominio],
-                horizontal=True,
-                key=f"grade_{code}_{dominio}"
-            )
-            comentarios[dominio] = st.text_area(
-                "Comentarios (opcional):",
-                key=f"com_{code}_{dominio}",
-                height=80
-            )
-            st.markdown("---")
+        # Generar enlace de votación
+        voting_url = create_qr_code_url(code)
         
-        if st.form_submit_button("📤 Enviar evaluación GRADE"):
-            pid = hashlib.sha256(f"{name}{email}".encode()).hexdigest()[:8]
-            
-            # Verificar si ya votó
-            if pid in s["dominios"]["prioridad_problema"]["ids"]:
-                st.warning("Ya has enviado una evaluación para este paquete")
-            else:
-                for dominio in s["dominios"]:
-                    s["dominios"][dominio]["ids"].append(pid)
-                    s["dominios"][dominio]["names"].append(name)
-                    s["dominios"][dominio]["votes"].append(votos[dominio])
-                    s["dominios"][dominio]["comments"].append(comentarios[dominio])
-                
-                st.balloons()
-                st.success(f"✅ Evaluación registrada. ID: {pid}")
-                
-                # Mostrar resumen
-                with st.expander("📋 Resumen de tu evaluación", expanded=True):
-                    for dominio in PREGUNTAS_GRADE:
-                        st.markdown(f"**{PREGUNTAS_GRADE[dominio]}**")
-                        st.write(f"Evaluación: {votos[dominio]}")
-                        if comentarios[dominio]:
-                            st.write(f"Comentario: {comentarios[dominio]}")
-                        st.write("---")
-
-    # 5) Descarga de resultados
-    st.download_button(
-        "📊 Descargar resultados completos (Excel)",
-        data=to_excel(code),
-        file_name=f"GRADE_Resultados_{code}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+        # Mostrar resultados
+        col1, col2 = st.columns(2)
+        with col1:
+            st.success(f"Código del paquete: {code}")
+            st.image(make_qr(code), width=200)
+        
+        with col2:
+            st.text("Enlace para votación:")
+            st.code(voting_url)
 
 elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
