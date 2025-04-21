@@ -972,9 +972,9 @@ elif menu == "Dashboard":
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
                 
 elif menu == "Evaluar con GRADE":
-    st.subheader("Evaluación GRADE (paquete de recomendaciones)")
+    st.subheader("Evaluación GRADE (paquete de recomendaciones)")
 
-    # 1) Paquetes GRADE activos
+    # 1) Paquetes activos
     elegibles = {
         k: v for k, v in store.items()
         if v.get("tipo") == "GRADE_PKG" and v.get("is_active", True)
@@ -991,21 +991,21 @@ elif menu == "Evaluar con GRADE":
     )
     s = store[code]
 
-    # 3) Contador de participantes ya votados
-    #    (tomamos el primer dominio para contar envíos)
+    # 3) Contador de participantes que ya han votado
     primer_dom = next(iter(s["dominios"].values()))
     registrados = len(primer_dom["ids"])
     st.markdown(f"**Participantes que ya han votado:** {registrados}/{s['n_participantes']}")
 
-    # 4) Formulario de votación GRADE
+    # 4) Pedimos el nombre ANTES de mostrar las preguntas
+    name = st.text_input("Nombre del participante:")
+
+    # 5) Formulario dinámico de preguntas y opciones
     votos, comentarios = {}, {}
-    for dom, meta in s["dominios"].items():
-        # mostrarmos la pregunta completa
+    for dom, opciones in DOMINIOS_GRADE.items():
         st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
         votos[dom] = st.radio(
-            "",                          # la pregunta la hemos puesto arriba
-            DOMINIOS_GRADE[dom],
-            key=f"radio_{dom}"
+            "", opciones,
+            key=f"vote_{dom}"
         )
         comentarios[dom] = st.text_area(
             "Comentario (opcional):",
@@ -1013,25 +1013,24 @@ elif menu == "Evaluar con GRADE":
             height=60
         )
 
-    # 5) Envío de votos
-    name = st.text_input("Nombre del participante:")
+    # 6) Envío de votos
     if st.button("Enviar votos GRADE"):
         if not name:
             st.warning("Ingrese su nombre antes de votar.")
             st.stop()
         pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-        for dom, meta in s["dominios"].items():
-            meta["votes"].append(votos[dom])
-            meta["comments"].append(comentarios[dom])
-            meta["ids"].append(pid)
-            meta["names"].append(name)
+        for dom in s["dominios"]:
+            s["dominios"][dom]["ids"].append(pid)
+            s["dominios"][dom]["names"].append(name)
+            s["dominios"][dom]["votes"].append(votos[dom])
+            s["dominios"][dom]["comments"].append(comentarios[dom])
         st.balloons()
         st.success(f"🎉 Votos registrados. ID: `{pid}`")
 
-    # 6) Botón de descarga transpuesta
+    # 7) Botón para descargar la matriz transpuesta
     buf = to_excel(code)
     st.download_button(
-        "⬇️ Descargar Excel (dominios × participantes)",
+        "⬇️ Descargar Excel (dominios × participantes)",
         data=buf,
         file_name=f"GRADE_{code}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
