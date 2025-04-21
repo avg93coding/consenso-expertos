@@ -563,52 +563,44 @@ if "session" in params:
         #  B. Paquete GRADE (varias recs)
         # ───────────────────────────────────
         elif tipo == "GRADE_PKG":
-            st.write(f"### Paquete de {len(s['recs'])} recomendaciones")
-            st.markdown("Complete los dominios GRADE para **cada** recomendación.")
+            st.write(f"### Evaluación GRADE para un paquete de {len(s['recs'])} recomendaciones")
 
-            # pestañas por recomendación
-            tabs = st.tabs([f"{rc}" for rc in s["recs"]])
-            for tab, rc in zip(tabs, s["recs"]):
-                with tab:
-                    st.markdown(f"**{store[rc]['desc']}**")
-                    for dom, meta in s["dominios"][rc].items():
-                        st.radio(
-                            dom.replace('_',' ').title(),
-                            meta["opciones"],
-                            key=f"{rc}_{dom}"
-                        )
-                        st.text_area(
-                            "Comentario (opcional)",
-                            key=f"com_{rc}_{dom}",
-                            height=60
-                        )
+            st.markdown("**Recomendaciones incluidas:**")
+            for rc in s["recs"]:
+                st.markdown(f"• **{rc}** — {store[rc]['desc']}")
 
-            if st.button("Enviar todos los votos"):
+            votos = {}
+            comentarios = {}
+            for dom, meta in s["dominios"].items():
+                st.markdown(f"#### {dom.replace('_',' ').title()}")
+                votos[dom] = st.radio(
+                    label="Seleccione una opción:",
+                    options=meta["opciones"],
+                    key=f"radio_{dom}"
+                )
+                comentarios[dom] = st.text_area(
+                    "Comentario (opcional):",
+                    key=f"com_{dom}",
+                    height=80     # ≥ 68 px para Streamlit
+                )
+
+            if st.button("Enviar votos GRADE"):
                 if not name:
                     st.warning("Ingrese su nombre.")
                     st.stop()
 
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-                for rc in s["recs"]:
-                    for dom, meta in s["dominios"][rc].items():
-                        meta["votes"].append(st.session_state[f"{rc}_{dom}"])
-                        meta["comments"].append(
-                            st.session_state.get(f"com_{rc}_{dom}", "")
-                        )
-                        meta["ids"].append(pid)
-                        meta["names"].append(name)
+                for dom, meta in s["dominios"].items():
+                    meta["votes"].append(votos[dom])
+                    meta["comments"].append(comentarios[dom])
+                    meta["ids"].append(pid)
+                    meta["names"].append(name)
 
                 st.balloons()
-                st.success("🎉 Votos registrados para todo el paquete.")
+                st.success("🎉 Votos registrados para el paquete GRADE.")
                 st.markdown(f"**ID de participación:** `{pid}`")
                 st.stop()
 
-        else:
-            st.error(f"Tipo de sesión no soportado: {tipo}")
-
-    except Exception as e:
-        st.error("Error al procesar la sesión.")
-        st.exception(e)
 
 # 6) Panel de administración
 odds_header()
@@ -907,18 +899,18 @@ elif menu == "Dashboard":
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
 
 elif menu == "Evaluar con GRADE":
-    st.subheader("Evaluación GRADE")
+    st.subheader("Evaluación GRADE (un único set de dominios)")
 
-    # 1) elegibles = sesiones estándar activas
-    elegibles = {k:v for k,v in store.items()
-                 if v.get("tipo","STD")=="STD" and v.get("is_active",True)}
+    # 1) Recomendaciones estándar activas
+    elegibles = {k: v for k, v in store.items()
+                 if v.get("tipo", "STD") == "STD" and v.get("is_active", True)}
     if not elegibles:
         st.info("No hay recomendaciones activas.")
         st.stop()
 
-    # 2) multiselect
+    # 2) Selección múltiple
     sel = st.multiselect(
-        "Seleccione las recomendaciones a incluir",
+        "Seleccione las recomendaciones que se evaluarán en conjunto",
         options=list(elegibles.keys()),
         format_func=lambda k: f"{k} – {elegibles[k]['desc'][:60]}"
     )
@@ -931,135 +923,31 @@ elif menu == "Evaluar con GRADE":
             st.stop()
 
         code = uuid.uuid4().hex[:6].upper()
-        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        store[code] = {
-            "tipo": "GRADE_PKG",
-            "recs": sel,
-            "desc": f"Paquete de {len(sel)} recomendaciones",
-            "created_at": ts,
-            "is_active": True,
-            "n_participantes": int(n_participantes),
-            "dominios": {
-                rc: {
-                    d: {
-                        "opciones": DOMINIOS_GRADE[d],
-                        "votes": [], "comments": [],
-                        "ids": [], "names": [],
-                        "round": 1
-                    } for d in DOMINIOS_GRADE
-                } for rc in sel
-            }
-        }
+        ts   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # —— GRADE con dominios ÚNICOS (no por recomendación) ——
+       store[code] = {
+    "tipo": "GRADE_PKG",
+    "recs": sel,                               # lista informativa
+    "desc": f"Paquete de {len(sel)} recomendaciones",
+    "created_at": ts,
+    "is_active": True,
+    "n_participantes": int(n_participantes),
+    # ▸ Dominios únicos para el paquete completo
+    "dominios": {
+        d: {
+            "opciones": DOMINIOS_GRADE[d],
+            "votes":    [], "comments": [],
+            "ids":      [], "names": [],
+            "round":    1
+        } for d in DOMINIOS_GRADE
+    }
+}
+
         history[code] = {}
         st.success(f"Paquete GRADE {code} creado.")
         st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
         st.info(f"URL: {create_qr_code_url(code)}")
-
-
-                
-elif menu == "Historial":
-    st.subheader("Historial de Sesiones")
-
-    if not history:
-        st.info("No hay historial de sesiones disponible.")
-    else:
-        code = st.selectbox("Seleccionar sesión:", list(history.keys()))
-
-        if code and code in history:
-            rounds_history = history[code]
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.write(f"Total de rondas: {len(rounds_history)}")
-
-            for i, round_data in enumerate(rounds_history):
-                with st.expander(f"Ronda {round_data['round']} - {round_data['created_at']}"):
-                    st.write(f"**Recomendación:** {round_data['desc']}")
-                    st.write(f"**Votos totales:** {len(round_data['votes'])}")
-                    pct = consensus_pct(round_data['votes']) * 100
-                    st.write(f"**% Consenso:** {pct:.1f}%")
-
-                    if round_data['votes']:
-                        med, lo, hi = median_ci(round_data['votes'])
-                        st.write(f"**Mediana (IC 95%):** {med:.1f} [{lo:.1f}, {hi:.1f}]")
-
-                        if pct >= 80 and lo >= 7:
-                            st.success("CONSENSO: Se aprobó la recomendación.")
-                        elif pct >= 80 and hi <= 3:
-                            st.error("CONSENSO: No se aprobó la recomendación.")
-                        else:
-                            st.warning("No se alcanzó consenso en esta ronda.")
-
-                    if round_data['comments']:
-                        st.subheader("Comentarios")
-                        for pid, name, vote, comment in zip(round_data['ids'], round_data['names'], round_data['votes'], round_data['comments']):
-                            if comment:
-                                st.markdown(f"**{name} (ID: {pid})** - Voto: {vote}\n>{comment}")
-
-            st.markdown("</div>", unsafe_allow_html=True)
-
-            st.download_button(
-                "Descargar Historial Completo",
-                to_excel(code),
-                file_name=f"historial_completo_{code}.xlsx",
-                help="Descarga todas las rondas de esta sesión en un solo archivo"
-            )
-
-            if len(rounds_history) > 1:
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-                st.subheader("Evolución del Consenso")
-                round_data_list = []
-                for r in rounds_history:
-                    pct = consensus_pct(r['votes']) * 100
-                    med, _, _ = median_ci(r['votes'])
-                    round_data_list.append({
-                        "Ronda": r['round'],
-                        "% Consenso": pct,
-                        "Mediana": med if r['votes'] else 0
-                    })
-                round_df = pd.DataFrame(round_data_list)
-                fig = px.line(
-                    round_df,
-                    x="Ronda",
-                    y=["% Consenso", "Mediana"],
-                    title="Evolución del Consenso por Ronda",
-                    markers=True,
-                    color_discrete_sequence=["#006B7F", "#3BAFDA"]
-                )
-                fig.update_layout(
-                    xaxis=dict(tickmode='linear', tick0=1, dtick=1),
-                    yaxis=dict(title="Valor"),
-                    hovermode="x unified",
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                )
-                fig.add_shape(
-                    type="line",
-                    x0=0,
-                    y0=80,
-                    x1=len(rounds_history) + 1,
-                    y1=80,
-                    line=dict(color="#FF4B4B", width=2, dash="dash"),
-                    name="Umbral de Consenso (80%)"
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-                st.subheader("Análisis Comparativo de Rondas")
-                first_round = rounds_history[0]
-                last_round = rounds_history[-1]
-                first_pct = consensus_pct(first_round['votes']) * 100
-                last_pct = consensus_pct(last_round['votes']) * 100
-                st.write(f"**Cambio en % de consenso:** {first_pct:.1f}% → {last_pct:.1f}% ({last_pct - first_pct:+.1f}%)")
-                if first_round['votes'] and last_round['votes']:
-                    first_med, _, _ = median_ci(first_round['votes'])
-                    last_med, _, _ = median_ci(last_round['votes'])
-                    st.write(f"**Cambio en mediana:** {first_med:.1f} → {last_med:.1f} ({last_med - first_med:+.1f})")
-                if last_pct >= 80:
-                    st.success("Se alcanzó consenso al final del proceso.")
-                else:
-                    st.warning("No se alcanzó consenso a pesar de múltiples rondas.")
-                st.markdown("</div>", unsafe_allow_html=True)
 
 elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
