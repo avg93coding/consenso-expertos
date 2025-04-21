@@ -990,99 +990,55 @@ elif menu == "Dashboard":
 elif menu == "Crear Paquete GRADE":
     st.subheader("Crear Paquete GRADE")
     
-    # 1) Selección de recomendaciones existentes
-    options = [k for k in store.keys() if store[k].get("tipo") == "STD"]
+    # 1) Filtra recomendaciones votadas y completadas
+    recomendaciones_votadas = [
+        (codigo, datos) for codigo, datos in store.items()
+        if datos.get("tipo", "STD") == "STD" 
+        and not datos.get("is_active", True)  # Solo sesiones cerradas
+        and len(datos.get("votes", [])) > 0   # Con votos registrados
+    ]
     
-    if not options:
-        st.warning("No hay recomendaciones disponibles para crear paquetes")
+    if not recomendaciones_votadas:
+        st.warning("No hay recomendaciones finalizadas con votos disponibles")
         st.stop()
     
-    selected = st.multiselect(
-        "Seleccione las recomendaciones a incluir:",
-        options,
-        format_func=lambda k: f"{k} - {store[k]['desc'][:50]}..."
+    # 2) Selección con detalles de votación
+    seleccionados = st.multiselect(
+        "Recomendaciones disponibles:",
+        options=[codigo for codigo, _ in recomendaciones_votadas],
+        format_func=lambda k: f"{k} - {store[k]['desc'][:40]}... (Votos: {len(store[k]['votes'])})"
     )
     
-    # 2) Configuración básica
-    n_part = st.number_input("Número de participantes esperados:", min_value=1, step=1)
+    if not seleccionados:
+        st.stop()
     
-    if st.button("Crear Paquete GRADE") and selected:
-        code = uuid.uuid4().hex[:6].upper()
+    # 3) Configuración mínima
+    num_expertos = st.number_input("Número de expertos para evaluación GRADE:", min_value=1, value=5)
+    
+    if st.button("Generar Paquete GRADE"):
+        codigo_paquete = uuid.uuid4().hex[:6].upper()
         
-        # Estructura del paquete GRADE
-        store[code] = {
+        store[codigo_paquete] = {
             "tipo": "GRADE_PKG",
-            "desc": f"Paquete de {len(selected)} recomendaciones",
-            "recs": selected,
+            "desc": f"Evaluación GRADE para {len(seleccionados)} recomendaciones",
+            "recs": seleccionados,
             "dominios": {
-                dom: {"ids": [], "names": [], "votes": [], "comments": []}
-                for dom in DOMINIOS_GRADE
+                dominio: {"ids": [], "names": [], "votes": [], "comments": []}
+                for dominio in DOMINIOS_GRADE
             },
-            "n_participantes": n_part,
+            "n_participantes": num_expertos,
             "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "is_active": True
         }
         
-        # Generar enlace de votación
-        voting_url = create_qr_code_url(code)
+        # Generar enlace directo a la votación GRADE
+        enlace_votacion = f"{get_base_url()}/?session={codigo_paquete}"
         
         # Mostrar resultados
-        col1, col2 = st.columns(2)
-        with col1:
-            st.success(f"Código del paquete: {code}")
-            st.image(make_qr(code), width=200)
-        
-        with col2:
-            st.text("Enlace para votación:")
-            st.code(voting_url)
-
-elif menu == "Reporte Consolidado":
-     integrar_reporte_todas_recomendaciones()
-    
-# Guardar y Cargar Estado - Administración
-st.sidebar.markdown("---")
-st.sidebar.subheader("Administración")
-
-# Guardar estado
-if st.sidebar.button("Guardar Estado"):
-    try:
-        state_data = {
-            "sessions": copy.deepcopy(store),
-            "history": copy.deepcopy(history)
-        }
-        state_b64 = base64.b64encode(str(state_data).encode()).decode()
-        st.sidebar.markdown("### Datos de Respaldo")
-        st.sidebar.code(state_b64, language=None)
-        st.sidebar.download_button(
-            label="Descargar Backup",
-            data=state_b64,
-            file_name=f"odds_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-            help="Guarde este archivo para restaurar sus sesiones en el futuro"
-        )
-        st.sidebar.success("Estado guardado correctamente.")
-    except Exception as e:
-        st.sidebar.error(f"Error al guardar el estado: {str(e)}")
-
-# Cargar estado
-state_upload = st.sidebar.file_uploader("Cargar Estado", type=["txt"])
-if state_upload is not None:
-    try:
-        content = state_upload.read().decode()
-        decoded = base64.b64decode(content).decode()
-        import ast
-        state_data = ast.literal_eval(decoded)
-
-        if "sessions" in state_data and "history" in state_data:
-            store.clear()
-            store.update(state_data["sessions"])
-            history.clear()
-            history.update(state_data["history"])
-            st.sidebar.success("Estado restaurado correctamente.")
-            st.rerun()
-        else:
-            st.sidebar.error("El archivo no contiene datos válidos.")
-    except Exception as e:
-        st.sidebar.error(f"Error al cargar el estado: {str(e)}")
+        st.success(f"Paquete GRADE creado: {codigo_paquete}")
+        st.image(make_qr(codigo_paquete), width=200)
+        st.text("Enlace para evaluación:")
+        st.code(enlace_votacion)
 
 elif menu == "Registro Previo":
     st.title("Registro Previo - Panel de Consenso")
