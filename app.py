@@ -494,11 +494,14 @@ def integrar_reporte_todas_recomendaciones():
 
 
 
-# 5) Página de votación solo si ?session=
+# ─────────────────────────────────────────────────────────────
+# 5)  Página de votación (se adapta al tipo de sesión)
+# ─────────────────────────────────────────────────────────────
 params = st.query_params
 if "session" in params:
     try:
-        code = params["session"][0] if isinstance(params.get("session"), list) else params.get("session")
+        raw = params.get("session")
+        code = raw[0] if isinstance(raw, list) else raw
         code = str(code).strip().upper()
 
         odds_header()
@@ -506,64 +509,106 @@ if "session" in params:
 
         if code not in store:
             st.error(f"Sesión inválida o expirada: '{code}'")
-            st.info("Por favor, contacte al administrador.")
             st.stop()
 
         s = store[code]
-        st.subheader(f"Panel de Votación - Ronda {s['round']}")
-        st.markdown(f'<div class="session-badge">Sesión: {code}</div>', unsafe_allow_html=True)
+        tipo = s.get("tipo", "STD")        # STD por defecto
 
-        name = st.text_input("Nombre del participante:")
-        correo = st.text_input("Correo electrónico (obligatorio para sesiones privadas):")
+        # ────────── datos comunes ──────────
+        st.subheader(f"Panel de votación — Sesión {code}")
+        name  = st.text_input("Nombre del participante:")
+        email = st.text_input("Correo electrónico (si aplica):")
 
-
-        # Bloqueo si ya votó
-        if name and name in s["names"]:
-            st.balloons()
-            st.success("✅ Gracias, su voto ya ha sido registrado.")
-            st.markdown("Puede cerrar esta ventana. 🙌")
+        # evita votos duplicados
+        if name and (
+            (tipo == "STD"  and name in s["names"]) or
+            (tipo == "GRADE_PKG" and any(
+                name in dom["names"]
+                for rc in s["recs"]
+                for dom in s["dominios"][rc].values()
+            ))
+        ):
+            st.success("✅ Ya se registró su participación.")
             st.stop()
 
-        st.markdown('<div class="card">', unsafe_allow_html=True)
+        # ───────────────────────────────────
+        #  A. Sesión estándar (Likert / Sí‑No)
+        # ───────────────────────────────────
+        if tipo == "STD":
+            st.markdown("### Recomendación a evaluar:")
+            st.markdown(f"**{s['desc']}**")
 
-        st.markdown("### Recomendación a evaluar:")
-        st.markdown(f"**{s['desc']}**")
-        st.markdown('<div class="helper-text">Evalúe si está de acuerdo con la recomendación según la escala proporcionada.</div>', unsafe_allow_html=True)
-
-        if s["scale"].startswith("Likert"):
-            st.markdown("""
-            **Escala de votación:**
-            - 1-3: Desacuerdo
-            - 4-6: Neutral
-            - 7-9: Acuerdo
-            """)
-            vote = st.slider("Su voto:", 1, 9, 5)
-        else:
-            vote = st.radio("Su voto:", ["Sí", "No"])
-
-        comment = st.text_area("Comentario o justificación (opcional):")
-
-        if st.button("Enviar voto"):
-            if not name:
-                st.warning("Por favor, ingrese su nombre para registrar su voto.")
+            if s["scale"].startswith("Likert"):
+                st.markdown("1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo")
+                vote = st.slider("Su voto:", 1, 9, 5)
             else:
-                pid = record_vote(code, vote, comment, name, correo)
+                vote = st.radio("Su voto:", ["Sí", "No"])
+
+            comment = st.text_area("Comentario (opcional):")
+
+            if st.button("Enviar voto"):
+                if not name:
+                    st.warning("Ingrese su nombre.")
+                    st.stop()
+                pid = record_vote(code, vote, comment, name, email)
                 if pid:
                     st.balloons()
-                    st.success("🎉 Gracias por su participación.")
-                    st.markdown(f"**ID de su voto:** `{pid}`")
-                    st.markdown("Puede cerrar esta ventana. 🙏")
+                    st.success("🎉 Gracias, su voto fue registrado.")
+                    st.markdown(f"**ID de voto:** `{pid}`")
                     st.stop()
                 else:
-                    st.error("Error al registrar el voto. La sesión puede haber expirado.")
+                    st.error("No se pudo registrar el voto.")
 
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.stop()
+        # ───────────────────────────────────
+        #  B. Paquete GRADE (varias recs)
+        # ───────────────────────────────────
+        elif tipo == "GRADE_PKG":
+            st.write(f"### Paquete de {len(s['recs'])} recomendaciones")
+            st.markdown("Complete los dominios GRADE para **cada** recomendación.")
+
+            # pestañas por recomendación
+            tabs = st.tabs([f"{rc}" for rc in s["recs"]])
+            for tab, rc in zip(tabs, s["recs"]):
+                with tab:
+                    st.markdown(f"**{store[rc]['desc']}**")
+                    for dom, meta in s["dominios"][rc].items():
+                        st.radio(
+                            dom.replace('_',' ').title(),
+                            meta["opciones"],
+                            key=f"{rc}_{dom}"
+                        )
+                        st.text_area(
+                            "Comentario (opcional)",
+                            key=f"com_{rc}_{dom}",
+                            height=60
+                        )
+
+            if st.button("Enviar todos los votos"):
+                if not name:
+                    st.warning("Ingrese su nombre.")
+                    st.stop()
+
+                pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+                for rc in s["recs"]:
+                    for dom, meta in s["dominios"][rc].items():
+                        meta["votes"].append(st.session_state[f"{rc}_{dom}"])
+                        meta["comments"].append(
+                            st.session_state.get(f"com_{rc}_{dom}", "")
+                        )
+                        meta["ids"].append(pid)
+                        meta["names"].append(name)
+
+                st.balloons()
+                st.success("🎉 Votos registrados para todo el paquete.")
+                st.markdown(f"**ID de participación:** `{pid}`")
+                st.stop()
+
+        else:
+            st.error(f"Tipo de sesión no soportado: {tipo}")
 
     except Exception as e:
-        st.error(f"Error al procesar la sesión: {str(e)}")
-        st.info("Por favor, intente escanear el código QR nuevamente o contacte al administrador.")
-
+        st.error("Error al procesar la sesión.")
+        st.exception(e)
 
 # 6) Panel de administración
 odds_header()
