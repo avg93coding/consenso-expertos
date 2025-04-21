@@ -90,22 +90,44 @@ SECONDARY = "#F1592A" # Naranja ODDS (opcional)
 def to_excel(code: str) -> io.BytesIO:
     if code not in store:
         return io.BytesIO()
+
     s = store[code]
-    # arma tu DataFrame con votos, comments, historial...
-    df = pd.DataFrame({
-        "ID anónimo": s["ids"],
-        "Nombre real": s["names"],
-        "Recomendación": [s["desc"]] * len(s["ids"]),
-        "Ronda": [s["round"]] * len(s["ids"]),
-        "Voto": s["votes"],
-        "Comentario": s["comments"],
-        "Fecha": [s["created_at"]] * len(s["ids"])
-    })
-    # si tienes historial, concaténalo aquí...
+
+    # —— A. Sesión estándar ——
+    if s.get("tipo", "STD") == "STD":
+        df = pd.DataFrame({
+            "ID anónimo":   s["ids"],
+            "Nombre real":  s["names"],
+            "Recomendación": [s["desc"]] * len(s["ids"]),
+            "Ronda":        [s["round"]] * len(s["ids"]),
+            "Voto":         s["votes"],
+            "Comentario":   s["comments"],
+            "Fecha":        [s["created_at"]] * len(s["ids"])
+        })
+
+    # —— B. Paquete GRADE ——
+    elif s.get("tipo") == "GRADE_PKG":
+        filas = []
+        for dom, meta in s["dominios"].items():
+            for op, com, nom, pid in zip(
+                meta["votes"], meta["comments"], meta["names"], meta["ids"]
+            ):
+                filas.append({
+                    "Dominio":    dom,
+                    "Opción":     op,
+                    "Comentario": com,
+                    "Nombre":     nom,
+                    "ID":         pid,
+                    "Fecha":      s["created_at"]
+                })
+        df = pd.DataFrame(filas)
+
+    # —— Guardar en buffer y devolver ——
     buf = io.BytesIO()
     df.to_excel(buf, index=False)
     buf.seek(0)
     return buf
+
 
 def create_report(code: str) -> str:
     """
@@ -953,11 +975,7 @@ elif menu == "Evaluar con GRADE":
         st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
         st.info(f"URL: {create_qr_code_url(code)}")
 
-        history[code] = {}
-        st.success(f"Paquete GRADE {code} creado.")
-        st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
-        st.info(f"URL: {create_qr_code_url(code)}")
-
+        
 elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
     
