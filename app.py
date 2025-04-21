@@ -329,6 +329,8 @@ def get_qr_code_image_html(code):
     """
     return html
 
+
+
 def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.BytesIO:
     """
     Genera un .docx con, para cada recomendación:
@@ -340,7 +342,7 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
     """
     doc = docx.Document()
 
-    # Márgenes A4 (opcional)
+    # Márgenes A4
     for sec in doc.sections:
         sec.page_height = Cm(29.7)
         sec.page_width  = Cm(21.0)
@@ -350,20 +352,20 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
         sec.bottom_margin = Cm(2.5)
 
     for code, rec in store.items():
-        # --- Encabezado ---
+        # Encabezado
         h = doc.add_heading(level=1)
         h.add_run(f"Recomendación {code}").bold = True
         h.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-        # --- Descripción ---
+        # Descripción
         doc.add_paragraph().add_run("Descripción: ").bold = True
         doc.add_paragraph(rec["desc"])
 
-        # --- Fecha de creación ---
+        # Fecha de creación
         doc.add_paragraph().add_run("Fecha de creación: ").bold = True
         doc.add_paragraph(rec["created_at"])
 
-        # --- Tabla de métricas ---
+        # Tabla de métricas
         votos = rec["votes"]
         pct = consensus_pct(votos) * 100
         med, lo, hi = median_ci(votos)
@@ -393,7 +395,7 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
 
         doc.add_paragraph()
 
-        # --- Estado de consenso ---
+        # Estado de consenso
         total = len(votos)
         if pct >= 80 and 7 <= med <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
             status = "✅ CONSENSO ALCANZADO (por mediana + IC95%)."
@@ -415,9 +417,8 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
     buf = io.BytesIO()
     doc.save(buf)
     buf.seek(0)
-    return buffer
+    return buf
 
-    
 # ——————————————————————————————
 #  Integración en Streamlit
 # ——————————————————————————————
