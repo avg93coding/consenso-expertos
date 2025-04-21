@@ -24,6 +24,22 @@ from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 import plotly.graph_objects as go
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+import requests
+from io import BytesIO
+
+def shade_cell(cell, fill_hex: str):
+    """
+    Aplica un fondo de color (hex sin ‘#’) a una celda de python-docx.
+    """
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    shd = OxmlElement('w:shd')
+    shd.set(qn('w:val'), 'clear')
+    shd.set(qn('w:fill'), fill_hex)
+    tcPr.append(shd)
+
 
 # Define tus colores corporativos al inicio del fichero
 PRIMARY = "#662D91"   # Morado ODDS
@@ -382,9 +398,12 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
             run_h = cell.paragraphs[0].runs[0]
             run_h.font.color.rgb = RGBColor(0xFF,0xFF,0xFF)     # texto blanco
             # fondo del encabezado
-            tcPr = cell._tc.get_or_add_tcPr()
-            shd = tcPr.get_or_add_shd()
-            shd.fill = header_colors[i].rgb
+            # Colores en hex (sin '#'), en el mismo orden que tu lista original
+            hex_colors = ['662D91', 'F1592A', '662D91', 'F1592A']
+
+            # Aplica sombreado usando la función auxiliar
+            shade_cell(cell, hex_colors[i])
+
             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         # Fila de datos
