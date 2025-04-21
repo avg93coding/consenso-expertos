@@ -713,7 +713,6 @@ elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")
 
-    # Selección de sesión activa
     active_sessions = [k for k, v in store.items() if v.get("is_active", True)]
     if not active_sessions:
         st.info("No hay sesiones activas. Cree una nueva sesión para comenzar.")
@@ -743,7 +742,6 @@ elif menu == "Dashboard":
                     st.success("✅ Sesión finalizada.")
                     st.rerun()
 
-                # Información básica
                 st.markdown(f"""
                 **Recomendación:** {s['desc']}  
                 **Ronda actual:** {s['round']}  
@@ -784,12 +782,12 @@ elif menu == "Dashboard":
                         nbins=9,
                         title="Distribución de Votos",
                         labels={"Voto": "Escala 1–9", "count": "Frecuencia"},
-                        color_discrete_sequence=[PRIMARY]  # utiliza tu color morado
+                        color_discrete_sequence=[PRIMARY]
                     )
-                    # Barras más estrechas y espacio entre ellas
-                    fig.update_traces(marker_line_width=0, width=0.4)
+                    # Quitamos bordes y ajustamos el espacio entre barras
+                    fig.update_traces(marker_line_width=0)
                     fig.update_layout(
-                        bargap=0.3,
+                        bargap=0.4,  # espacio relativo entre barras
                         xaxis=dict(tickmode='linear', tick0=1, dtick=1),
                         margin=dict(t=30, b=0, l=0, r=0),
                         height=300,
@@ -822,6 +820,7 @@ elif menu == "Dashboard":
                 for pid, name, vote, com in zip(ids, s["names"], votes, comments):
                     if com:
                         st.markdown(f"**{name}** (ID: {pid}) — Voto: {vote}\n> {com}")
+
 
                 
 elif menu == "Historial":
