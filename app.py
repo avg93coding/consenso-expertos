@@ -1014,6 +1014,7 @@ elif menu == "Evaluar con GRADE":
         )
 
     # 5) Envío de votos
+    name = st.text_input("Nombre del participante:")
     if st.button("Enviar votos GRADE"):
         if not name:
             st.warning("Ingrese su nombre antes de votar.")
