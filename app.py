@@ -20,39 +20,63 @@ st.set_page_config(
 def inject_css():
     css = """
     <style>
+      /* Estilos generales ODDS */
+      .stApp { background-color:#F7F7F7 !important; color:#333333; font-family:'Segoe UI', Tahoma, Verdana, sans-serif; }
+
+      .app-header {
+        background-color:#662D91;
+        padding:1.5rem;
+        border-radius:0 0 10px 10px;
+        text-align:center;
+        color:white;
+        margin-bottom:20px;
+        box-shadow:0 4px 6px rgba(0,0,0,0.1);
+      }
+      .odds-logo {
+        font-size:2rem; font-weight:bold; letter-spacing:1px;
+        padding-bottom:5px; border-bottom:2px solid #F1592A;
+      }
+
+      /* Metric‑cards: degradado + ancho + word‑wrap */
       .metric-card {
-        /* ancho fijo mayor para que quepa la mediana completa */
-        width: 140px;
-        /* altura automática y padding cómodo */
-        padding: 12px;
-        margin-bottom: 10px;
+        width:140px;                    /* ancho suficiente */
+        padding:12px;
+        margin-bottom:10px;
         background: linear-gradient(to bottom right, #662D91, #F1592A);
-        color: white;
-        border-radius: 8px;
-        box-sizing: border-box;
-        /* permitir que el texto se ajuste */
-        white-space: normal;
-        word-wrap: break-word;
+        color:white;
+        border-radius:8px;
+        box-sizing:border-box;
+        white-space:normal !important;  /* permite saltos de línea */
+        word-wrap:break-word !important;
       }
       .metric-label {
-        font-size: 0.9rem;
-        opacity: 0.8;
-        text-align: center;
+        font-size:0.9rem;
+        opacity:0.8;
+        text-align:center;
       }
       .metric-value {
-        font-size: 1.4rem;
-        font-weight: bold;
-        text-align: center;
-        /* margen entre label y valor */
-        margin-top: 4px;
+        font-size:1.4rem;
+        font-weight:bold;
+        text-align:center;
+        margin-top:4px;
+      }
+
+      /* Botones ODDS */
+      .stButton>button {
+        background-color:#662D91;
+        color:white;
+        border:none;
+        padding:0.5rem 1rem;
+        border-radius:5px;
+      }
+      .stButton>button:hover {
+        background-color:#F1592A;
       }
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
 
-# Llama a esto justo después de st.set_page_config()
 inject_css()
-
 
 
 def shade_cell(cell, fill_hex: str):
