@@ -21,20 +21,38 @@ def inject_css():
     css = """
     <style>
       .metric-card {
+        /* ancho fijo mayor para que quepa la mediana completa */
+        width: 140px;
+        /* altura automática y padding cómodo */
+        padding: 12px;
+        margin-bottom: 10px;
         background: linear-gradient(to bottom right, #662D91, #F1592A);
         color: white;
         border-radius: 8px;
-        padding: 10px;
-        margin-bottom: 10px;
+        box-sizing: border-box;
+        /* permitir que el texto se ajuste */
+        white-space: normal;
+        word-wrap: break-word;
       }
-      .metric-label { font-size: 0.9rem; opacity: 0.8; }
-      .metric-value { font-size: 1.8rem; font-weight: bold; }
+      .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        text-align: center;
+      }
+      .metric-value {
+        font-size: 1.4rem;
+        font-weight: bold;
+        text-align: center;
+        /* margen entre label y valor */
+        margin-top: 4px;
+      }
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
 
-# ¡Llama al inicio de tu app!
+# Llama a esto justo después de st.set_page_config()
 inject_css()
+
 
 
 def shade_cell(cell, fill_hex: str):
