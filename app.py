@@ -936,15 +936,15 @@ elif menu == "Evaluar con GRADE":
         st.info("No hay recomendaciones activas.")
         st.stop()
 
-    # 2) Selección múltiple
+    # 2) Selección múltiple para crear paquete
     sel = st.multiselect(
         "Seleccione las recomendaciones que se evaluarán en conjunto",
         options=list(elegibles.keys()),
         format_func=lambda k: f"{k} – {elegibles[k]['desc'][:60]}"
     )
-
     n_participantes = st.number_input("Expertos esperados", 1, step=1, value=10)
 
+    # 3) Botón de creación
     if st.button("➕ Crear paquete GRADE"):
         if len(sel) < 2:
             st.warning("Seleccione al menos dos recomendaciones.")
@@ -953,10 +953,9 @@ elif menu == "Evaluar con GRADE":
         code = uuid.uuid4().hex[:6].upper()
         ts   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # —— GRADE con dominios ÚNICOS (uno para todo el paquete) ——
         store[code] = {
             "tipo": "GRADE_PKG",
-            "recs": sel,                              # referencias informativas
+            "recs": sel,
             "desc": f"Paquete de {len(sel)} recomendaciones",
             "created_at": ts,
             "is_active": True,
@@ -973,19 +972,39 @@ elif menu == "Evaluar con GRADE":
         history[code] = {}
 
         st.success(f"Paquete GRADE {code} creado.")
-        # QR + URL
         st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
         st.info(f"URL para votación: {create_qr_code_url(code)}")
 
-        # ———> Botón de descarga en esta misma sección:
-        st.download_button(
-            label="⬇️ Descargar Excel del paquete GRADE",
-            data=to_excel(code),
-            file_name=f"grade_{code}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    st.markdown("---")
 
-        
+    # 4) Listado de paquetes GRADE ya creados
+    grade_pkgs = {
+        k: v for k, v in store.items()
+        if v.get("tipo") == "GRADE_PKG"
+    }
+    if grade_pkgs:
+        st.markdown("## Paquetes GRADE existentes")
+        for pkg_code, pkg in grade_pkgs.items():
+            st.markdown(f"**{pkg_code}** — {pkg['desc']} _(creado: {pkg['created_at']})_")
+
+            # 4a) Conteo de quienes completaron TODOS los dominios
+            ids_por_dom = [set(dom_meta["ids"]) for dom_meta in pkg["dominios"].values()]
+            completaron = set.intersection(*ids_por_dom) if ids_por_dom else set()
+            esperado = pkg.get("n_participantes", "?")
+            st.info(f"👥 Completaron la evaluación: {len(completaron)}/{esperado}")
+
+            # 4b) Botón de descarga del Excel
+            st.download_button(
+                label="⬇️ Descargar Excel",
+                data=to_excel(pkg_code),
+                file_name=f"grade_{pkg_code}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            st.markdown("---")
+    else:
+        st.info("Aún no hay paquetes GRADE creados.")
+
+
 elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
     
