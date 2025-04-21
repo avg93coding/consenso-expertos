@@ -985,72 +985,63 @@ elif menu == "Dashboard":
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
 
 elif menu == "Evaluar con GRADE":
-    st.subheader("Evaluación GRADE (paquete de recomendaciones)")
+    st.subheader("Generar Paquete GRADE desde recomendaciones votadas")
 
-    # 1) Paquetes activos
-    elegibles = {
-        k: v for k, v in store.items()
-        if v.get("tipo") == "GRADE_PKG" and v.get("is_active", True)
-    }
-    if not elegibles:
-        st.info("No hay paquetes GRADE activos.")
+    # 1) Listar solo las recomendaciones que ya tienen al menos 1 voto
+    voted_recs = [
+        k for k, v in store.items()
+        if v.get("tipo", "STD") == "STD" and len(v["votes"]) > 0
+    ]
+    if not voted_recs:
+        st.info("Aún no hay recomendaciones votadas. Vota alguna primero y vuelve aquí.")
         st.stop()
 
-    # 2) Selección de paquete
-    code = st.selectbox(
-        "Elige el paquete GRADE:",
-        options=list(elegibles.keys()),
-        format_func=lambda k: f"{k} – {store[k]['desc']}"
+    # 2) Selección múltiple de esas recomendaciones
+    sel = st.multiselect(
+        "Selecciona las recomendaciones para incluir en el paquete GRADE:",
+        options=voted_recs,
+        format_func=lambda c: f"{c} – {store[c]['desc']}"
     )
-    s = store[code]
 
-    # 3) Contador de participantes que ya han votado
-    primer_dom = next(iter(s["dominios"].values()))
-    registrados = len(primer_dom["ids"])
-    st.markdown(f"**Participantes que ya han votado:** {registrados}/{s['n_participantes']}")
-
-    # 4) Pedimos el nombre ANTES de las preguntas
-    name = st.text_input("Nombre del participante:")
-    if not name:
-        st.warning("Por favor ingresa tu nombre para continuar.")
-        st.stop()
-
-    # 5) Formulario dinámico de preguntas y opciones
-    votos, comentarios = {}, {}
-    for dom in PREGUNTAS_GRADE:
-        # Mostramos la pregunta
-        st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
-        # Radio con sus opciones
-        votos[dom] = st.radio(
-            "", DOMINIOS_GRADE[dom],
-            key=f"vote_{dom}"
-        )
-        # Textarea para comentario
-        comentarios[dom] = st.text_area(
-            "Comentario (opcional):",
-            key=f"com_{dom}",
-            height=60
-        )
-
-    # 6) Botón de envío
-    if st.button("Enviar votos GRADE"):
-        pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-        for dom in s["dominios"]:
-            s["dominios"][dom]["ids"].append(pid)
-            s["dominios"][dom]["names"].append(name)
-            s["dominios"][dom]["votes"].append(votos[dom])
-            s["dominios"][dom]["comments"].append(comentarios[dom])
-        st.balloons()
-        st.success(f"🎉 Votos registrados. ID: `{pid}`")
-
-    # 7) Botón de descarga transpuesta
-    buf = to_excel(code)
-    st.download_button(
-        "⬇️ Descargar Excel (dominios × participantes)",
-        data=buf,
-        file_name=f"GRADE_{code}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    # 3) Número de expertos que van a votar este paquete
+    n_part = st.number_input(
+        "¿Cuántos expertos participarán en este paquete?",
+        min_value=1, step=1
     )
+
+    # 4) Botón para crear el paquete
+    if sel and st.button("Crear Paquete GRADE"):
+        # Generar código único de 6 caracteres
+        pkg_code = uuid.uuid4().hex[:6].upper()
+
+        # Inicializar los dominios con listas vacías
+        dominios = {
+            dom: {"ids": [], "names": [], "votes": [], "comments": [], "opciones": DOMINIOS_GRADE[dom]}
+            for dom in DOMINIOS_GRADE
+        }
+
+        # Guardar en el store
+        store[pkg_code] = {
+            "tipo": "GRADE_PKG",
+            "desc": f"Paquete de {len(sel)} recomendaciones",
+            "recs": sel,
+            "dominios": dominios,
+            "n_participantes": int(n_part),
+            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "is_active": True
+        }
+        history[pkg_code] = []
+
+        st.success(f"⭐ Paquete GRADE **{pkg_code}** creado exitosamente.")
+        st.write("Escanea este QR para invitar a los expertos a votar:")
+
+        # Mostrar QR con la URL de votación
+        qr_html = get_qr_code_image_html(pkg_code)
+        st.markdown(qr_html, unsafe_allow_html=True)
+
+        # Y mostrar también la URL en texto
+        url = create_qr_code_url(pkg_code)
+        st.info(f"[Abrir formulario de votación →]({url})")
 
 
 
