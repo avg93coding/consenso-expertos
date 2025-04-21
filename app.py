@@ -972,7 +972,7 @@ elif menu == "Dashboard":
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
                 
 elif menu == "Evaluar con GRADE":
-    st.subheader("Evaluación GRADE (un único set de dominios)")
+    st.subheader("Evaluación GRADE")
 
     # 1) Agregar selector de recomendaciones activas
     elegibles = {
