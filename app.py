@@ -581,15 +581,21 @@ def integrar_reporte_todas_recomendaciones():
 # ─────────────────────────────────────────────────────────────
 # 5) Página de votación (adaptable al tipo de sesión)
 # ─────────────────────────────────────────────────────────────
-params = st.query_params
+# ─────────────────────────────────────────────────────────────
+#  5) Página de votación (adaptable al tipo de sesión)
+# ─────────────────────────────────────────────────────────────
+params = st.experimental_get_query_params()
 if "session" in params:
-    raw  = params.get("session")
+    # 1) Extraer y normalizar el código de sesión de la URL
+    raw  = params["session"]
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
+    # 2) Cabecera y ocultar sidebar
     odds_header()
     st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
 
+    # 3) Recuperar sesión
     s = store.get(code)
     if not s:
         st.error(f"Sesión inválida: {code}")
@@ -598,15 +604,15 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # Pedimos el nombre antes de todo
+    # 4) Nombre del participante
     name = st.text_input("Nombre del participante:")
     if not name:
         st.warning("Ingrese su nombre para continuar.")
         st.stop()
 
-    # Evita doble voto
-    if (tipo == "STD" and name in s["names"]) \
-       or (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"]):
+    # 5) Evitar doble voto
+    if (tipo == "STD" and name in s["names"]) or \
+       (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"]):
         st.success("✅ Ya registró su participación.")
         st.stop()
 
@@ -614,11 +620,13 @@ if "session" in params:
     if tipo == "STD":
         st.markdown("### Recomendación a evaluar")
         st.markdown(f"**{s['desc']}**")
+
         if s["scale"].startswith("Likert"):
             st.markdown("1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo")
             vote = st.slider("Su voto:", 1, 9, 5)
         else:
             vote = st.radio("Su voto:", ["Sí", "No"])
+
         comment = st.text_area("Comentario (opcional):")
 
         if st.button("Enviar voto"):
@@ -631,17 +639,15 @@ if "session" in params:
         st.stop()
 
     # ——— PAQUETE GRADE ———
-elif tipo == "GRADE_PKG":
+    elif tipo == "GRADE_PKG":
         st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
         st.markdown("**Recomendaciones incluidas:**")
         for rc in s["recs"]:
-            st.markdown(f"- **{rc}** — {store[rc]['desc']}")
+            st.markdown(f"- **{rc}** — {store[rc]['desc']}")
 
-        # Agrupamos TODAS las preguntas y comentarios dentro de un único form
+        # Agrupamos todas las preguntas dentro de un único formulario
         with st.form(f"form_grade_{code}"):
-            votos = {}
-            comentarios = {}
-
+            votos, comentarios = {}, {}
             for dom in PREGUNTAS_GRADE:
                 st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
                 votos[dom] = st.radio(
@@ -655,22 +661,21 @@ elif tipo == "GRADE_PKG":
                     height=60
                 )
 
-            # ¡El submit button *dentro* del form!
             enviado = st.form_submit_button("Enviar votos GRADE")
 
-        # Procesamos sólo después de cerrar el with
+        # Solo después de cerrar el `with` procesamos el envío
         if enviado:
             pid = hashlib.sha256(name.encode()).hexdigest()[:8]
             for dom in PREGUNTAS_GRADE:
-                meta = s["dominios"][dom]
-                meta["ids"].append(pid)
-                meta["names"].append(name)
-                meta["votes"].append(votos[dom])
-                meta["comments"].append(comentarios[dom])
+                m = s["dominios"][dom]
+                m["ids"].append(pid)
+                m["names"].append(name)
+                m["votes"].append(votos[dom])
+                m["comments"].append(comentarios[dom])
             st.balloons()
             st.success(f"🎉 Votos registrados. ID: `{pid}`")
 
-        # Y fuera del form, el botón de descarga
+        # Y fuera del formulario, el botón de descarga
         buf = to_excel(code)
         st.download_button(
             label="⬇️ Descargar Excel (dominios × participantes)",
@@ -680,6 +685,9 @@ elif tipo == "GRADE_PKG":
             key=f"{code}_grade_download"
         )
         st.stop()
+
+# — si no hay ?session=... en la URL, se renderiza el menú principal ——
+
 
 
 # 6) Panel de administración
