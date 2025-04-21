@@ -989,7 +989,7 @@ elif menu == "Crear Paquete GRADE":
            not datos.get("is_active", True) and                      # Sesiones finalizadas
            len(datos.get("votes", [])) >= 3 and                      # Mínimo 3 votos
            consensus_pct(datos.get("votes", [])) >= 0.5              # Algo de consenso (50%)
-    )
+    )]
     
     if not recomendaciones_disponibles:
         st.warning("""
