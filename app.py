@@ -697,42 +697,7 @@ elif menu == "Dashboard":
             # --- Métricas previas ---
             pct = consensus_pct(votes) * 100  # porcentaje de consenso
 
-            # --- Gauge de Consenso personalizado ---
-            fig_gauge = go.Figure(go.Indicator(
-                mode="gauge+number+delta",
-                value=pct,
-                delta={
-                    "reference": 80,
-                    "increasing": {"color": PRIMARY},
-                    "decreasing": {"color": SECONDARY}
-                },
-                gauge={
-                    "axis":     {"range": [0, 100], "tickwidth": 1, "tickcolor": "darkgray"},
-                    "bar":      {"color": PRIMARY, "thickness": 0.3},
-                    "steps": [
-                        {"range": [0, 80],  "color": "rgba(102,41,145,0.2)"},
-                        {"range": [80, 100],"color": "rgba(102,41,145,0.4)"}
-                    ],
-                    "threshold": {
-                        "line":      {"color": SECONDARY, "width": 3},
-                        "thickness": 0.6,
-                        "value":     80
-                    }
-                },
-                title={"text": "Consensus %", "font": {"size": 12, "color": PRIMARY}},
-                number={"font": {"size": 16}}
-            ))
-
-            # Ajuste de tamaño y márgenes (muy pequeño)
-            fig_gauge.update_layout(
-                autosize=False,
-                width=250,
-                height=140,
-                margin={"t": 30, "b": 0, "l": 0, "r": 0},
-                paper_bgcolor="white"
-            )
-
-            st.plotly_chart(fig_gauge, use_container_width=False)
+            
 
             # --- Resto del dashboard ---
             col1, col2 = st.columns(2)
