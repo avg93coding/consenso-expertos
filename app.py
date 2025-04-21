@@ -368,7 +368,28 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
 
         doc.add_paragraph()
 
-        # Detalle de todas las rondas (incluye historial)
+      votos = rec["votes"]
+        total = len(votos)
+        pct = consensus_pct(votos) * 100
+        med, lo, hi = median_ci(votos)
+
+        # Evaluar condiciones de consenso según tu dashboard
+        if pct >= 80 and 7 <= med <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
+            status = "✅ CONSENSO ALCANZADO: Aprobado (por mediana + IC95%)."
+        elif pct >= 80:
+            status = "✅ CONSENSO ALCANZADO: Aprobado (por porcentaje)."
+        elif pct <= 20 and 1 <= med <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
+            status = "❌ CONSENSO ALCANZADO: No aprobado (por mediana + IC95%)."
+        elif sum(1 for v in votos if isinstance(v, (int, float)) and v <= 3) >= 0.8 * total:
+            status = "❌ CONSENSO ALCANZADO: No aprobado (por porcentaje)."
+        else:
+            status = "⚠️ CONSENSO NO ALCANZADO: Se recomienda realizar otra ronda."
+
+        # Añadimos el estado al documento
+        doc.add_paragraph().add_run("Estado de consenso: ").bold = True
+        doc.add_paragraph(status)
+
+        # --- Detalle de rondas como antes ---
         rondas = [rec] + history.get(code, [])
         doc.add_heading("Detalle de Rondas", level=2)
         for r in rondas:
@@ -377,6 +398,7 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
             sub = doc.add_paragraph(style="List Bullet")
             sub.add_run(f" • Votos: {len(r['votes'])}   • Consenso: {consensus_pct(r['votes'])*100:.1f}%")
         doc.add_page_break()
+
 
     # Guardar en buffer
     buffer = io.BytesIO()
