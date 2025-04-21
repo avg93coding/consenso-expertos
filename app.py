@@ -576,14 +576,7 @@ def integrar_reporte_todas_recomendaciones():
 
 
 
-# ─────────────────────────────────────────────────────────────
-# 5)  Página de votación (se adapta al tipo de sesión)
-# ─────────────────────────────────────────────────────────────
-# 5) Página de votación (adaptable al tipo de sesión)
-# ─────────────────────────────────────────────────────────────
-# ─────────────────────────────────────────────────────────────
-#  5) Página de votación (adaptable al tipo de sesión)
-# ─────────────────────────────────────────────────────────────
+
 params = st.experimental_get_query_params()
 if "session" in params:
     # 1) Extraer y normalizar el código de sesión de la URL
