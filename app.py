@@ -615,39 +615,46 @@ if "session" in params:
                 st.error("No se pudo registrar el voto.")
         st.stop()
 
-    # ——— PAQUETE GRADE ———
-    elif tipo == "GRADE_PKG":
-        st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
-        st.markdown("**Recomendaciones incluidas:**")
-        for rc in s["recs"]:
-            st.markdown(f"- **{rc}** — {store[rc]['desc']}")
+elif tipo == "GRADE_PKG":
+    st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
+    st.markdown("**Recomendaciones incluidas:**")
+    for rc in s["recs"]:
+        st.markdown(f"- **{rc}** — {store[rc]['desc']}")
 
-        votos, comentarios = {}, {}
-        for dom in PREGUNTAS_GRADE:
-            st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
-            votos[dom] = st.radio("", DOMINIOS_GRADE[dom], key=f"vote_{dom}")
-            comentarios[dom] = st.text_area("Comentario (opcional):", key=f"com_{dom}", height=60)
-
-        if st.button("Enviar votos GRADE"):
-            pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-            for dom in PREGUNTAS_GRADE:
-                meta = s["dominios"][dom]
-                meta["ids"].append(pid)
-                meta["names"].append(name)
-                meta["votes"].append(votos[dom])
-                meta["comments"].append(comentarios[dom])
-            st.balloons(); st.success(f"🎉 Votos registrados. ID: `{pid}`")
-            # **No hacemos st.stop() aquí** para que el código siga y muestre el botón de descarga
-
-        # botón de descarga siempre al final del bloque GRADE
-        buf = to_excel(code)
-        st.download_button(
-            "⬇️ Descargar Excel (dominios × participantes)",
-            data=buf,
-            file_name=f"GRADE_{code}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    votos, comentarios = {}, {}
+    for dom in PREGUNTAS_GRADE:
+        st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
+        # Antes era key=f"vote_{dom}" y key=f"com_{dom}"
+        votos[dom] = st.radio(
+            "", 
+            DOMINIOS_GRADE[dom], 
+            key=f"{code}-vote-{dom}"
         )
-        st.stop()
+        comentarios[dom] = st.text_area(
+            "Comentario (opcional):", 
+            key=f"{code}-com-{dom}", 
+            height=60
+        )
+
+    if st.button("Enviar votos GRADE"):
+        pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+        for dom in PREGUNTAS_GRADE:
+            meta = s["dominios"][dom]
+            meta["ids"].append(pid)
+            meta["names"].append(name)
+            meta["votes"].append(votos[dom])
+            meta["comments"].append(comentarios[dom])
+        st.balloons(); st.success(f"🎉 Votos registrados. ID: `{pid}`")
+        # no st.stop() para que salga el botón de descarga
+
+    buf = to_excel(code)
+    st.download_button(
+        "⬇️ Descargar Excel (dominios × participantes)",
+        data=buf,
+        file_name=f"GRADE_{code}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    st.stop()
 
 
 # 6) Panel de administración
