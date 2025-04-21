@@ -667,7 +667,7 @@ st.sidebar.image(logo_url, width=80)
 
 st.sidebar.title("Panel de Control")
 st.sidebar.markdown("### ODDS Epidemiology")
-menu = st.sidebar.selectbox("Navegación", ["Inicio", "Crear Recomendación", "Dashboard", "Crear Paquete GRADE", "Reporte Consolidado"])
+menu = st.sidebar.selectbox("Navegación", ["Inicio", "Crear Recomendación", "Dashboard", "Evaluar con GRADE", "Reporte Consolidado"])
 
 if menu == "Inicio":
     st.markdown("## Bienvenido al Sistema de votación para Consenso de expertos de ODDS Epidemiology")
@@ -1023,35 +1023,7 @@ elif menu == "Evaluar con GRADE":
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-elif menu == "Crear Paquete GRADE":
-    st.subheader("Crear Paquete GRADE")
-    # 1) Selecciona las recomendaciones existentes
-    options = list(store.keys())
-    sel = st.multiselect(
-        "Elige los códigos de recomendación para el paquete GRADE:",
-        options,
-        format_func=lambda c: f"{c} – {store[c]['desc']}"
-    )
-    n_part = st.number_input("¿Cuántos expertos?", min_value=1, step=1)
-    if st.button("Crear Paquete"):
-        code = uuid.uuid4().hex[:6].upper()
-        # inicializa dominios con listas vacías
-        dominios = {
-            dom: {"ids":[], "names":[], "votes":[], "comments":[], "opciones": DOMINIOS_GRADE[dom]}
-            for dom in DOMINIOS_GRADE
-        }
-        store[code] = {
-            "tipo": "GRADE_PKG",
-            "desc": f"Paquete de {len(sel)} recomendaciones",
-            "recs": sel,
-            "dominios": dominios,
-            "n_participantes": n_part,
-            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "is_active": True
-        }
-        history[code] = []
-        st.success(f"Paquete GRADE creado con código {code}")
-        st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
+
 
 elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
