@@ -78,6 +78,15 @@ def inject_css():
 
 inject_css()
 
+def odds_header():
+    header_html = """
+    <div class="app-header">
+        <div class="odds-logo">ODDS EPIDEMIOLOGY</div>
+        <div class="odds-subtitle">Sistema de Votación</div>
+    </div>
+    """
+    st.markdown(header_html, unsafe_allow_html=True)
+
 
 def shade_cell(cell, fill_hex: str):
     """
