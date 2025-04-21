@@ -601,7 +601,7 @@ if "session" in params:
         st.markdown("### Recomendación a evaluar")
         st.markdown(f"**{s['desc']}**")
         if s["scale"].startswith("Likert"):
-            st.markdown("1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo")
+            st.markdown("1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo")
             vote = st.slider("Su voto:", 1, 9, 5)
         else:
             vote = st.radio("Su voto:", ["Sí", "No"])
@@ -610,7 +610,8 @@ if "session" in params:
         if st.button("Enviar voto"):
             pid = record_vote(code, vote, comment, name)
             if pid:
-                st.balloons(); st.success(f"🎉 Gracias. ID de voto: `{pid}`")
+                st.balloons()
+                st.success(f"🎉 Gracias. ID de voto: `{pid}`")
             else:
                 st.error("No se pudo registrar el voto.")
         st.stop()
@@ -626,12 +627,13 @@ if "session" in params:
         for dom in PREGUNTAS_GRADE:
             st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
             votos[dom] = st.radio(
-                "", DOMINIOS_GRADE[dom],
+                "", 
+                DOMINIOS_GRADE[dom], 
                 key=f"{code}-vote-{dom}"
             )
             comentarios[dom] = st.text_area(
-                "Comentario (opcional):",
-                key=f"{code}-com-{dom}",
+                "Comentario (opcional):", 
+                key=f"{code}-com-{dom}", 
                 height=60
             )
 
@@ -643,12 +645,13 @@ if "session" in params:
                 meta["names"].append(name)
                 meta["votes"].append(votos[dom])
                 meta["comments"].append(comentarios[dom])
-            st.balloons(); st.success(f"🎉 Votos registrados. ID: `{pid}`")
-            # no st.stop() para que aparezca el botón de descarga
+            st.balloons()
+            st.success(f"🎉 Votos registrados. ID: `{pid}`")
+            # No st.stop() para que aparezca el botón de descarga
 
         buf = to_excel(code)
         st.download_button(
-            "⬇️ Descargar Excel (dominios × participantes)",
+            "⬇️ Descargar Excel (dominios × participantes)",
             data=buf,
             file_name=f"GRADE_{code}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
