@@ -972,72 +972,70 @@ elif menu == "Dashboard":
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
                 
 elif menu == "Evaluar con GRADE":
-    st.subheader("Evaluación GRADE")
+    st.subheader("Evaluación GRADE (paquete de recomendaciones)")
 
-    # 1) Agregar selector de recomendaciones activas
+    # 1) Paquetes GRADE activos
     elegibles = {
         k: v for k, v in store.items()
-        if v.get("tipo", "STD") == "STD" and v.get("is_active", True)
+        if v.get("tipo") == "GRADE_PKG" and v.get("is_active", True)
     }
     if not elegibles:
-        st.info("No hay recomendaciones activas para GRADE.")
+        st.info("No hay paquetes GRADE activos.")
         st.stop()
 
-    sel = st.multiselect(
-        "Seleccione las recomendaciones que formarán el paquete GRADE",
+    # 2) Selección de paquete
+    code = st.selectbox(
+        "Elige el paquete GRADE:",
         options=list(elegibles.keys()),
-        format_func=lambda k: f"{k} – {elegibles[k]['desc']}"
+        format_func=lambda k: f"{k} – {store[k]['desc']}"
     )
+    s = store[code]
 
-    # 2) Número de expertos esperado
-    n_participantes = st.number_input(
-        "Expertos esperados para este paquete",
-        min_value=1, step=1, value=5
-    )
+    # 3) Contador de participantes ya votados
+    #    (tomamos el primer dominio para contar envíos)
+    primer_dom = next(iter(s["dominios"].values()))
+    registrados = len(primer_dom["ids"])
+    st.markdown(f"**Participantes que ya han votado:** {registrados}/{s['n_participantes']}")
 
-    # 3) Botón de creación de paquete
-    if st.button("➕ Crear paquete GRADE"):
-        if len(sel) < 2:
-            st.warning("Seleccione al menos dos recomendaciones.")
-            st.stop()
-
-        # Generar código y timestamp
-        code = uuid.uuid4().hex[:6].upper()
-        ts   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # 4) Guardar en el store
-        store[code] = {
-            "tipo": "GRADE_PKG",
-            "recs": sel,
-            "desc": f"Paquete de {len(sel)} recomendaciones",
-            "created_at": ts,
-            "is_active": True,
-            "n_participantes": int(n_participantes),
-            "dominios": {
-                d: {
-                    "opciones": DOMINIOS_GRADE[d],
-                    "votes":    [], 
-                    "comments": [],
-                    "ids":      [], 
-                    "names":    [],
-                    "round":    1
-                } for d in DOMINIOS_GRADE
-            }
-        }
-        history[code] = []
-
-        # 5) Mostrar código, QR y URL
-        st.success(f"Paquete GRADE **{code}** creado exitosamente.")
-        st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
-        st.info(f"URL de votación: {create_qr_code_url(code)}")
-
-        # 6) Descargar Excel transpuesto (participantes × dominios)
-        st.download_button(
-            label="⬇️ Descargar Excel del paquete GRADE",
-            data=to_excel(code),
-            file_name=f"GRADE_{code}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    # 4) Formulario de votación GRADE
+    votos, comentarios = {}, {}
+    for dom, meta in s["dominios"].items():
+        # mostrarmos la pregunta completa
+        st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
+        votos[dom] = st.radio(
+            "",                          # la pregunta la hemos puesto arriba
+            DOMINIOS_GRADE[dom],
+            key=f"radio_{dom}"
         )
+        comentarios[dom] = st.text_area(
+            "Comentario (opcional):",
+            key=f"com_{dom}",
+            height=60
+        )
+
+    # 5) Envío de votos
+    if st.button("Enviar votos GRADE"):
+        if not name:
+            st.warning("Ingrese su nombre antes de votar.")
+            st.stop()
+        pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+        for dom, meta in s["dominios"].items():
+            meta["votes"].append(votos[dom])
+            meta["comments"].append(comentarios[dom])
+            meta["ids"].append(pid)
+            meta["names"].append(name)
+        st.balloons()
+        st.success(f"🎉 Votos registrados. ID: `{pid}`")
+
+    # 6) Botón de descarga transpuesta
+    buf = to_excel(code)
+    st.download_button(
+        "⬇️ Descargar Excel (dominios × participantes)",
+        data=buf,
+        file_name=f"GRADE_{code}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 
 elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
