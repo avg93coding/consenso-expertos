@@ -713,6 +713,7 @@ elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")
 
+    # Selección de sesión activa
     active_sessions = [k for k, v in store.items() if v.get("is_active", True)]
     if not active_sessions:
         st.info("No hay sesiones activas. Cree una nueva sesión para comenzar.")
@@ -731,10 +732,10 @@ elif menu == "Dashboard":
             quorum = s.get("n_participantes", 0) // 2 + 1
             votos_actuales = len(votes)
 
-            # ————— Layout en dos columnas —————
+            # Layout en dos columnas: métricas a la izquierda, gráfico a la derecha
             col1, col2 = st.columns([2, 3])
 
-            # Columna 1: métricas y estado
+            # --- Columna 1: métricas y estado ---
             with col1:
                 if st.button("Finalizar esta sesión"):
                     store[code]["is_active"] = False
@@ -742,6 +743,7 @@ elif menu == "Dashboard":
                     st.success("✅ Sesión finalizada.")
                     st.rerun()
 
+                # Información básica
                 st.markdown(f"""
                 **Recomendación:** {s['desc']}  
                 **Ronda actual:** {s['round']}  
@@ -755,24 +757,24 @@ elif menu == "Dashboard":
                 k1.metric("Total votos", votos_actuales)
                 k2.metric("% Consenso", f"{pct:.1f}%")
                 if votes:
-                    k3.metric("Mediana (IC95%)", f"{med:.1f} [{lo:.1f},{hi:.1f}]")
+                    k3.metric("Mediana (IC95%)", f"{med:.1f} [{lo:.1f}, {hi:.1f}]")
 
                 # Estado de consenso
                 if votos_actuales < quorum:
                     st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
                 else:
                     if pct >= 80 and votes and 7 <= med <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
-                        st.success("✅ CONSENSO ALCANZADO (mediana+IC95%)")
+                        st.success("✅ CONSENSO ALCANZADO (mediana + IC95%)")
                     elif pct >= 80:
                         st.success("✅ CONSENSO ALCANZADO (% votos)")
                     elif pct <= 20 and votes and 1 <= med <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
-                        st.error("❌ NO APROBADO (mediana+IC95%)")
-                    elif votes.count(1) + votes.count(2) + votes.count(3) >= 0.8 * votos_actuales:
+                        st.error("❌ NO APROBADO (mediana + IC95%)")
+                    elif sum(1 for v in votes if isinstance(v, (int, float)) and v <= 3) >= 0.8 * votos_actuales:
                         st.error("❌ NO APROBADO (% votos)")
                     else:
                         st.warning("⚠️ NO SE ALCANZÓ CONSENSO")
 
-            # Columna 2: histograma de votos
+            # --- Columna 2: histograma de votos estrecho y morado ---
             with col2:
                 if votes:
                     df = pd.DataFrame({"Voto": votes})
@@ -781,9 +783,13 @@ elif menu == "Dashboard":
                         x="Voto",
                         nbins=9,
                         title="Distribución de Votos",
-                        labels={"Voto": "Escala 1–9", "count": "Frecuencia"}
+                        labels={"Voto": "Escala 1–9", "count": "Frecuencia"},
+                        color_discrete_sequence=[PRIMARY]  # utiliza tu color morado
                     )
+                    # Barras más estrechas y espacio entre ellas
+                    fig.update_traces(marker_line_width=0, width=0.4)
                     fig.update_layout(
+                        bargap=0.3,
                         xaxis=dict(tickmode='linear', tick0=1, dtick=1),
                         margin=dict(t=30, b=0, l=0, r=0),
                         height=300,
@@ -794,9 +800,10 @@ elif menu == "Dashboard":
                 else:
                     st.info("🔍 Aún no hay votos para mostrar el gráfico.")
 
-            # — Opciones adicionales (rondas, exportes, comentarios) —
+            # ——— Acciones, exportes y comentarios ———
             st.markdown("---")
             st.subheader("Acciones y Exportes")
+
             if st.button("Iniciar nueva ronda"):
                 history.setdefault(code, []).append(copy.deepcopy(s))
                 st.session_state.modify_recommendation = True
@@ -804,17 +811,17 @@ elif menu == "Dashboard":
 
             c1, c2 = st.columns(2)
             with c1:
-                st.download_button("Descargar Excel", to_excel(code),
+                st.download_button("⬇️ Descargar Excel", to_excel(code),
                                    file_name=f"consenso_{code}.xlsx")
             with c2:
-                st.download_button("Descargar Reporte TXT", create_report(code),
+                st.download_button("⬇️ Descargar TXT", create_report(code),
                                    file_name=f"reporte_{code}.txt")
 
             if comments:
                 st.subheader("Comentarios de Participantes")
                 for pid, name, vote, com in zip(ids, s["names"], votes, comments):
                     if com:
-                        st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
+                        st.markdown(f"**{name}** (ID: {pid}) — Voto: {vote}\n> {com}")
 
                 
 elif menu == "Historial":
