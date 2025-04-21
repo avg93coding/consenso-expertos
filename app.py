@@ -13,7 +13,11 @@ import os
 from scipy import stats
 from streamlit_autorefresh import st_autorefresh
 import plotly.graph_objects as go
-
+import requests
+from io import BytesIO
+import docx
+from docx.shared import Cm, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 import os
 import docx
 from docx.shared import Pt, Cm, RGBColor
@@ -312,33 +316,50 @@ def get_qr_code_image_html(code):
 def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.BytesIO:
     """
     Genera un .docx con un apartado por cada recomendación (cada código),
-    incluyendo descripción, métricas de la ronda actual y detalle de todas las rondas.
+    incluyendo logo, título coloreado, métricas, estado de consenso y detalle de rondas.
     """
+    # 1. Crear documento
     doc = docx.Document()
 
-    # Márgenes A4
+    # 2. Descargar e insertar logo en la cabecera
+    logo_url = "https://static.wixstatic.com/media/89a9c2_ddc57311fc734357b9ea2b699e107ae2~mv2.png/v1/fill/w_90,h_54,al_c,q_85,usm_0.66_1.00_0.01/Logo%20versi%C3%B3n%20principal.png"
+    resp = requests.get(logo_url)
+    if resp.status_code == 200:
+        img_stream = BytesIO(resp.content)
+        header = doc.sections[0].header
+        p = header.paragraphs[0]
+        r = p.add_run()
+        r.add_picture(img_stream, width=Cm(4))    # ancho 4 cm (ajusta si es necesario)
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # 3. Márgenes A4
     for sec in doc.sections:
         sec.page_height = Cm(29.7)
         sec.page_width  = Cm(21.0)
         sec.left_margin = Cm(2.5)
         sec.right_margin = Cm(2.5)
-        sec.top_margin = Cm(2.5)
+        sec.top_margin = Cm(2.0)
         sec.bottom_margin = Cm(2.5)
 
-    # Título general
+    # 4. Título general con color corporativo
     titulo = doc.add_heading("Reporte Consolidado de Recomendaciones", level=0)
     titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph(f"Fecha de generación: {datetime.datetime.now():%d-%m-%Y %H:%M:%S}").italic = True
+    run_t = titulo.runs[0]
+    run_t.font.color.rgb = RGBColor(0x66, 0x2D, 0x91)  # Morado ODDS
+    run_t.font.size = Pt(20)
+    doc.add_paragraph(
+        f"Fecha de generación: {datetime.datetime.now():%d-%m-%Y %H:%M:%S}"
+    ).italic = True
     doc.add_paragraph()
 
-    # Iterar por cada recomendación
+    # 5. Iterar cada recomendación
     for code, rec in store.items():
-        # Encabezado de recomendación
+        # 5.1 Encabezado de recomendación
         h = doc.add_heading(level=1)
         h.add_run(f"Recomendación {code}").bold = True
         h.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-        # Descripción y datos básicos
+        # 5.2 Descripción y metadatos
         doc.add_paragraph().add_run("Descripción: ").bold = True
         doc.add_paragraph(rec["desc"])
         doc.add_paragraph().add_run("Ronda actual: ").bold = True
@@ -346,34 +367,37 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
         doc.add_paragraph().add_run("Fecha creación: ").bold = True
         doc.add_paragraph(rec["created_at"])
 
-        # Métricas de la ronda actual
+        # 5.3 Tabla de métricas con encabezado coloreado
         votos = rec["votes"]
         pct = consensus_pct(votos) * 100
         med, lo, hi = median_ci(votos)
 
         tbl = doc.add_table(rows=1, cols=4, style="Table Grid")
         hdr = tbl.rows[0].cells
-        for i, txt in enumerate(["Total votos", "% Consenso", "Mediana", "IC95%"]):
-            hdr[i].text = txt
-            hdr[i].paragraphs[0].runs[0].bold = True
-            hdr[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        header_colors = [RGBColor(0x66,0x2D,0x91), RGBColor(0xF1,0x59,0x2A),
+                         RGBColor(0x66,0x2D,0x91), RGBColor(0xF1,0x59,0x2A)]
+        for i, title in enumerate(["Total votos", "% Consenso", "Mediana", "IC95%"]):
+            cell = hdr[i]
+            cell.text = title
+            run_h = cell.paragraphs[0].runs[0]
+            run_h.font.color.rgb = RGBColor(0xFF,0xFF,0xFF)     # texto blanco
+            # fondo del encabezado
+            tcPr = cell._tc.get_or_add_tcPr()
+            shd = tcPr.get_or_add_shd()
+            shd.fill = header_colors[i].rgb
+            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
+        # Fila de datos
+        data = [str(len(votos)), f"{pct:.1f}%", f"{med:.1f}", f"[{lo:.1f}, {hi:.1f}]"]
         row = tbl.add_row().cells
-        row[0].text = str(len(votos))
-        row[1].text = f"{pct:.1f}%"
-        row[2].text = f"{med:.1f}"
-        row[3].text = f"[{lo:.1f}, {hi:.1f}]"
-        for c in row:
-            c.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        for idx, val in enumerate(data):
+            row[idx].text = val
+            row[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         doc.add_paragraph()
 
-        votos = rec["votes"]
+        # 5.4 Estado de consenso
         total = len(votos)
-        pct = consensus_pct(votos) * 100
-        med, lo, hi = median_ci(votos)
-
-        # Evaluar condiciones de consenso según tu dashboard
         if pct >= 80 and 7 <= med <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
             status = "✅ CONSENSO ALCANZADO: Aprobado (por mediana + IC95%)."
         elif pct >= 80:
@@ -383,29 +407,28 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
         elif sum(1 for v in votos if isinstance(v, (int, float)) and v <= 3) >= 0.8 * total:
             status = "❌ CONSENSO ALCANZADO: No aprobado (por porcentaje)."
         else:
-            status = "⚠️ CONSENSO NO ALCANZADO: Se recomienda realizar otra ronda."
+            status = "⚠️ CONSENSO NO ALCANZADO: Se recomienda otra ronda."
 
-        # Añadimos el estado al documento
         doc.add_paragraph().add_run("Estado de consenso: ").bold = True
         doc.add_paragraph(status)
 
-        # --- Detalle de rondas como antes ---
+        # 5.5 Detalle de rondas
         rondas = [rec] + history.get(code, [])
         doc.add_heading("Detalle de Rondas", level=2)
         for r in rondas:
             p = doc.add_paragraph(style="List Number")
             p.add_run(f"Ronda {r['round']} — {r['created_at']}").bold = True
             sub = doc.add_paragraph(style="List Bullet")
-            sub.add_run(f" • Votos: {len(r['votes'])}   • Consenso: {consensus_pct(r['votes'])*100:.1f}%")
+            sub.add_run(
+                f" • Votos: {len(r['votes'])}   • Consenso: {consensus_pct(r['votes'])*100:.1f}%"
+            )
         doc.add_page_break()
 
-
-    # Guardar en buffer
-    buffer = io.BytesIO()
+    # 6. Guardar en buffer y devolver
+    buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer
-
 
 # ——————————————————————————————
 #  Integración en Streamlit
