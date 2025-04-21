@@ -651,7 +651,6 @@ elif menu == "Crear Recomendación":
 
 
 elif menu == "Dashboard":
-    odds_header()
     st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")
 
