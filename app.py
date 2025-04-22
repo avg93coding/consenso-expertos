@@ -880,9 +880,9 @@ elif menu == "Dashboard":
     n = len(votes)
 
     # Estadísticos
-    media    = np.mean(votes) if n > 0 else None
+    media    = np.mean(votes) if n > 0 else 0.0
     desv_std = np.std(votes, ddof=1) if n > 1 else 0.0
-    mediana, lo, hi = (None, None, None)
+    mediana, lo, hi = (0.0, 0.0, 0.0)
     if n > 0:
         mediana, lo, hi = median_ci(votes)
 
@@ -910,43 +910,25 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # --- Columna 2: KPI con media y desviación estándar ---
+    # --- Columna 2: KPI en grid 2×2 ---
     with col_kpi:
-        st.markdown(f"""
-        <div class="metric-card">
-          <div class="metric-label">Total votos</div>
-          <div class="metric-value">{votos_actuales}</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Media</div>
-          <div class="metric-value">{media:.2f}</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Desv. estándar</div>
-          <div class="metric-value">{desv_std:.2f}</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">% Consenso</div>
-          <div class="metric-value">{pct:.1f}%</div>
-        </div>
-        {f'''
-        <div class="metric-card">
-          <div class="metric-label">Mediana (IC95%)</div>
-          <div class="metric-value">{mediana:.1f} [{lo:.1f}, {hi:.1f}]</div>
-        </div>''' if n > 0 else ''}
-        """, unsafe_allow_html=True)
+        html = "<div class='metric-grid'>"
+        html += card_html("Total votos", votos_actuales)
+        html += card_html("Media", f"{media:.2f}")
+        html += card_html("Desv. estándar", f"{desv_std:.2f}")
+        html += card_html("% Consenso", f"{pct:.1f}%")
+        if n > 0:
+            html += card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]")
+        html += "</div>"
+        st.markdown(html, unsafe_allow_html=True)
 
     # --- Columna 3: Histograma ---
     with col_chart:
         if votos_actuales:
             df = pd.DataFrame({"Voto": votes})
-            fig = px.histogram(
-                df,
-                x="Voto",
-                nbins=9,
-                labels={"Voto":"Escala 1–9","count":"Frecuencia"},
-                color_discrete_sequence=[PRIMARY]
-            )
+            fig = px.histogram(df, x="Voto", nbins=9,
+                               labels={"Voto":"Escala 1–9","count":"Frecuencia"},
+                               color_discrete_sequence=[PRIMARY])
             fig.update_traces(marker_line_width=0)
             fig.update_layout(
                 bargap=0.4,
@@ -965,11 +947,11 @@ elif menu == "Dashboard":
     if votos_actuales < quorum:
         st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
     else:
-        if pct >= 80 and n and 7 <= mediana <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
+        if pct >= 80 and 7 <= mediana <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
             st.success("✅ CONSENSO ALCANZADO (mediana + IC95%)")
         elif pct >= 80:
             st.success("✅ CONSENSO ALCANZADO (% votos)")
-        elif pct <= 20 and n and 1 <= mediana <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
+        elif pct <= 20 and 1 <= mediana <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
             st.error("❌ NO APROBADO (mediana + IC95%)")
         elif sum(1 for v in votes if v <= 3) >= 0.8 * votos_actuales:
             st.error("❌ NO APROBADO (% votos)")
@@ -991,10 +973,10 @@ elif menu == "Dashboard":
         st.download_button("⬇️ Descargar TXT", create_report(code),
                            file_name=f"reporte_{code}.txt")
 
-    # 6) Comentarios
-    if comments:
+    # 6) Comentarios (opcional)
+    if s.get("comments"):
         st.subheader("Comentarios de Participantes")
-        for pid, name, vote, com in zip(ids, s["names"], votes, comments):
+        for pid, name, vote, com in zip(s["ids"], s["names"], votes, s["comments"]):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
 
