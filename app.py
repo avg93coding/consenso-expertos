@@ -42,6 +42,32 @@ def inject_css():
 
 inject_css()
 
+# 2) CSS para grid de métricas
+def inject_grid_css():
+    st.markdown("""
+    <style>
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Llamamos a ambas
+inject_css()
+inject_grid_css()
+
+# ——————————————————————————————
+# 3) Función auxiliar para tarjeta
+def card_html(label, value):
+    return f"""
+    <div class="metric-card">
+      <div class="metric-label">{label}</div>
+      <div class="metric-value">{value}</div>
+    </div>
+    """
+
 # 3) odds_header(), para mostrar logo y título
 def odds_header():
     header_html = """
