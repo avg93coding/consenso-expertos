@@ -662,7 +662,7 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # Pedimos el nombre antes de todo
+    # Nombre del participante
     name = st.text_input("Nombre del participante:")
     if not name:
         st.warning("Ingrese su nombre para continuar.")
@@ -701,7 +701,7 @@ if "session" in params:
         for rc in s["recs"]:
             st.markdown(f"- **{rc}** — {store[rc]['desc']}")
 
-        # Agrupamos TODO en un form
+        # Aquí abrimos el formulario
         with st.form("grade_form"):
             votos = {}
             comentarios = {}
@@ -719,10 +719,11 @@ if "session" in params:
                     height=60
                 )
 
+            # Botón de envío dentro del form
             submitted = st.form_submit_button("Enviar votos GRADE")
 
+        # Sólo al enviarlo procesamos:
         if submitted:
-            # Guardar los votos
             pid = hashlib.sha256(name.encode()).hexdigest()[:8]
             for dom in PREGUNTAS_GRADE:
                 meta = s["dominios"][dom]
@@ -734,7 +735,6 @@ if "session" in params:
             st.balloons()
             st.success(f"🎉 Votos registrados. ID: `{pid}`")
 
-            # Descargar resultados
             buf = to_excel(code)
             st.download_button(
                 "⬇️ Descargar Excel (dominios × participantes)",
@@ -743,6 +743,7 @@ if "session" in params:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
             st.stop()
+
 
 
 # 6) Panel de administración
