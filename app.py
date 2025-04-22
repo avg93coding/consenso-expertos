@@ -645,36 +645,42 @@ def integrar_reporte_todas_recomendaciones():
 # ─────────────────────────────────────────────────────────────
 # 5) Página de votación (adaptable al tipo de sesión)
 # ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# 5) Página de votación (se adapta al tipo de sesión)
+# ─────────────────────────────────────────────────────────────
 params = st.query_params
 if "session" in params:
+    # 1. Obtenemos el código de sesión desde la URL
     raw  = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
+    # 2. Cabecera
     odds_header()
     st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
 
+    # 3. Recuperamos la sesión
     s = store.get(code)
     if not s:
         st.error(f"Sesión inválida: {code}")
         st.stop()
-
     tipo = s.get("tipo", "STD")
+
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # Nombre
+    # 4. Pedimos el nombre del participante
     name = st.text_input("Nombre del participante:")
     if not name:
         st.warning("Ingrese su nombre para continuar.")
         st.stop()
 
-    # Doble voto
+    # 5. Evitamos doble voto
     if (tipo == "STD" and name in s["names"]) \
-       or (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"]):
+      or (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"]):
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # ————— SESIÓN ESTÁNDAR —————
+    # ——— SESIÓN ESTÁNDAR ———
     if tipo == "STD":
         st.markdown("### Recomendación a evaluar")
         st.markdown(f"**{s['desc']}**")
@@ -694,14 +700,14 @@ if "session" in params:
                 st.error("No se pudo registrar el voto.")
         st.stop()
 
-    # ————— PAQUETE GRADE —————
+    # ——— PAQUETE GRADE ———
     elif tipo == "GRADE_PKG":
         st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
         st.markdown("**Recomendaciones incluidas:**")
         for rc in s["recs"]:
             st.markdown(f"- **{rc}** — {store[rc]['desc']}")
 
-        # Abrimos un único form para todas las preguntas
+        # 6. Formulario de todos los dominios
         with st.form("grade_form"):
             votos = {}
             comentarios = {}
@@ -719,11 +725,10 @@ if "session" in params:
                     height=60
                 )
 
-            # Este botón pertenece al mismo form
             submitted = st.form_submit_button("Enviar votos GRADE")
 
-        # Solo si se envió el form
         if submitted:
+            # 7. Guardamos los votos
             pid = hashlib.sha256(name.encode()).hexdigest()[:8]
             for dom in PREGUNTAS_GRADE:
                 meta = s["dominios"][dom]
@@ -735,6 +740,7 @@ if "session" in params:
             st.balloons()
             st.success(f"🎉 Votos registrados. ID: `{pid}`")
 
+            # 8. Botón de descarga de resultados
             buf = to_excel(code)
             st.download_button(
                 "⬇️ Descargar Excel (dominios × participantes)",
