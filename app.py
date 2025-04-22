@@ -935,7 +935,6 @@ elif menu == "Dashboard":
     pct             = consensus_pct(votes) * 100
     quorum          = s.get("n_participantes", 0) // 2 + 1
     votos_actuales  = n
-    votos_faltantes = max(quorum - votos_actuales, 0)
 
     # Tres columnas: Resumen | Métricas | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
@@ -956,17 +955,17 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-# --- Columna 2: Métricas en columna única ---
-with col_kpi:
-    st.markdown(card_html("Total votos", votos_actuales), unsafe_allow_html=True)
-    st.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
-    st.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
-    st.markdown(card_html("% Consenso", f"{pct:.1f}%"), unsafe_allow_html=True)
-    if n > 0:
-        st.markdown(
-            card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]"),
-            unsafe_allow_html=True
-        )
+    # --- Columna 2: Métricas en columna única ---
+    with col_kpi:
+        st.markdown(card_html("Total votos", votos_actuales), unsafe_allow_html=True)
+        st.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
+        st.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
+        st.markdown(card_html("% Consenso", f"{pct:.1f}%"), unsafe_allow_html=True)
+        if n > 0:
+            st.markdown(
+                card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]"),
+                unsafe_allow_html=True
+            )
 
     # --- Columna 3: Histograma ---
     with col_chart:
