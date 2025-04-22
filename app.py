@@ -524,6 +524,47 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
     """
     doc = Document()
 
+def crear_excel_consolidado(store: dict, history: dict) -> io.BytesIO:
+    # Hoja 1: Recomendaciones STD
+    filas_std = []
+    for code, s in store.items():
+        if s.get("tipo", "STD") == "STD":
+            for pid, name, vote, com in zip(s["ids"], s["names"], s["votes"], s["comments"]):
+                filas_std.append({
+                    "Código": code,
+                    "Descripción": s["desc"],
+                    "Ronda": s["round"],
+                    "Creada": s["created_at"],
+                    "ID participante": pid,
+                    "Nombre": name,
+                    "Voto": vote,
+                    "Comentario": com
+                })
+    df_std = pd.DataFrame(filas_std)
+
+    # Hoja 2: Paquetes GRADE
+    filas_grade = []
+    for code, s in store.items():
+        if s.get("tipo") == "GRADE_PKG":
+            for dom, meta in s["dominios"].items():
+                for pid, name, vote, com in zip(meta["ids"], meta["names"], meta["votes"], meta["comments"]):
+                    filas_grade.append({
+                        "Paquete": code,
+                        "Dominio": dom,
+                        "ID participante": pid,
+                        "Nombre": name,
+                        "Voto": vote,
+                        "Comentario": com,
+                        "Creada": s["created_at"]
+                    })
+    df_grade = pd.DataFrame(filas_grade)
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df_std.to_excel(writer, sheet_name="Recomendaciones", index=False)
+        df_grade.to_excel(writer, sheet_name="Paquetes_GRADE", index=False)
+    buf.seek(0)
+    return buf
 
     # 1. Descargar el logo
     logo_url = (
@@ -1112,31 +1153,32 @@ elif menu == "Crear Paquete GRADE":
 
 
 elif menu == "Reporte Consolidado":
-     integrar_reporte_todas_recomendaciones()
-    
-# Guardar y Cargar Estado - Administración
-st.sidebar.markdown("---")
-st.sidebar.subheader("Administración")
+    st.header("📊 Reporte Consolidado")
 
-# Guardar estado
-if st.sidebar.button("Guardar Estado"):
-    try:
-        state_data = {
-            "sessions": copy.deepcopy(store),
-            "history": copy.deepcopy(history)
-        }
-        state_b64 = base64.b64encode(str(state_data).encode()).decode()
-        st.sidebar.markdown("### Datos de Respaldo")
-        st.sidebar.code(state_b64, language=None)
-        st.sidebar.download_button(
-            label="Descargar Backup",
-            data=state_b64,
-            file_name=f"odds_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-            help="Guarde este archivo para restaurar sus sesiones en el futuro"
+    # A) Documento Word (.docx)
+    st.subheader("Documento Word")
+    if st.button("⬇️ Descargar Reporte .docx"):
+        buf_doc = crear_reporte_consolidado_recomendaciones(store, history)
+        st.download_button(
+            label="Descargar .docx",
+            data=buf_doc,
+            file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-        st.sidebar.success("Estado guardado correctamente.")
-    except Exception as e:
-        st.sidebar.error(f"Error al guardar el estado: {str(e)}")
+
+    st.markdown("---")
+
+    # B) Libro Excel (.xlsx)
+    st.subheader("Libro Excel")
+    if st.button("⬇️ Descargar Reporte .xlsx"):
+        buf_xls = crear_excel_consolidado(store, history)
+        st.download_button(
+            label="Descargar .xlsx",
+            data=buf_xls,
+            file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
 
 # Cargar estado
 state_upload = st.sidebar.file_uploader("Cargar Estado", type=["txt"])
