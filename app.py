@@ -968,9 +968,13 @@ elif menu == "Dashboard":
     with col_chart:
         if votos_actuales:
             df = pd.DataFrame({"Voto": votes})
-            fig = px.histogram(df, x="Voto", nbins=9,
-                               labels={"Voto":"Escala 1–9","count":"Frecuencia"},
-                               color_discrete_sequence=[PRIMARY])
+            fig = px.histogram(
+                df,
+                x="Voto",
+                nbins=9,
+                labels={"Voto":"Escala 1–9","count":"Frecuencia"},
+                color_discrete_sequence=[PRIMARY]
+            )
             fig.update_traces(marker_line_width=0)
             fig.update_layout(
                 bargap=0.4,
