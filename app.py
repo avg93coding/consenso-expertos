@@ -867,7 +867,24 @@ elif menu == "Dashboard":
     # 3) Tres columnas: Resumen | Metric‑Cards | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
 
-    # --- Columna de KPI con media y desviación estándar ---
+    # --- Columna 1: Resumen de la sesión ---
+    with col_res:
+        if st.button("Finalizar esta sesión"):
+            store[code]["is_active"] = False
+            history.setdefault(code, []).append(copy.deepcopy(s))
+            st.success("✅ Sesión finalizada.")
+            st.rerun()
+
+        st.markdown(f"""
+        **Recomendación:** {s['desc']}  
+        **Ronda actual:** {s['round']}  
+        **Creada:** {s['created_at']}  
+        **Votos esperados:** {s.get('n_participantes','?')}  
+        **Quórum:** {quorum}  
+        **Votos recibidos:** {votos_actuales}
+        """)
+
+    # --- Columna 2: KPI con media y desviación estándar ---
     with col_kpi:
         st.markdown(f"""
         <div class="metric-card">
@@ -893,7 +910,7 @@ elif menu == "Dashboard":
         </div>''' if n > 0 else ''}
         """, unsafe_allow_html=True)
 
-    # --- Columna de Histograma (igual que antes) ---
+    # --- Columna 3: Histograma ---
     with col_chart:
         if votos_actuales:
             df = pd.DataFrame({"Voto": votes})
@@ -917,20 +934,18 @@ elif menu == "Dashboard":
         else:
             st.info("🔍 Aún no hay votos para mostrar.")
 
-    # … resto de tu código para mostrar estado de consenso y exportes …
-
-    # 4) Estado de consenso bajo las columnas
+    # 4) Estado de consenso
     st.markdown("---")
     if votos_actuales < quorum:
         st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
     else:
-        if pct >= 80 and votes and 7 <= med <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
+        if pct >= 80 and n and 7 <= mediana <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
             st.success("✅ CONSENSO ALCANZADO (mediana + IC95%)")
         elif pct >= 80:
             st.success("✅ CONSENSO ALCANZADO (% votos)")
-        elif pct <= 20 and votes and 1 <= med <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
+        elif pct <= 20 and n and 1 <= mediana <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
             st.error("❌ NO APROBADO (mediana + IC95%)")
-        elif sum(1 for v in votes if isinstance(v, (int, float)) and v <= 3) >= 0.8 * votos_actuales:
+        elif sum(1 for v in votes if v <= 3) >= 0.8 * votos_actuales:
             st.error("❌ NO APROBADO (% votos)")
         else:
             st.warning("⚠️ NO SE ALCANZÓ CONSENSO")
@@ -956,6 +971,7 @@ elif menu == "Dashboard":
         for pid, name, vote, com in zip(ids, s["names"], votes, comments):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
+
                 
 elif menu == "Evaluar con GRADE":
     st.subheader("Evaluación GRADE (paquete de recomendaciones)")
