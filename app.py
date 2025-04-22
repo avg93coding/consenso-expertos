@@ -911,7 +911,6 @@ elif menu == "Dashboard":
     if not active_sessions:
         st.info("No hay sesiones activas. Cree una nueva sesión para comenzar.")
         st.stop()
-
     code = st.selectbox("Seleccionar sesión activa:", active_sessions)
     if not code:
         st.stop()
@@ -920,29 +919,25 @@ elif menu == "Dashboard":
     s = store[code]
     votes = [v for v in s["votes"] if isinstance(v, (int, float))]
     n = len(votes)
-
-    # Estadísticos
     media    = np.mean(votes) if n > 0 else 0.0
     desv_std = np.std(votes, ddof=1) if n > 1 else 0.0
     mediana, lo, hi = (0.0, 0.0, 0.0)
     if n > 0:
         mediana, lo, hi = median_ci(votes)
-
     pct            = consensus_pct(votes) * 100
     quorum         = s.get("n_participantes", 0) // 2 + 1
     votos_actuales = n
 
-    # 3) Tres columnas: Resumen | Metric‑Cards | Gráfico
+    # 3) Tres columnas: Resumen | Métricas en grid | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
 
-    # --- Columna 1: Resumen de la sesión ---
+    # Columna 1: Resumen
     with col_res:
         if st.button("Finalizar esta sesión"):
             store[code]["is_active"] = False
             history.setdefault(code, []).append(copy.deepcopy(s))
             st.success("✅ Sesión finalizada.")
             st.rerun()
-
         st.markdown(f"""
         **Recomendación:** {s['desc']}  
         **Ronda actual:** {s['round']}  
@@ -952,26 +947,27 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # --- Columna 2: KPI en grid 2×2 ---
+    # Columna 2: Métricas en grid 2×2
     with col_kpi:
-        html = "<div class='metric-grid'>"
-        html += card_html("Total votos", votos_actuales)
-        html += card_html("Media", f"{media:.2f}")
-        html += card_html("Desv. estándar", f"{desv_std:.2f}")
-        html += card_html("% Consenso", f"{pct:.1f}%")
-        if n > 0:
-            html += card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]")
-        html += "</div>"
-        st.markdown(html, unsafe_allow_html=True)
+        grid_html = """
+        <div class="metric-grid">
+          {card1}{card2}{card3}{card4}{card5}
+        </div>
+        """.format(
+            card1=card_html("Total votos", votos_actuales),
+            card2=card_html("Media", f"{media:.2f}"),
+            card3=card_html("Desv. estándar", f"{desv_std:.2f}"),
+            card4=card_html("% Consenso", f"{pct:.1f}%"),
+            card5=card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]") if n>0 else ""
+        )
+        st.markdown(grid_html, unsafe_allow_html=True)
 
-    # --- Columna 3: Histograma ---
+    # Columna 3: Histograma
     with col_chart:
         if votos_actuales:
             df = pd.DataFrame({"Voto": votes})
             fig = px.histogram(
-                df,
-                x="Voto",
-                nbins=9,
+                df, x="Voto", nbins=9,
                 labels={"Voto":"Escala 1–9","count":"Frecuencia"},
                 color_discrete_sequence=[PRIMARY]
             )
@@ -1010,7 +1006,6 @@ elif menu == "Dashboard":
         history.setdefault(code, []).append(copy.deepcopy(s))
         st.session_state.modify_recommendation = True
         st.session_state.current_code = code
-
     c1, c2 = st.columns(2)
     with c1:
         st.download_button("⬇️ Descargar Excel", to_excel(code),
