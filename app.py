@@ -833,6 +833,7 @@ elif menu == "Crear Recomendación":
 
 
 elif menu == "Dashboard":
+elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")
 
@@ -848,7 +849,6 @@ elif menu == "Dashboard":
 
     # 2) Cálculo de métricas extendido
     s = store[code]
-    # Filtrar solo votos numéricos
     votes = [v for v in s["votes"] if isinstance(v, (int, float))]
     n = len(votes)
 
@@ -866,28 +866,20 @@ elif menu == "Dashboard":
     # 3) Tres columnas: Resumen | Metric‑Cards | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
 
-    # Columna 1: Resumen
-    with col_res:
-        if st.button("Finalizar esta sesión"):
-            store[code]["is_active"] = False
-            history.setdefault(code, []).append(copy.deepcopy(s))
-            st.success("✅ Sesión finalizada.")
-            st.rerun()
-
-        st.markdown(f"""
-        **Recomendación:** {s['desc']}  
-        **Ronda actual:** {s['round']}  
-        **Creada:** {s['created_at']}  
-        **Votos esperados:** {s.get('n_participantes','?')} | **Quórum:** {quorum}  
-        **Votos recibidos:** {votos_actuales}
-        """)
-
-    # Columna 2: Metric‑Cards (degradado morado→naranja)
+    # --- Columna de KPI con media y desviación estándar ---
     with col_kpi:
         st.markdown(f"""
         <div class="metric-card">
           <div class="metric-label">Total votos</div>
           <div class="metric-value">{votos_actuales}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Media</div>
+          <div class="metric-value">{media:.2f}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Desv. estándar</div>
+          <div class="metric-value">{desv_std:.2f}</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">% Consenso</div>
@@ -896,13 +888,13 @@ elif menu == "Dashboard":
         {f'''
         <div class="metric-card">
           <div class="metric-label">Mediana (IC95%)</div>
-          <div class="metric-value">{med:.1f} [{lo:.1f}, {hi:.1f}]</div>
-        </div>''' if votes else ''}
+          <div class="metric-value">{mediana:.1f} [{lo:.1f}, {hi:.1f}]</div>
+        </div>''' if n > 0 else ''}
         """, unsafe_allow_html=True)
 
-    # Columna 3: Histograma morado estrecho
+    # --- Columna de Histograma (igual que antes) ---
     with col_chart:
-        if votes:
+        if votos_actuales:
             df = pd.DataFrame({"Voto": votes})
             fig = px.histogram(
                 df,
@@ -923,6 +915,8 @@ elif menu == "Dashboard":
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("🔍 Aún no hay votos para mostrar.")
+
+    # … resto de tu código para mostrar estado de consenso y exportes …
 
     # 4) Estado de consenso bajo las columnas
     st.markdown("---")
