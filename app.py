@@ -929,13 +929,13 @@ elif menu == "Dashboard":
     s = store[code]
     votes = [v for v in s["votes"] if isinstance(v, (int, float))]
     n = len(votes)
-    media    = np.mean(votes)    if n > 0 else 0.0
-    desv_std = np.std(votes, ddof=1) if n > 1 else 0.0
+    media          = np.mean(votes)    if n > 0 else 0.0
+    desv_std       = np.std(votes, ddof=1) if n > 1 else 0.0
     mediana, lo, hi = median_ci(votes)
     pct            = consensus_pct(votes) * 100
     quorum         = s.get("n_participantes", 0) // 2 + 1
     votos_actuales = n
-        # cuántos votos faltan para alcanzar quórum
+    # cuántos votos faltan para alcanzar quórum
     votos_faltantes = max(quorum - votos_actuales, 0)
 
     # Tres columnas: Resumen | Métricas | Gráfico
@@ -957,24 +957,21 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # Columna 2: Métricas en rejilla 2×2
-    # --- Columna 2: Métricas usando st.columns anidados (2×2) ---
+    # Columna 2: Métricas en rejilla 2×3
     with col_kpi:
-    grid_html = """
-    <div class="metric-grid">
-      {c1}{c2}{c3}{c4}{c5}{c6}
-    </div>
-    """.format(
-        c1=card_html("Total votos", votos_actuales),
-        c2=card_html("Media", f"{media:.2f}"),
-        c3=card_html("Desv. estándar", f"{desv_std:.2f}"),
-        c4=card_html("% Consenso", f"{pct:.1f}%"),
-        c5=card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]") if n>0 else "",
-        c6=card_html("Votos faltantes", votos_faltantes)
-    )
-    st.markdown(grid_html, unsafe_allow_html=True)
-
-
+        grid_html = """
+        <div class="metric-grid">
+          {c1}{c2}{c3}{c4}{c5}{c6}
+        </div>
+        """.format(
+            c1=card_html("Total votos", votos_actuales),
+            c2=card_html("Media", f"{media:.2f}"),
+            c3=card_html("Desv. estándar", f"{desv_std:.2f}"),
+            c4=card_html("% Consenso", f"{pct:.1f}%"),
+            c5=card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]") if n > 0 else "",
+            c6=card_html("Votos faltantes", votos_faltantes)
+        )
+        st.markdown(grid_html, unsafe_allow_html=True)
 
     # Columna 3: Histograma
     with col_chart:
@@ -982,7 +979,7 @@ elif menu == "Dashboard":
             df = pd.DataFrame({"Voto": votes})
             fig = px.histogram(
                 df, x="Voto", nbins=9,
-                labels={"Voto":"Escala 1–9","count":"Frecuencia"},
+                labels={"Voto": "Escala 1–9", "count": "Frecuencia"},
                 color_discrete_sequence=[PRIMARY]
             )
             fig.update_traces(marker_line_width=0)
@@ -1034,7 +1031,7 @@ elif menu == "Dashboard":
         for pid, name, vote, com in zip(s["ids"], s["names"], votes, s["comments"]):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
-                
+
 elif menu == "Evaluar con GRADE":
     st.subheader("Evaluación GRADE (paquete de recomendaciones)")
 
