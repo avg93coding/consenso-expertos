@@ -1061,18 +1061,19 @@ elif menu == "Dashboard":
 
 
 elif menu == "Crear Paquete GRADE":
-    st.subheader("Crear Paquete GRADE")
-    # 1) Selecciona las recomendaciones existentes
-    options = list(store.keys())
+    st.subheader("Crear / Descargar Paquetes GRADE")
+
+    # ——— Crear nuevo paquete ———
+    st.markdown("#### 1. Crear nuevo paquete")
+    opciones = list(store.keys())
     sel = st.multiselect(
-        "Elige los códigos de recomendación para el paquete GRADE:",
-        options,
+        "Elige las recomendaciones para el paquete:",
+        opciones,
         format_func=lambda c: f"{c} – {store[c]['desc']}"
     )
     n_part = st.number_input("¿Cuántos expertos?", min_value=1, step=1)
     if st.button("Crear Paquete"):
         code = uuid.uuid4().hex[:6].upper()
-        # inicializa dominios con listas vacías
         dominios = {
             dom: {"ids":[], "names":[], "votes":[], "comments":[], "opciones": DOMINIOS_GRADE[dom]}
             for dom in DOMINIOS_GRADE
@@ -1087,8 +1088,37 @@ elif menu == "Crear Paquete GRADE":
             "is_active": True
         }
         history[code] = []
-        st.success(f"Paquete GRADE creado con código {code}")
+        st.success(f"Paquete GRADE creado con código **{code}**")
         st.markdown(get_qr_code_image_html(code), unsafe_allow_html=True)
+        st.info("🔗 Comparte este QR para que los expertos voten.")
+
+    st.markdown("---")
+
+    # ——— Descargar resultados de paquetes existentes ———
+    st.markdown("#### 2. Descargar resultados de paquetes existentes")
+    # Filtramos sólo los que ya tienen al menos un voto (para no listar paquetes vacíos)
+    paquetes = [
+        c for c, s in store.items()
+        if s.get("tipo") == "GRADE_PKG"
+        and len(next(iter(s["dominios"].values()))["votes"]) > 0
+    ]
+
+    if paquetes:
+        sel_pkg = st.selectbox(
+            "Selecciona un paquete para descargar:",
+            paquetes,
+            format_func=lambda c: f"{c} – {len(store[c]['dominios']['prioridad_problema']['votes'])} votos"
+        )
+        buf2 = to_excel(sel_pkg)
+        st.download_button(
+            "⬇️ Descargar Excel del paquete",
+            data=buf2,
+            file_name=f"GRADE_{sel_pkg}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        st.info("No hay paquetes con votos para descargar.")
+
 
 elif menu == "Reporte Consolidado":
      integrar_reporte_todas_recomendaciones()
