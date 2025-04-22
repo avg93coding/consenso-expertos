@@ -846,15 +846,22 @@ elif menu == "Dashboard":
     if not code:
         st.stop()
 
-    # 2) Cálculo de métricas
+    # 2) Cálculo de métricas extendido
     s = store[code]
-    votes, comments, ids = s["votes"], s["comments"], s["ids"]
-    pct = consensus_pct(votes) * 100
-    med, lo, hi = (None, None, None)
-    if votes:
-        med, lo, hi = median_ci(votes)
-    quorum = s.get("n_participantes", 0) // 2 + 1
-    votos_actuales = len(votes)
+    # Filtrar solo votos numéricos
+    votes = [v for v in s["votes"] if isinstance(v, (int, float))]
+    n = len(votes)
+
+    # Estadísticos
+    media    = np.mean(votes) if n > 0 else None
+    desv_std = np.std(votes, ddof=1) if n > 1 else 0.0
+    mediana, lo, hi = (None, None, None)
+    if n > 0:
+        mediana, lo, hi = median_ci(votes)
+
+    pct            = consensus_pct(votes) * 100
+    quorum         = s.get("n_participantes", 0) // 2 + 1
+    votos_actuales = n
 
     # 3) Tres columnas: Resumen | Metric‑Cards | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
