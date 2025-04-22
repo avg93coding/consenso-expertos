@@ -756,7 +756,7 @@ if menu == "Inicio":
     
     Utilice el panel de navegación para comenzar.
     """)
-    st.markdown("</div>", unsafe_allow_html=True)
+ 
     
     
 
