@@ -905,7 +905,7 @@ elif menu == "Crear Recomendación":
             url = create_qr_code_url(code)
             st.info(f"URL para compartir: {url}")
             st.write(f"[Abrir página de votación]({url})")
-
+            st.markdown("</div>", unsafe_allow_html=True)
    
 
 
