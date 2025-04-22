@@ -24,27 +24,66 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2) Único inject_css() con metric‑cards y botones
+# ——————————————————————————————
+# Definición de estilos CSS
 def inject_css():
     css = """
     <style>
-      .stApp { background-color:#F7F7F7 !important; color:#333333; font-family:'Segoe UI', Tahoma, Verdana, sans-serif; }
-      .app-header { background-color:#662D91; padding:1.5rem; border-radius:0 0 10px 10px; text-align:center; color:white; margin-bottom:20px; }
-      .odds-logo { font-size:2rem; font-weight:bold; letter-spacing:1px; padding-bottom:5px; border-bottom:2px solid #F1592A; display:inline-block; }
-      .metric-card { width:140px; padding:12px; margin-bottom:10px; background: linear-gradient(to bottom right, #662D91, #F1592A); color:white; border-radius:8px; box-sizing:border-box; white-space:normal !important; word-wrap:break-word !important; }
-      .metric-label { font-size:0.9rem; opacity:0.8; text-align:center; }
-      .metric-value { font-size:1.4rem; font-weight:bold; text-align:center; margin-top:4px; }
-      .stButton>button { background-color:#662D91; color:white; border:none; padding:0.5rem 1rem; border-radius:5px; }
-      .stButton>button:hover { background-color:#F1592A; }
+      .stApp {
+        background-color: #F7F7F7 !important;
+        color: #333333;
+        font-family: 'Segoe UI', Tahoma, Verdana, sans-serif;
+      }
+      .app-header {
+        background-color: #662D91;
+        padding: 1.5rem;
+        border-radius: 0 0 10px 10px;
+        text-align: center;
+        color: white;
+        margin-bottom: 20px;
+      }
+      .odds-logo {
+        font-size: 2rem;
+        font-weight: bold;
+        letter-spacing: 1px;
+        padding-bottom: 5px;
+        border-bottom: 2px solid #F1592A;
+        display: inline-block;
+      }
+      .metric-card {
+        width: 140px;
+        padding: 12px;
+        background: linear-gradient(to bottom right, #662D91, #F1592A);
+        color: white;
+        border-radius: 8px;
+        box-sizing: border-box;
+        text-align: center;
+      }
+      .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+      }
+      .metric-value {
+        font-size: 1.4rem;
+        font-weight: bold;
+        margin-top: 4px;
+      }
+      .stButton > button {
+        background-color: #662D91;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+      }
+      .stButton > button:hover {
+        background-color: #F1592A;
+      }
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
 
-inject_css()
-
-# 2) CSS para grid de métricas
 def inject_grid_css():
-    st.markdown("""
+    grid_css = """
     <style>
       .metric-grid {
         display: grid;
@@ -52,14 +91,16 @@ def inject_grid_css():
         gap: 12px;
       }
     </style>
-    """, unsafe_allow_html=True)
+    """
+    st.markdown(grid_css, unsafe_allow_html=True)
 
-# Llamamos a ambas
+# ——————————————————————————————
+# Llamada única a los estilos justo después de los imports
 inject_css()
 inject_grid_css()
 
 # ——————————————————————————————
-# 3) Función auxiliar para tarjeta
+# Función auxiliar para generar cada tarjeta
 def card_html(label, value):
     return f"""
     <div class="metric-card">
@@ -67,6 +108,7 @@ def card_html(label, value):
       <div class="metric-value">{value}</div>
     </div>
     """
+
 
 # 3) odds_header(), para mostrar logo y título
 def odds_header():
