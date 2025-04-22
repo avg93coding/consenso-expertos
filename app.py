@@ -906,29 +906,27 @@ elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")
 
-    # 1) Seleccionar sesión activa
+    # Selección de sesión
     active_sessions = [k for k, v in store.items() if v.get("is_active", True)]
     if not active_sessions:
-        st.info("No hay sesiones activas. Cree una nueva sesión para comenzar.")
+        st.info("No hay sesiones activas.")
         st.stop()
     code = st.selectbox("Seleccionar sesión activa:", active_sessions)
     if not code:
         st.stop()
 
-    # 2) Cálculo de métricas extendido
+    # Cálculo de métricas
     s = store[code]
     votes = [v for v in s["votes"] if isinstance(v, (int, float))]
     n = len(votes)
-    media    = np.mean(votes) if n > 0 else 0.0
+    media    = np.mean(votes)    if n > 0 else 0.0
     desv_std = np.std(votes, ddof=1) if n > 1 else 0.0
-    mediana, lo, hi = (0.0, 0.0, 0.0)
-    if n > 0:
-        mediana, lo, hi = median_ci(votes)
+    mediana, lo, hi = median_ci(votes)
     pct            = consensus_pct(votes) * 100
     quorum         = s.get("n_participantes", 0) // 2 + 1
     votos_actuales = n
 
-    # 3) Tres columnas: Resumen | Métricas en grid | Gráfico
+    # Tres columnas: Resumen | Métricas | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
 
     # Columna 1: Resumen
@@ -947,18 +945,18 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # Columna 2: Métricas en grid 2×2
+    # Columna 2: Métricas en rejilla 2×2
     with col_kpi:
         grid_html = """
         <div class="metric-grid">
-          {card1}{card2}{card3}{card4}{card5}
+          {c1}{c2}{c3}{c4}{c5}
         </div>
         """.format(
-            card1=card_html("Total votos", votos_actuales),
-            card2=card_html("Media", f"{media:.2f}"),
-            card3=card_html("Desv. estándar", f"{desv_std:.2f}"),
-            card4=card_html("% Consenso", f"{pct:.1f}%"),
-            card5=card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]") if n>0 else ""
+            c1=card_html("Total votos", votos_actuales),
+            c2=card_html("Media", f"{media:.2f}"),
+            c3=card_html("Desv. estándar", f"{desv_std:.2f}"),
+            c4=card_html("% Consenso", f"{pct:.1f}%"),
+            c5=card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]") if n>0 else ""
         )
         st.markdown(grid_html, unsafe_allow_html=True)
 
@@ -974,17 +972,17 @@ elif menu == "Dashboard":
             fig.update_traces(marker_line_width=0)
             fig.update_layout(
                 bargap=0.4,
-                xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+                xaxis=dict(tickmode="linear", tick0=1, dtick=1),
                 margin=dict(t=30, b=0, l=0, r=0),
                 height=300,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)'
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("🔍 Aún no hay votos para mostrar.")
 
-    # 4) Estado de consenso
+    # Estado de consenso
     st.markdown("---")
     if votos_actuales < quorum:
         st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
@@ -1000,7 +998,7 @@ elif menu == "Dashboard":
         else:
             st.warning("⚠️ NO SE ALCANZÓ CONSENSO")
 
-    # 5) Acciones y exportes
+    # Acciones y exportes
     st.subheader("Acciones y Exportación")
     if st.button("Iniciar nueva ronda"):
         history.setdefault(code, []).append(copy.deepcopy(s))
@@ -1014,13 +1012,12 @@ elif menu == "Dashboard":
         st.download_button("⬇️ Descargar TXT", create_report(code),
                            file_name=f"reporte_{code}.txt")
 
-    # 6) Comentarios (opcional)
+    # Comentarios
     if s.get("comments"):
         st.subheader("Comentarios de Participantes")
         for pid, name, vote, com in zip(s["ids"], s["names"], votes, s["comments"]):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
-
                 
 elif menu == "Evaluar con GRADE":
     st.subheader("Evaluación GRADE (paquete de recomendaciones)")
