@@ -732,12 +732,12 @@ if "session" in params:
             anterior_disabled = st.session_state.grade_step == 0
             if st.button("⬅️ Anterior", disabled=anterior_disabled):
                 st.session_state.grade_step -= 1
-                st.experimental_rerun()
+                st.rerun()
         with col3:
             if st.session_state.grade_step < total - 1:
                 if st.button("Siguiente ➡️"):
                     st.session_state.grade_step += 1
-                    st.experimental_rerun()
+                    st.rerun()
             else:
                 # Último paso: enviar todos los votos
                 if st.button("✅ Enviar votos GRADE"):
