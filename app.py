@@ -959,7 +959,7 @@ elif menu == "Dashboard":
 
     # Columna 2: Métricas en rejilla 2×2
     # --- Columna 2: Métricas usando st.columns anidados (2×2) ---
-with col_kpi:
+    with col_kpi:
     grid_html = """
     <div class="metric-grid">
       {c1}{c2}{c3}{c4}{c5}{c6}
