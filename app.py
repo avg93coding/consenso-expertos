@@ -451,14 +451,24 @@ def consensus_pct(votes):
     return sum(1 for v in int_votes if v >= 7) / len(int_votes)
 
 def median_ci(votes):
-    if not votes:
-        return 0, 0, 0
-    arr = np.array([v for v in votes if isinstance(v, (int, float))])
-    if len(arr) == 0:
-        return 0, 0, 0
+    arr = np.array([v for v in votes if isinstance(v, (int, float))], dtype=float)
+    n = arr.size
+    if n == 0:
+        return 0.0, 0.0, 0.0
     med = np.median(arr)
-    res = stats.bootstrap((arr,), np.median, confidence_level=0.95, n_resamples=1000)
-    return med, res.confidence_interval.low, res.confidence_interval.high
+    if n < 2:
+        return med, med, med
+    try:
+        res = stats.bootstrap((arr,), np.median,
+                              confidence_level=0.95,
+                              n_resamples=1000,
+                              method="basic")
+        lo, hi = res.confidence_interval
+        if np.isnan(lo) or np.isnan(hi):
+            lo = hi = med
+    except:
+        lo = hi = med
+    return med, lo, hi
 
 def get_base_url():
     # URL específica para aplicación en Streamlit Cloud
@@ -946,19 +956,27 @@ elif menu == "Dashboard":
         """)
 
     # Columna 2: Métricas en rejilla 2×2
+    # --- Columna 2: Métricas usando st.columns anidados (2×2) ---
     with col_kpi:
-        grid_html = """
-        <div class="metric-grid">
-          {c1}{c2}{c3}{c4}{c5}
-        </div>
-        """.format(
-            c1=card_html("Total votos", votos_actuales),
-            c2=card_html("Media", f"{media:.2f}"),
-            c3=card_html("Desv. estándar", f"{desv_std:.2f}"),
-            c4=card_html("% Consenso", f"{pct:.1f}%"),
-            c5=card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]") if n>0 else ""
-        )
-        st.markdown(grid_html, unsafe_allow_html=True)
+        # Fila 1
+        r1c1, r1c2 = st.columns(2)
+        r1c1.markdown(card_html("Total votos", votos_actuales), unsafe_allow_html=True)
+        r1c2.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
+
+        # Fila 2
+        r2c1, r2c2 = st.columns(2)
+        r2c1.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
+        r2c2.markdown(card_html("% Consenso", f"{pct:.1f}%"), unsafe_allow_html=True)
+
+        # Fila 3 (Mediana ocupa una celda, la otra queda vacía)
+        if n > 0:
+            r3c1, r3c2 = st.columns((1, 1))
+            r3c1.markdown(
+                card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]"),
+                unsafe_allow_html=True
+            )
+            r3c2.write("")
+
 
     # Columna 3: Histograma
     with col_chart:
