@@ -935,6 +935,8 @@ elif menu == "Dashboard":
     pct            = consensus_pct(votes) * 100
     quorum         = s.get("n_participantes", 0) // 2 + 1
     votos_actuales = n
+        # cuántos votos faltan para alcanzar quórum
+    votos_faltantes = max(quorum - votos_actuales, 0)
 
     # Tres columnas: Resumen | Métricas | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
@@ -957,25 +959,21 @@ elif menu == "Dashboard":
 
     # Columna 2: Métricas en rejilla 2×2
     # --- Columna 2: Métricas usando st.columns anidados (2×2) ---
-    with col_kpi:
-        # Fila 1
-        r1c1, r1c2 = st.columns(2)
-        r1c1.markdown(card_html("Total votos", votos_actuales), unsafe_allow_html=True)
-        r1c2.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
+with col_kpi:
+    grid_html = """
+    <div class="metric-grid">
+      {c1}{c2}{c3}{c4}{c5}{c6}
+    </div>
+    """.format(
+        c1=card_html("Total votos", votos_actuales),
+        c2=card_html("Media", f"{media:.2f}"),
+        c3=card_html("Desv. estándar", f"{desv_std:.2f}"),
+        c4=card_html("% Consenso", f"{pct:.1f}%"),
+        c5=card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]") if n>0 else "",
+        c6=card_html("Votos faltantes", votos_faltantes)
+    )
+    st.markdown(grid_html, unsafe_allow_html=True)
 
-        # Fila 2
-        r2c1, r2c2 = st.columns(2)
-        r2c1.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
-        r2c2.markdown(card_html("% Consenso", f"{pct:.1f}%"), unsafe_allow_html=True)
-
-        # Fila 3 (Mediana ocupa una celda, la otra queda vacía)
-        if n > 0:
-            r3c1, r3c2 = st.columns((1, 1))
-            r3c1.markdown(
-                card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]"),
-                unsafe_allow_html=True
-            )
-            r3c2.write("")
 
 
     # Columna 3: Histograma
