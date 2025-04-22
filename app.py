@@ -658,23 +658,23 @@ if "session" in params:
     if not s:
         st.error(f"Sesión inválida: {code}")
         st.stop()
-    tipo = s.get("tipo", "STD")
 
+    tipo = s.get("tipo", "STD")
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # Nombre del participante
+    # Nombre
     name = st.text_input("Nombre del participante:")
     if not name:
         st.warning("Ingrese su nombre para continuar.")
         st.stop()
 
-    # Evita doble voto
+    # Doble voto
     if (tipo == "STD" and name in s["names"]) \
        or (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"]):
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # ——— SESIÓN ESTÁNDAR ———
+    # ————— SESIÓN ESTÁNDAR —————
     if tipo == "STD":
         st.markdown("### Recomendación a evaluar")
         st.markdown(f"**{s['desc']}**")
@@ -694,14 +694,14 @@ if "session" in params:
                 st.error("No se pudo registrar el voto.")
         st.stop()
 
-    # ——— PAQUETE GRADE ———
+    # ————— PAQUETE GRADE —————
     elif tipo == "GRADE_PKG":
         st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
         st.markdown("**Recomendaciones incluidas:**")
         for rc in s["recs"]:
             st.markdown(f"- **{rc}** — {store[rc]['desc']}")
 
-        # Aquí abrimos el formulario
+        # Abrimos un único form para todas las preguntas
         with st.form("grade_form"):
             votos = {}
             comentarios = {}
@@ -714,15 +714,15 @@ if "session" in params:
                     key=f"{code}-vote-{dom}"
                 )
                 comentarios[dom] = st.text_area(
-                    "Comentario (opcional):",
+                    label="Comentario (opcional):",
                     key=f"{code}-com-{dom}",
                     height=60
                 )
 
-            # Botón de envío dentro del form
+            # Este botón pertenece al mismo form
             submitted = st.form_submit_button("Enviar votos GRADE")
 
-        # Sólo al enviarlo procesamos:
+        # Solo si se envió el form
         if submitted:
             pid = hashlib.sha256(name.encode()).hexdigest()[:8]
             for dom in PREGUNTAS_GRADE:
