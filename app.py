@@ -650,16 +650,13 @@ def integrar_reporte_todas_recomendaciones():
 # ─────────────────────────────────────────────────────────────
 params = st.query_params
 if "session" in params:
-    # 1. Obtenemos el código de sesión desde la URL
     raw  = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
-    # 2. Cabecera
     odds_header()
     st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
 
-    # 3. Recuperamos la sesión
     s = store.get(code)
     if not s:
         st.error(f"Sesión inválida: {code}")
@@ -668,88 +665,81 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # 4. Pedimos el nombre del participante
     name = st.text_input("Nombre del participante:")
     if not name:
         st.warning("Ingrese su nombre para continuar.")
         st.stop()
 
-    # 5. Evitamos doble voto
+    # Evitar doble voto
     if (tipo == "STD" and name in s["names"]) \
       or (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"]):
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # ——— SESIÓN ESTÁNDAR ———
+    # SESIÓN ESTÁNDAR
     if tipo == "STD":
-        st.markdown("### Recomendación a evaluar")
-        st.markdown(f"**{s['desc']}**")
-        if s["scale"].startswith("Likert"):
-            st.markdown("1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo")
-            vote = st.slider("Su voto:", 1, 9, 5)
-        else:
-            vote = st.radio("Su voto:", ["Sí", "No"])
-        comment = st.text_area("Comentario (opcional):")
-
-        if st.button("Enviar voto"):
-            pid = record_vote(code, vote, comment, name)
-            if pid:
-                st.balloons()
-                st.success(f"🎉 Gracias. ID de voto: `{pid}`")
-            else:
-                st.error("No se pudo registrar el voto.")
+        # ... tu código de STD aquí ...
         st.stop()
 
-    # ——— PAQUETE GRADE ———
+    # PAQUETE GRADE, paso a paso
     elif tipo == "GRADE_PKG":
         st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
         st.markdown("**Recomendaciones incluidas:**")
         for rc in s["recs"]:
             st.markdown(f"- **{rc}** — {store[rc]['desc']}")
 
-        # 6. Formulario de todos los dominios
-        with st.form("grade_form"):
-            votos = {}
-            comentarios = {}
+        # inicializar paso
+        if "grade_step" not in st.session_state:
+            st.session_state.grade_step = 0
 
-            for dom, pregunta in PREGUNTAS_GRADE.items():
-                st.markdown(f"**{pregunta}**")
-                votos[dom] = st.radio(
-                    label="",
-                    options=DOMINIOS_GRADE[dom],
-                    key=f"{code}-vote-{dom}"
+        preguntas = list(PREGUNTAS_GRADE.items())
+        total = len(preguntas)
+        dom, pregunta = preguntas[st.session_state.grade_step]
+
+        st.markdown(f"**Pregunta {st.session_state.grade_step+1} de {total}: {pregunta}**")
+        # guardar la respuesta en session_state
+        voto_key = f"{code}-vote-{dom}"
+        com_key  = f"{code}-com-{dom}"
+        votos = st.radio("", DOMINIOS_GRADE[dom], key=voto_key)
+        comentario = st.text_area("Comentario (opcional)", key=com_key, height=120)
+
+        cols = st.columns([1,2,1])
+        # botón Anterior
+        if cols[0].button("⬅️ Anterior", disabled=st.session_state.grade_step == 0):
+            st.session_state.grade_step -= 1
+            st.experimental_rerun()
+        # botón Siguiente o Enviar
+        if st.session_state.grade_step < total - 1:
+            if cols[2].button("Siguiente ➡️"):
+                st.session_state.grade_step += 1
+                st.experimental_rerun()
+        else:
+            # último paso: enviar todo
+            if cols[2].button("✅ Enviar votos GRADE"):
+                pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+                # recorre todos los dominios y los guarda
+                for d, _ in preguntas:
+                    val = st.session_state[f"{code}-vote-{d}"]
+                    com = st.session_state[f"{code}-com-{d}"]
+                    meta = s["dominios"][d]
+                    meta["ids"].append(pid)
+                    meta["names"].append(name)
+                    meta["votes"].append(val)
+                    meta["comments"].append(com)
+
+                st.balloons()
+                st.success(f"🎉 Votos registrados. ID: `{pid}`")
+
+                buf = to_excel(code)
+                st.download_button(
+                    "⬇️ Descargar Excel (dominios × participantes)",
+                    data=buf,
+                    file_name=f"GRADE_{code}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
-                comentarios[dom] = st.text_area(
-                    label="Comentario (opcional):",
-                    key=f"{code}-com-{dom}",
-                    height=60
-                )
-
-            submitted = st.form_submit_button("Enviar votos GRADE")
-
-        if submitted:
-            # 7. Guardamos los votos
-            pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-            for dom in PREGUNTAS_GRADE:
-                meta = s["dominios"][dom]
-                meta["ids"].append(pid)
-                meta["names"].append(name)
-                meta["votes"].append(votos[dom])
-                meta["comments"].append(comentarios[dom])
-
-            st.balloons()
-            st.success(f"🎉 Votos registrados. ID: `{pid}`")
-
-            # 8. Botón de descarga de resultados
-            buf = to_excel(code)
-            st.download_button(
-                "⬇️ Descargar Excel (dominios × participantes)",
-                data=buf,
-                file_name=f"GRADE_{code}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-            st.stop()
-
+                # limpiar el paso para futuras sesiones
+                del st.session_state.grade_step
+                st.stop()
 
 
 # 6) Panel de administración
