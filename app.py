@@ -670,7 +670,7 @@ if "session" in params:
 
     # Evita doble voto
     if (tipo == "STD" and name in s["names"]) \
-    or (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"]):
+       or (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"]):
         st.success("✅ Ya registró su participación.")
         st.stop()
 
@@ -695,56 +695,54 @@ if "session" in params:
         st.stop()
 
     # ——— PAQUETE GRADE ———
-# ——— PAQUETE GRADE ———
     elif tipo == "GRADE_PKG":
-    st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
-    st.markdown("**Recomendaciones incluidas:**")
-    for rc in s["recs"]:
-        st.markdown(f"- **{rc}** — {store[rc]['desc']}")
+        st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
+        st.markdown("**Recomendaciones incluidas:**")
+        for rc in s["recs"]:
+            st.markdown(f"- **{rc}** — {store[rc]['desc']}")
 
-    # Agrupamos TODO en un form
-    with st.form("grade_form"):
-        votos = {}
-        comentarios = {}
+        # Agrupamos TODO en un form
+        with st.form("grade_form"):
+            votos = {}
+            comentarios = {}
 
-        for dom, pregunta in PREGUNTAS_GRADE.items():
-            st.markdown(f"**{pregunta}**")
-            votos[dom] = st.radio(
-                label="",
-                options=DOMINIOS_GRADE[dom],
-                key=f"vote_{dom}"
+            for dom, pregunta in PREGUNTAS_GRADE.items():
+                st.markdown(f"**{pregunta}**")
+                votos[dom] = st.radio(
+                    label="",
+                    options=DOMINIOS_GRADE[dom],
+                    key=f"{code}-vote-{dom}"
+                )
+                comentarios[dom] = st.text_area(
+                    "Comentario (opcional):",
+                    key=f"{code}-com-{dom}",
+                    height=60
+                )
+
+            submitted = st.form_submit_button("Enviar votos GRADE")
+
+        if submitted:
+            # Guardar los votos
+            pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+            for dom in PREGUNTAS_GRADE:
+                meta = s["dominios"][dom]
+                meta["ids"].append(pid)
+                meta["names"].append(name)
+                meta["votes"].append(votos[dom])
+                meta["comments"].append(comentarios[dom])
+
+            st.balloons()
+            st.success(f"🎉 Votos registrados. ID: `{pid}`")
+
+            # Descargar resultados
+            buf = to_excel(code)
+            st.download_button(
+                "⬇️ Descargar Excel (dominios × participantes)",
+                data=buf,
+                file_name=f"GRADE_{code}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-            comentarios[dom] = st.text_area(
-                "Comentario (opcional):",
-                key=f"com_{dom}",
-                placeholder="(opcional)",
-                height=60
-            )
-
-        submitted = st.form_submit_button("Enviar votos GRADE")
-
-    if submitted:
-        # Guardar los votos
-        pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-        for dom in PREGUNTAS_GRADE:
-            meta = s["dominios"][dom]
-            meta["ids"].append(pid)
-            meta["names"].append(name)
-            meta["votes"].append(votos[dom])
-            meta["comments"].append(comentarios[dom])
-
-        st.balloons()
-        st.success(f"🎉 Votos registrados. ID: `{pid}`")
-
-        # Descargar resultados
-        buf = to_excel(code)
-        st.download_button(
-            "⬇️ Descargar Excel (dominios × participantes)",
-            data=buf,
-            file_name=f"GRADE_{code}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        st.stop()
+            st.stop()
 
 
 # 6) Panel de administración
