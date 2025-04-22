@@ -927,21 +927,20 @@ elif menu == "Dashboard":
 
     # Cálculo de métricas
     s = store[code]
-    votes = [v for v in s["votes"] if isinstance(v, (int, float))]
-    n = len(votes)
-    media          = np.mean(votes)    if n > 0 else 0.0
-    desv_std       = np.std(votes, ddof=1) if n > 1 else 0.0
+    votes           = [v for v in s["votes"] if isinstance(v, (int, float))]
+    n               = len(votes)
+    media           = np.mean(votes)    if n > 0 else 0.0
+    desv_std        = np.std(votes, ddof=1) if n > 1 else 0.0
     mediana, lo, hi = median_ci(votes)
-    pct            = consensus_pct(votes) * 100
-    quorum         = s.get("n_participantes", 0) // 2 + 1
-    votos_actuales = n
-    # cuántos votos faltan para alcanzar quórum
+    pct             = consensus_pct(votes) * 100
+    quorum          = s.get("n_participantes", 0) // 2 + 1
+    votos_actuales  = n
     votos_faltantes = max(quorum - votos_actuales, 0)
 
     # Tres columnas: Resumen | Métricas | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
 
-    # Columna 1: Resumen
+    # --- Columna 1: Resumen ---
     with col_res:
         if st.button("Finalizar esta sesión"):
             store[code]["is_active"] = False
@@ -957,7 +956,7 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # Columna 2: Métricas en rejilla 2×3
+    # --- Columna 2: Métricas en rejilla 2×3 ---
     with col_kpi:
         grid_html = """
         <div class="metric-grid">
@@ -973,7 +972,7 @@ elif menu == "Dashboard":
         )
         st.markdown(grid_html, unsafe_allow_html=True)
 
-    # Columna 3: Histograma
+    # --- Columna 3: Histograma ---
     with col_chart:
         if votos_actuales:
             df = pd.DataFrame({"Voto": votes})
@@ -995,7 +994,7 @@ elif menu == "Dashboard":
         else:
             st.info("🔍 Aún no hay votos para mostrar.")
 
-    # Estado de consenso
+    # --- Estado de consenso ---
     st.markdown("---")
     if votos_actuales < quorum:
         st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
@@ -1011,7 +1010,7 @@ elif menu == "Dashboard":
         else:
             st.warning("⚠️ NO SE ALCANZÓ CONSENSO")
 
-    # Acciones y exportes
+    # --- Acciones y Exportes ---
     st.subheader("Acciones y Exportación")
     if st.button("Iniciar nueva ronda"):
         history.setdefault(code, []).append(copy.deepcopy(s))
@@ -1025,80 +1024,13 @@ elif menu == "Dashboard":
         st.download_button("⬇️ Descargar TXT", create_report(code),
                            file_name=f"reporte_{code}.txt")
 
-    # Comentarios
+    # --- Comentarios ---
     if s.get("comments"):
         st.subheader("Comentarios de Participantes")
         for pid, name, vote, com in zip(s["ids"], s["names"], votes, s["comments"]):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
 
-elif menu == "Evaluar con GRADE":
-    st.subheader("Evaluación GRADE (paquete de recomendaciones)")
-
-    # 1) Paquetes activos
-    elegibles = {
-        k: v for k, v in store.items()
-        if v.get("tipo") == "GRADE_PKG" and v.get("is_active", True)
-    }
-    if not elegibles:
-        st.info("No hay paquetes GRADE activos.")
-        st.stop()
-
-    # 2) Selección de paquete
-    code = st.selectbox(
-        "Elige el paquete GRADE:",
-        options=list(elegibles.keys()),
-        format_func=lambda k: f"{k} – {store[k]['desc']}"
-    )
-    s = store[code]
-
-    # 3) Contador de participantes que ya han votado
-    primer_dom = next(iter(s["dominios"].values()))
-    registrados = len(primer_dom["ids"])
-    st.markdown(f"**Participantes que ya han votado:** {registrados}/{s['n_participantes']}")
-
-    # 4) Pedimos el nombre ANTES de las preguntas
-    name = st.text_input("Nombre del participante:")
-    if not name:
-        st.warning("Por favor ingresa tu nombre para continuar.")
-        st.stop()
-
-    # 5) Formulario dinámico de preguntas y opciones
-    votos, comentarios = {}, {}
-    for dom in PREGUNTAS_GRADE:
-        # Mostramos la pregunta
-        st.markdown(f"**{PREGUNTAS_GRADE[dom]}**")
-        # Radio con sus opciones
-        votos[dom] = st.radio(
-            "", DOMINIOS_GRADE[dom],
-            key=f"vote_{dom}"
-        )
-        # Textarea para comentario
-        comentarios[dom] = st.text_area(
-            "Comentario (opcional):",
-            key=f"com_{dom}",
-            height=60
-        )
-
-    # 6) Botón de envío
-    if st.button("Enviar votos GRADE"):
-        pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-        for dom in s["dominios"]:
-            s["dominios"][dom]["ids"].append(pid)
-            s["dominios"][dom]["names"].append(name)
-            s["dominios"][dom]["votes"].append(votos[dom])
-            s["dominios"][dom]["comments"].append(comentarios[dom])
-        st.balloons()
-        st.success(f"🎉 Votos registrados. ID: `{pid}`")
-
-    # 7) Botón de descarga transpuesta
-    buf = to_excel(code)
-    st.download_button(
-        "⬇️ Descargar Excel (dominios × participantes)",
-        data=buf,
-        file_name=f"GRADE_{code}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
 
 elif menu == "Crear Paquete GRADE":
     st.subheader("Crear Paquete GRADE")
