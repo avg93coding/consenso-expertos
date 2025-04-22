@@ -929,7 +929,7 @@ elif menu == "Dashboard":
     s = store[code]
     votes           = [v for v in s["votes"] if isinstance(v, (int, float))]
     n               = len(votes)
-    media           = np.mean(votes)    if n > 0 else 0.0
+    media           = np.mean(votes) if n > 0 else 0.0
     desv_std        = np.std(votes, ddof=1) if n > 1 else 0.0
     mediana, lo, hi = median_ci(votes)
     pct             = consensus_pct(votes) * 100
@@ -955,17 +955,22 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # --- Columna 2: Métricas en columna única ---
+    # --- Columna 2: Métricas en rejilla 2×2 ---
     with col_kpi:
-        st.markdown(card_html("Total votos", votos_actuales), unsafe_allow_html=True)
-        st.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
-        st.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
-        st.markdown(card_html("% Consenso", f"{pct:.1f}%"), unsafe_allow_html=True)
+        # Genera la lista de tarjetas
+        cards = [
+            card_html("Total votos", votos_actuales),
+            card_html("Media", f"{media:.2f}"),
+            card_html("Desv. estándar", f"{desv_std:.2f}"),
+            card_html("% Consenso", f"{pct:.1f}%"),
+        ]
         if n > 0:
-            st.markdown(
-                card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]"),
-                unsafe_allow_html=True
+            cards.append(
+                card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]")
             )
+        # Un solo contenedor grid
+        grid_html = f"<div class='metric-grid'>{''.join(cards)}</div>"
+        st.markdown(grid_html, unsafe_allow_html=True)
 
     # --- Columna 3: Histograma ---
     with col_chart:
@@ -1005,7 +1010,7 @@ elif menu == "Dashboard":
         else:
             st.warning("⚠️ NO SE ALCANZÓ CONSENSO")
 
-    # --- Acciones y Exportes ---
+    # --- Acciones y Exportación ---
     st.subheader("Acciones y Exportación")
     if st.button("Iniciar nueva ronda"):
         history.setdefault(code, []).append(copy.deepcopy(s))
@@ -1019,12 +1024,13 @@ elif menu == "Dashboard":
         st.download_button("⬇️ Descargar TXT", create_report(code),
                            file_name=f"reporte_{code}.txt")
 
-    # --- Comentarios ---
+    # --- Comentarios de Participantes ---
     if s.get("comments"):
         st.subheader("Comentarios de Participantes")
         for pid, name, vote, com in zip(s["ids"], s["names"], votes, s["comments"]):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
+
 
 
 elif menu == "Crear Paquete GRADE":
