@@ -957,20 +957,18 @@ elif menu == "Dashboard":
         """)
 
     # --- Columna 2: Métricas en rejilla 2×3 ---
+      # --- Columna 2: Métricas en columna única ---
     with col_kpi:
-        grid_html = """
-        <div class="metric-grid">
-          {c1}{c2}{c3}{c4}{c5}{c6}
-        </div>
-        """.format(
-            c1=card_html("Total votos", votos_actuales),
-            c2=card_html("Media", f"{media:.2f}"),
-            c3=card_html("Desv. estándar", f"{desv_std:.2f}"),
-            c4=card_html("% Consenso", f"{pct:.1f}%"),
-            c5=card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]") if n > 0 else "",
-            c6=card_html("Votos faltantes", votos_faltantes)
-        )
-        st.markdown(grid_html, unsafe_allow_html=True)
+        st.markdown(card_html("Total votos", votos_actuales), unsafe_allow_html=True)
+        st.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
+        st.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
+        st.markdown(card_html("% Consenso", f"{pct:.1f}%"), unsafe_allow_html=True)
+        if n > 0:
+            st.markdown(
+                card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]"),
+                unsafe_allow_html=True
+            )
+        st.markdown(card_html("Votos faltantes", votos_faltantes), unsafe_allow_html=True)
 
     # --- Columna 3: Histograma ---
     with col_chart:
