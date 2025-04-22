@@ -955,9 +955,8 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # --- Columna 2: Métricas en columna única ---
+    # --- Columna 2: Métricas en columna única (sin "Total votos") ---
     with col_kpi:
-        st.markdown(card_html("Total votos", votos_actuales), unsafe_allow_html=True)
         st.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
         st.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
         st.markdown(card_html("% Consenso", f"{pct:.1f}%"), unsafe_allow_html=True)
@@ -1019,7 +1018,7 @@ elif menu == "Dashboard":
         st.download_button("⬇️ Descargar TXT", create_report(code),
                            file_name=f"reporte_{code}.txt")
 
-    # --- Comentarios ---
+    # --- Comentarios de Participantes ---
     if s.get("comments"):
         st.subheader("Comentarios de Participantes")
         for pid, name, vote, com in zip(s["ids"], s["names"], votes, s["comments"]):
