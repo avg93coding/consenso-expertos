@@ -692,6 +692,13 @@ def integrar_reporte_todas_recomendaciones():
 # ——————————————————————————————
 # Manejo de la página de votación según ?session=…
 # ——————————————————————————————
+import streamlit as st
+import hashlib
+# … tus otros imports …
+
+# ——————————————————————————————
+# Pantalla de votación (oculta el panel de administración)
+# ——————————————————————————————
 params = st.query_params
 if "session" in params:
     # 1. Extraer y normalizar el código de sesión
@@ -699,9 +706,14 @@ if "session" in params:
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
-    # 2. Cabecera y ocultar el sidebar
+    # 2. Cabecera y ocultar el sidebar + botón de colapso
     odds_header()
-    st.markdown('<div class="hide-sidebar">', unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+          [data-testid="stSidebar"] { display: none !important; }
+          [data-testid="collapsedControl"] { display: none !important; }
+        </style>
+    """, unsafe_allow_html=True)
 
     # 3. Recuperar la sesión
     s = store.get(code)
@@ -733,7 +745,7 @@ if "session" in params:
         st.markdown("### Recomendación a evaluar")
         st.markdown(f"**{s['desc']}**")
         if s["scale"].startswith("Likert"):
-            st.markdown("1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo")
+            st.markdown("1-3 Desacuerdo • 4-6 Neutral • 7-9 Acuerdo")
             vote = st.slider("Su voto:", 1, 9, 5)
         else:
             vote = st.radio("Su voto:", ["Sí", "No"])
@@ -755,7 +767,6 @@ if "session" in params:
         for rc in s["recs"]:
             st.markdown(f"- **{rc}** — {store[rc]['desc']}")
 
-        # Inicializar el paso si no existe
         if "grade_step" not in st.session_state:
             st.session_state.grade_step = 0
 
@@ -763,14 +774,10 @@ if "session" in params:
         total = len(preguntas)
         dom, pregunta = preguntas[st.session_state.grade_step]
 
-        # Mostrar la pregunta actual
         st.markdown(f"**Pregunta {st.session_state.grade_step+1} de {total}: {pregunta}**")
-        # Guardar respuesta en session_state bajo la clave del dominio
         st.radio("", DOMINIOS_GRADE[dom], key=f"{code}-vote-{dom}")
-        # Guardar comentario
         st.text_area("Comentario (opcional):", key=f"{code}-com-{dom}", height=120)
 
-        # Botones de navegación
         col1, _, col3 = st.columns([1, 2, 1])
         with col1:
             if st.button("⬅️ Anterior", disabled=(st.session_state.grade_step == 0)):
@@ -782,7 +789,6 @@ if "session" in params:
                     st.session_state.grade_step += 1
                     st.rerun()
             else:
-                # Último paso: enviar todos los votos
                 if st.button("✅ Enviar votos GRADE"):
                     pid = hashlib.sha256(name.encode()).hexdigest()[:8]
                     for d, _ in preguntas:
@@ -797,11 +803,10 @@ if "session" in params:
                     st.balloons()
                     st.success(f"🎉 Votos registrados. ID: `{pid}`")
                     st.info("🔔 El administrador puede descargar los resultados en “Crear Paquete GRADE”.")
-                    # Limpiar para la próxima vez
                     del st.session_state.grade_step
-                    st.stop()
+        st.stop()
 
-
+# … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
 # 6) Panel de administración
 odds_header()
