@@ -200,7 +200,7 @@ def to_excel(code: str) -> io.BytesIO:
 
     s = store[code]
 
-    # —— A. Sesión estándar ——
+    # —— A. Sesión estándar —— (sin cambios)
     if s.get("tipo", "STD") == "STD":
         df = pd.DataFrame({
             "ID anónimo":    s["ids"],
@@ -212,35 +212,30 @@ def to_excel(code: str) -> io.BytesIO:
             "Fecha":         [s["created_at"]] * len(s["ids"])
         })
 
-    # —— B. Paquete GRADE (filas=participantes, columnas=dominios) ——
+    # —— B. Paquete GRADE (filas=dominios, columnas=participantes) ——
     elif s.get("tipo") == "GRADE_PKG":
         dominios = list(s["dominios"].keys())
-        # supongo que cada dominio tuvo el mismo # de envíos
-        primero = s["dominios"][dominios[0]]
-        n_envios = len(primero["votes"])
+        # Tomamos la lista de participantes a partir de cualquier dominio
+        participantes = s["dominios"][dominios[0]]["names"]
 
-        filas = []
-        for i in range(n_envios):
-            fila = {
-                "ID":    primero["ids"][i],
-                "Nombre":primero["names"][i],
-                "Fecha": s["created_at"]
-            }
-            # por cada dominio metemos voto + comentario
-            for d in dominios:
-                meta = s["dominios"][d]
-                fila[d] = meta["votes"][i]
-                fila[f"{d}_comentario"] = meta["comments"][i]
-            filas.append(fila)
+        # Construimos un dict dominio → lista de votos
+        votos_por_dominio = {
+            dom: s["dominios"][dom]["votes"]
+            for dom in dominios
+        }
 
-        df = pd.DataFrame(filas)
+        # Creamos el DataFrame con índices=participantes y columnas=dominios,
+        # luego lo transponemos para tener:
+        #   index = dominios, columns = participantes
+        df = pd.DataFrame(votos_por_dominio, index=participantes).T
+        df.index.name = "Dominio"
+        df.columns.name = "Participante"
 
-    # —— Guardar en buffer y devolver ——
+    # — Guardar en buffer y devolver —
     buf = io.BytesIO()
-    df.to_excel(buf, index=False)
+    df.to_excel(buf, index=True)
     buf.seek(0)
     return buf
-
 
 
 def create_report(code: str) -> str:
