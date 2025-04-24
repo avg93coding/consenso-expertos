@@ -1239,11 +1239,9 @@ elif menu == "Reporte Consolidado":
     # A) Documento Word (.docx)
     st.subheader("Documento Word")
     buf_doc = crear_reporte_consolidado_recomendaciones(store, history)
-    # Si es BytesIO extraemos bytes, si ya es bytes lo usamos directamente
-    doc_bytes = buf_doc.getvalue() if hasattr(buf_doc, "getvalue") else buf_doc
     st.download_button(
         label="⬇️ Descargar Reporte .docx",
-        data=doc_bytes,
+        data=buf_doc.getvalue(),  # <-- BytesIO → bytes
         file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
@@ -1251,10 +1249,9 @@ elif menu == "Reporte Consolidado":
     # B) Libro Excel (.xlsx)
     st.subheader("Libro Excel")
     buf_xls = crear_excel_consolidado(store, history)
-    xls_bytes = buf_xls.getvalue() if hasattr(buf_xls, "getvalue") else buf_xls
     st.download_button(
         label="⬇️ Descargar Reporte .xlsx",
-        data=xls_bytes,
+        data=buf_xls.getvalue(),  # <-- BytesIO → bytes
         file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
