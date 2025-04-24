@@ -180,14 +180,19 @@ import io
 import pandas as pd
 from scipy import stats
 
+import io
+import pandas as pd
+import numpy as np
+from scipy import stats
+
 def crear_excel_consolidado(store: dict, history: dict) -> io.BytesIO:
     """
     Genera un Excel con tres hojas:
       1) Recomendaciones estándar
       2) Paquetes GRADE
-      3) Métricas (n, media, mediana, desviación estándar, % consenso, quorum, estado)
+      3) Métricas consolidadas (n, media, mediana, desv. std, % consenso, quórum, estado)
     """
-    # — Hoja 1: Recomendaciones STD —
+    # — Hoja 1: Recomendaciones estándar —
     filas_std = []
     for code, s in store.items():
         if s.get("tipo", "STD") == "STD":
@@ -221,22 +226,25 @@ def crear_excel_consolidado(store: dict, history: dict) -> io.BytesIO:
                     })
     df_grade = pd.DataFrame(filas_grade)
 
-    # — Hoja 3: Métricas Consolidadas —
+    # — Hoja 3: Métricas consolidadas —
     filas_metrics = []
     for code, s in store.items():
         votos = [v for v in s["votes"] if isinstance(v, (int, float))]
         n = len(votos)
-        media = float(pd.Series(votos).mean()) if n else None
-        std   = float(pd.Series(votos).std(ddof=1)) if n > 1 else 0.0
-        mediana = float(pd.Series(votos).median()) if n else None
-        # IC95% para la mediana
+        media   = np.mean(votos)            if n else np.nan
+        std     = np.std(votos, ddof=1)     if n > 1 else 0.0
+        mediana = np.median(votos)          if n else np.nan
+
+        # Bootstrap para IC95% de la mediana
         if n >= 2:
             res = stats.bootstrap((votos,), np.median,
                                   confidence_level=0.95,
-                                  n_resamples=500, method="basic")
+                                  n_resamples=500,
+                                  method="basic")
             lo, hi = res.confidence_interval
         else:
             lo = hi = mediana
+
         pct_consenso = consensus_pct(votos) * 100
         quorum = s.get("n_participantes", 0)//2 + 1
 
@@ -244,7 +252,7 @@ def crear_excel_consolidado(store: dict, history: dict) -> io.BytesIO:
         if n < quorum:
             estado = "⚠️ Quórum no alcanzado"
         elif pct_consenso >= 80 and lo >= 7:
-            estado = "✅ Consenso ALCANZADO"
+            estado = "✅ Consenso alcanzado"
         else:
             estado = "❌ No alcanzó consenso"
 
@@ -265,13 +273,12 @@ def crear_excel_consolidado(store: dict, history: dict) -> io.BytesIO:
         })
     df_metrics = pd.DataFrame(filas_metrics)
 
-    # — Escribir todo a Excel en memoria —
+    # — Escribir a Excel en memoria —
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
         df_std.to_excel(writer, sheet_name="Recomendaciones", index=False)
         df_grade.to_excel(writer, sheet_name="Paquetes_GRADE", index=False)
         df_metrics.to_excel(writer, sheet_name="Métricas", index=False)
-
     buffer.seek(0)
     return buffer
 
