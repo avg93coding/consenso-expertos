@@ -238,6 +238,12 @@ def to_excel(code: str) -> io.BytesIO:
     return buf
 
 def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.BytesIO:
+    from docx import Document
+    from docx.shared import Cm
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    import requests
+    from io import BytesIO
+
     doc = Document()
 
     # 1. Logo en la cabecera
@@ -249,18 +255,19 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
     resp = requests.get(logo_url)
     if resp.status_code == 200:
         img = BytesIO(resp.content)
-        run = doc.sections[0].header.paragraphs[0].add_run()
+        header = doc.sections[0].header.paragraphs[0]
+        run = header.add_run()
         run.add_picture(img, width=Cm(4))
-        doc.sections[0].header.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
-    # Ajustar márgenes para A4
+    # Ajuste márgenes
     for sec in doc.sections:
         sec.left_margin = Cm(2)
         sec.right_margin = Cm(2)
         sec.top_margin = Cm(2)
         sec.bottom_margin = Cm(2)
 
-    # 2. Por cada sesión, generar una sección en el doc
+    # 2. Recorremos cada sesión en store
     for code, s in store.items():
         votos = [v for v in s["votes"] if isinstance(v, (int, float))]
         total = len(votos)
@@ -268,29 +275,29 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
         med, lo, hi = median_ci(votos)
         quorum = s.get("n_participantes", 0) // 2 + 1
 
-        # 2.1 Título
+        # Título
         h = doc.add_heading(level=1)
         h.add_run(f"Recomendación {code}").bold = True
 
-        # 2.2 Descripción y ronda
+        # Descripción y meta
         doc.add_paragraph(f"Descripción: {s['desc']}")
         doc.add_paragraph(f"Ronda: {s['round']}     Fecha: {s['created_at']}")
 
-        # 2.3 Tabla de métricas
+        # Tabla de métricas
         tbl = doc.add_table(rows=2, cols=4, style="Table Grid")
         hdr = tbl.rows[0].cells
         for i, title in enumerate(["Total votos", "% Consenso", "Mediana", "IC95%"]):
-            run = hdr[i].paragraphs[0].add_run(title)
-            run.bold = True
-            hdr[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p = hdr[i].paragraphs[0]
+            run = p.add_run(title); run.bold = True
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        vals = [str(total), f"{pct:.1f}%", f"{med:.1f}", f"[{lo:.1f}, {hi:.1f}]"]
         row = tbl.rows[1].cells
-        for i, v in enumerate(vals):
-            row[i].text = v
-            row[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        for i, v in enumerate([total, f"{pct:.1f}%", f"{med:.1f}", f"[{lo:.1f}, {hi:.1f}]"]):
+            cell = row[i]
+            cell.text = str(v)
+            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        # 2.4 Estado de consenso
+        # Estado de consenso
         if total < quorum:
             estado = "⚠️ Quórum no alcanzado"
         elif pct >= 80 and lo >= 7:
@@ -298,17 +305,18 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
         else:
             estado = "❌ No alcanzó consenso"
 
-        par = doc.add_paragraph()
-        par.add_run("Estado de consenso: ").bold = True
-        par.add_run(estado)
+        p = doc.add_paragraph()
+        p.add_run("Estado de consenso: ").bold = True
+        p.add_run(estado)
 
         doc.add_page_break()
 
-    # 3. Guardar en buffer
-    buf = io.BytesIO()
-    doc.save(buf)
-    buf.seek(0)
-    return buf
+    # 3. Guardar y devolver
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
 
 
 def create_report(code: str) -> str:
@@ -1228,14 +1236,9 @@ elif menu == "Crear Paquete GRADE":
 elif menu == "Reporte Consolidado":
     st.header("📊 Reporte Consolidado")
 
-    # A) Documento Word (.docx)
+    # A) Word
     st.subheader("Documento Word")
-
-    # Generamos de una vez el buffer con el reporte completo, 
-    # ya con %consenso, mediana, IC95%, quórum y estado de consenso.
     buf_doc = crear_reporte_consolidado_recomendaciones(store, history)
-
-    # Botón de descarga directo
     st.download_button(
         label="⬇️ Descargar Reporte .docx",
         data=buf_doc,
@@ -1243,6 +1246,15 @@ elif menu == "Reporte Consolidado":
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
+    # B) Excel
+    st.subheader("Libro Excel")
+    buf_xls = crear_excel_consolidado(store, history)
+    st.download_button(
+        label="⬇️ Descargar Reporte .xlsx",
+        data=buf_xls,
+        file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
     # B) Libro Excel (.xlsx)
     st.subheader("Libro Excel")
