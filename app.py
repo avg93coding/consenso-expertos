@@ -176,6 +176,105 @@ PREGUNTAS_GRADE = {
 }
 # ------------------------------------------------------------
 
+import io
+import pandas as pd
+from scipy import stats
+
+def crear_excel_consolidado(store: dict, history: dict) -> io.BytesIO:
+    """
+    Genera un Excel con tres hojas:
+      1) Recomendaciones estándar
+      2) Paquetes GRADE
+      3) Métricas (n, media, mediana, desviación estándar, % consenso, quorum, estado)
+    """
+    # — Hoja 1: Recomendaciones STD —
+    filas_std = []
+    for code, s in store.items():
+        if s.get("tipo", "STD") == "STD":
+            for pid, name, vote, com in zip(s["ids"], s["names"], s["votes"], s["comments"]):
+                filas_std.append({
+                    "Código": code,
+                    "Descripción": s["desc"],
+                    "Ronda": s["round"],
+                    "Creada": s["created_at"],
+                    "ID participante": pid,
+                    "Nombre": name,
+                    "Voto": vote,
+                    "Comentario": com
+                })
+    df_std = pd.DataFrame(filas_std)
+
+    # — Hoja 2: Paquetes GRADE —
+    filas_grade = []
+    for code, s in store.items():
+        if s.get("tipo") == "GRADE_PKG":
+            for dom, meta in s["dominios"].items():
+                for pid, name, vote, com in zip(meta["ids"], meta["names"], meta["votes"], meta["comments"]):
+                    filas_grade.append({
+                        "Paquete": code,
+                        "Dominio": dom,
+                        "ID participante": pid,
+                        "Nombre": name,
+                        "Voto": vote,
+                        "Comentario": com,
+                        "Creada": s["created_at"]
+                    })
+    df_grade = pd.DataFrame(filas_grade)
+
+    # — Hoja 3: Métricas Consolidadas —
+    filas_metrics = []
+    for code, s in store.items():
+        votos = [v for v in s["votes"] if isinstance(v, (int, float))]
+        n = len(votos)
+        media = float(pd.Series(votos).mean()) if n else None
+        std   = float(pd.Series(votos).std(ddof=1)) if n > 1 else 0.0
+        mediana = float(pd.Series(votos).median()) if n else None
+        # IC95% para la mediana
+        if n >= 2:
+            res = stats.bootstrap((votos,), np.median,
+                                  confidence_level=0.95,
+                                  n_resamples=500, method="basic")
+            lo, hi = res.confidence_interval
+        else:
+            lo = hi = mediana
+        pct_consenso = consensus_pct(votos) * 100
+        quorum = s.get("n_participantes", 0)//2 + 1
+
+        # Estado de consenso
+        if n < quorum:
+            estado = "⚠️ Quórum no alcanzado"
+        elif pct_consenso >= 80 and lo >= 7:
+            estado = "✅ Consenso ALCANZADO"
+        else:
+            estado = "❌ No alcanzó consenso"
+
+        filas_metrics.append({
+            "Código":         code,
+            "Descripción":    s["desc"],
+            "Ronda":          s["round"],
+            "Creada":         s["created_at"],
+            "Votos totales":  n,
+            "Media":          media,
+            "Desv. std.":     std,
+            "Mediana":        mediana,
+            "IC95% (lo)":     lo,
+            "IC95% (hi)":     hi,
+            "% Consenso":     pct_consenso,
+            "Quórum":         quorum,
+            "Estado":         estado
+        })
+    df_metrics = pd.DataFrame(filas_metrics)
+
+    # — Escribir todo a Excel en memoria —
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df_std.to_excel(writer, sheet_name="Recomendaciones", index=False)
+        df_grade.to_excel(writer, sheet_name="Paquetes_GRADE", index=False)
+        df_metrics.to_excel(writer, sheet_name="Métricas", index=False)
+
+    buffer.seek(0)
+    return buffer
+
 
 def shade_cell(cell, fill_hex: str):
     """
@@ -1238,20 +1337,12 @@ elif menu == "Crear Paquete GRADE":
 
 elif menu == "Reporte Consolidado":
     st.header("📊 Reporte Consolidado")
-
-    # Solo Libro Excel (.xlsx)
     st.subheader("Libro Excel (.xlsx)")
 
-    # 1. Generar el buffer con el consolidado
     buf_xls = crear_excel_consolidado(store, history)
-
-    # 2. Convertir BytesIO a bytes
-    xls_bytes = buf_xls.getvalue()
-
-    # 3. Botón de descarga
     st.download_button(
         label="⬇️ Descargar Reporte Consolidado (.xlsx)",
-        data=xls_bytes,
+        data=buf_xls.getvalue(),
         file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
