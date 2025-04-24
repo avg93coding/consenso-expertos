@@ -1234,22 +1234,19 @@ elif menu == "Crear Paquete GRADE":
 elif menu == "Reporte Consolidado":
     st.header("📊 Reporte Consolidado")
 
-    # A) Documento Word (.docx)
-    st.subheader("Documento Word")
-    buf_doc = crear_reporte_consolidado_recomendaciones(store, history)
-    st.download_button(
-        label="⬇️ Descargar Reporte .docx",
-        data=buf_doc.getvalue(),  
-        file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
+    # Solo Libro Excel (.xlsx)
+    st.subheader("Libro Excel (.xlsx)")
 
-    # B) Libro Excel (.xlsx)
-    st.subheader("Libro Excel")
+    # 1. Generar el buffer con el consolidado
     buf_xls = crear_excel_consolidado(store, history)
+
+    # 2. Convertir BytesIO a bytes
+    xls_bytes = buf_xls.getvalue()
+
+    # 3. Botón de descarga
     st.download_button(
-        label="⬇️ Descargar Reporte .xlsx",
-        data=buf_xls.getvalue(),  
+        label="⬇️ Descargar Reporte Consolidado (.xlsx)",
+        data=xls_bytes,
         file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
