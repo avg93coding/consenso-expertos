@@ -255,10 +255,10 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
     resp = requests.get(logo_url)
     if resp.status_code == 200:
         img = BytesIO(resp.content)
-        header = doc.sections[0].header.paragraphs[0]
-        run = header.add_run()
+        header_para = doc.sections[0].header.paragraphs[0]
+        run = header_para.add_run()
         run.add_picture(img, width=Cm(4))
-        header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        header_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
     # — Márgenes A4 —
     for sec in doc.sections:
@@ -267,13 +267,12 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
         sec.top_margin = Cm(2)
         sec.bottom_margin = Cm(2)
 
-    # — Por cada sesión en store —
+    # — Iterar cada sesión —    
     for code, s in store.items():
         votos = [v for v in s["votes"] if isinstance(v, (int, float))]
         total = len(votos)
-        pct   = consensus_pct(votos) * 100
-        med, lo, hi = median_ci(votos)
-        quorum = s.get("n_participantes", 0) // 2 + 1
+        pct, med, lo, hi = consensus_pct(votos)*100, *median_ci(votos)
+        quorum = s.get("n_participantes", 0)//2 + 1
 
         # Título
         h = doc.add_heading(level=1)
@@ -290,6 +289,7 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
             p = hdr[i].paragraphs[0]
             run = p.add_run(title); run.bold = True
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
         row = tbl.rows[1].cells
         for i, val in enumerate([total, f"{pct:.1f}%", f"{med:.1f}", f"[{lo:.1f}, {hi:.1f}]"]):
             row[i].text = str(val)
@@ -309,11 +309,12 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
 
         doc.add_page_break()
 
-    # — Guardar y devolver buffer —
+    # — Guardar en buffer y retornar —
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer
+
 
 
 def create_report(code: str) -> str:
@@ -1235,53 +1236,24 @@ elif menu == "Reporte Consolidado":
 
     # A) Documento Word (.docx)
     st.subheader("Documento Word")
-    # 1. Generar el buffer
     buf_doc = crear_reporte_consolidado_recomendaciones(store, history)
-
-    # 2. Debug: verificar tipo y tamaño
-    st.write("🔍 Tipo de buf_doc:", type(buf_doc))
-    if hasattr(buf_doc, "getvalue"):
-        doc_bytes = buf_doc.getvalue()
-        st.write("🔍 Tamaño de buf_doc (bytes):", len(doc_bytes))
-    else:
-        doc_bytes = None
-        st.write("❌ buf_doc no tiene método getvalue()")
-
-    # 3. Botón de descarga o mensaje de error
-    if doc_bytes:
-        st.download_button(
-            label="⬇️ Descargar Reporte .docx",
-            data=doc_bytes,
-            file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
-    else:
-        st.error("No se pudo generar el reporte Word; revisa crear_reporte_consolidado_recomendaciones().")
+    st.download_button(
+        label="⬇️ Descargar Reporte .docx",
+        data=buf_doc.getvalue(),  
+        file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
 
     # B) Libro Excel (.xlsx)
     st.subheader("Libro Excel")
-    # 1. Generar el buffer
     buf_xls = crear_excel_consolidado(store, history)
+    st.download_button(
+        label="⬇️ Descargar Reporte .xlsx",
+        data=buf_xls.getvalue(),  
+        file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
-    # 2. Debug: verificar tipo y tamaño
-    st.write("🔍 Tipo de buf_xls:", type(buf_xls))
-    if hasattr(buf_xls, "getvalue"):
-        xls_bytes = buf_xls.getvalue()
-        st.write("🔍 Tamaño de buf_xls (bytes):", len(xls_bytes))
-    else:
-        xls_bytes = None
-        st.write("❌ buf_xls no tiene método getvalue()")
-
-    # 3. Botón de descarga o mensaje de error
-    if xls_bytes:
-        st.download_button(
-            label="⬇️ Descargar Reporte .xlsx",
-            data=xls_bytes,
-            file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-    else:
-        st.error("No se pudo generar el reporte Excel; revisa crear_excel_consolidado().")
 
 # Cargar estado
 state_upload = st.sidebar.file_uploader("Cargar Estado", type=["txt"])
