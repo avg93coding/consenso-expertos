@@ -1346,7 +1346,15 @@ elif menu == "Reporte Consolidado":
     st.header("📊 Reporte Consolidado")
     st.subheader("Libro Excel (.xlsx)")
 
+    # 1. Generar el buffer con todas las hojas
     buf_xls = crear_excel_consolidado(store, history)
+
+    # 2. Debug: comprobar que realmente tiene la hoja “Métricas”
+    import pandas as pd
+    xls = pd.ExcelFile(buf_xls)  
+    st.write("📑 Hojas en el Excel:", xls.sheet_names)
+
+    # 3. Botón de descarga
     st.download_button(
         label="⬇️ Descargar Reporte Consolidado (.xlsx)",
         data=buf_xls.getvalue(),
