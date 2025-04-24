@@ -246,7 +246,7 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
 
     doc = Document()
 
-    # 1. Logo en la cabecera
+    # — Logo en la cabecera —
     logo_url = (
         "https://static.wixstatic.com/media/89a9c2_ddc57311fc734357b9ea2b699e107ae2"
         "~mv2.png/v1/fill/w_90,h_54,al_c,q_85,usm_0.66_1.00_0.01/"
@@ -260,14 +260,14 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
         run.add_picture(img, width=Cm(4))
         header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
-    # Ajuste márgenes
+    # — Márgenes A4 —
     for sec in doc.sections:
         sec.left_margin = Cm(2)
         sec.right_margin = Cm(2)
         sec.top_margin = Cm(2)
         sec.bottom_margin = Cm(2)
 
-    # 2. Recorremos cada sesión en store
+    # — Por cada sesión en store —
     for code, s in store.items():
         votos = [v for v in s["votes"] if isinstance(v, (int, float))]
         total = len(votos)
@@ -279,9 +279,9 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
         h = doc.add_heading(level=1)
         h.add_run(f"Recomendación {code}").bold = True
 
-        # Descripción y meta
+        # Descripción y metadatos
         doc.add_paragraph(f"Descripción: {s['desc']}")
-        doc.add_paragraph(f"Ronda: {s['round']}     Fecha: {s['created_at']}")
+        doc.add_paragraph(f"Ronda: {s['round']}    Fecha: {s['created_at']}")
 
         # Tabla de métricas
         tbl = doc.add_table(rows=2, cols=4, style="Table Grid")
@@ -290,12 +290,10 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
             p = hdr[i].paragraphs[0]
             run = p.add_run(title); run.bold = True
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
         row = tbl.rows[1].cells
-        for i, v in enumerate([total, f"{pct:.1f}%", f"{med:.1f}", f"[{lo:.1f}, {hi:.1f}]"]):
-            cell = row[i]
-            cell.text = str(v)
-            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        for i, val in enumerate([total, f"{pct:.1f}%", f"{med:.1f}", f"[{lo:.1f}, {hi:.1f}]"]):
+            row[i].text = str(val)
+            row[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         # Estado de consenso
         if total < quorum:
@@ -311,12 +309,11 @@ def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.
 
         doc.add_page_break()
 
-    # 3. Guardar y devolver
+    # — Guardar y devolver buffer —
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer
-
 
 
 def create_report(code: str) -> str:
