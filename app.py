@@ -1236,37 +1236,25 @@ elif menu == "Crear Paquete GRADE":
 elif menu == "Reporte Consolidado":
     st.header("📊 Reporte Consolidado")
 
-    # A) Word
+    # A) Documento Word (.docx)
     st.subheader("Documento Word")
     buf_doc = crear_reporte_consolidado_recomendaciones(store, history)
     st.download_button(
         label="⬇️ Descargar Reporte .docx",
-        data=buf_doc,
+        data=buf_doc.getvalue(),  # convertimos BytesIO a bytes
         file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
-    # B) Excel
+    # B) Libro Excel (.xlsx)
     st.subheader("Libro Excel")
     buf_xls = crear_excel_consolidado(store, history)
     st.download_button(
         label="⬇️ Descargar Reporte .xlsx",
-        data=buf_xls,
+        data=buf_xls.getvalue(),  # convertimos BytesIO a bytes
         file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-    # B) Libro Excel (.xlsx)
-    st.subheader("Libro Excel")
-    if st.button("⬇️ Descargar Reporte .xlsx"):
-        buf_xls = crear_excel_consolidado(store, history)
-        st.download_button(
-            label="Descargar .xlsx",
-            data=buf_xls,
-            file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
 
 # Cargar estado
 state_upload = st.sidebar.file_uploader("Cargar Estado", type=["txt"])
