@@ -237,6 +237,79 @@ def to_excel(code: str) -> io.BytesIO:
     buf.seek(0)
     return buf
 
+def crear_reporte_consolidado_recomendaciones(store: dict, history: dict) -> io.BytesIO:
+    doc = Document()
+
+    # 1. Logo en la cabecera
+    logo_url = (
+        "https://static.wixstatic.com/media/89a9c2_ddc57311fc734357b9ea2b699e107ae2"
+        "~mv2.png/v1/fill/w_90,h_54,al_c,q_85,usm_0.66_1.00_0.01/"
+        "Logo%20versión%20principal.png"
+    )
+    resp = requests.get(logo_url)
+    if resp.status_code == 200:
+        img = BytesIO(resp.content)
+        run = doc.sections[0].header.paragraphs[0].add_run()
+        run.add_picture(img, width=Cm(4))
+        doc.sections[0].header.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
+
+    # Ajustar márgenes para A4
+    for sec in doc.sections:
+        sec.left_margin = Cm(2)
+        sec.right_margin = Cm(2)
+        sec.top_margin = Cm(2)
+        sec.bottom_margin = Cm(2)
+
+    # 2. Por cada sesión, generar una sección en el doc
+    for code, s in store.items():
+        votos = [v for v in s["votes"] if isinstance(v, (int, float))]
+        total = len(votos)
+        pct   = consensus_pct(votos) * 100
+        med, lo, hi = median_ci(votos)
+        quorum = s.get("n_participantes", 0) // 2 + 1
+
+        # 2.1 Título
+        h = doc.add_heading(level=1)
+        h.add_run(f"Recomendación {code}").bold = True
+
+        # 2.2 Descripción y ronda
+        doc.add_paragraph(f"Descripción: {s['desc']}")
+        doc.add_paragraph(f"Ronda: {s['round']}     Fecha: {s['created_at']}")
+
+        # 2.3 Tabla de métricas
+        tbl = doc.add_table(rows=2, cols=4, style="Table Grid")
+        hdr = tbl.rows[0].cells
+        for i, title in enumerate(["Total votos", "% Consenso", "Mediana", "IC95%"]):
+            run = hdr[i].paragraphs[0].add_run(title)
+            run.bold = True
+            hdr[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        vals = [str(total), f"{pct:.1f}%", f"{med:.1f}", f"[{lo:.1f}, {hi:.1f}]"]
+        row = tbl.rows[1].cells
+        for i, v in enumerate(vals):
+            row[i].text = v
+            row[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # 2.4 Estado de consenso
+        if total < quorum:
+            estado = "⚠️ Quórum no alcanzado"
+        elif pct >= 80 and lo >= 7:
+            estado = "✅ Consenso ALCANZADO"
+        else:
+            estado = "❌ No alcanzó consenso"
+
+        par = doc.add_paragraph()
+        par.add_run("Estado de consenso: ").bold = True
+        par.add_run(estado)
+
+        doc.add_page_break()
+
+    # 3. Guardar en buffer
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf
+
 
 def create_report(code: str) -> str:
     """
@@ -1157,16 +1230,19 @@ elif menu == "Reporte Consolidado":
 
     # A) Documento Word (.docx)
     st.subheader("Documento Word")
-    if st.button("⬇️ Descargar Reporte .docx"):
-        buf_doc = crear_reporte_consolidado_recomendaciones(store, history)
-        st.download_button(
-            label="Descargar .docx",
-            data=buf_doc,
-            file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
 
-    st.markdown("---")
+    # Generamos de una vez el buffer con el reporte completo, 
+    # ya con %consenso, mediana, IC95%, quórum y estado de consenso.
+    buf_doc = crear_reporte_consolidado_recomendaciones(store, history)
+
+    # Botón de descarga directo
+    st.download_button(
+        label="⬇️ Descargar Reporte .docx",
+        data=buf_doc,
+        file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
 
     # B) Libro Excel (.xlsx)
     st.subheader("Libro Excel")
