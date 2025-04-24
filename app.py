@@ -1235,36 +1235,53 @@ elif menu == "Reporte Consolidado":
 
     # A) Documento Word (.docx)
     st.subheader("Documento Word")
+    # 1. Generar el buffer
     buf_doc = crear_reporte_consolidado_recomendaciones(store, history)
 
-    # Validamos que efectivamente tenemos un BytesIO o bytes
-    if buf_doc is None:
-        st.error("❌ El reporte no se ha generado. Revisa crear_reporte_consolidado_recomendaciones().")
+    # 2. Debug: verificar tipo y tamaño
+    st.write("🔍 Tipo de buf_doc:", type(buf_doc))
+    if hasattr(buf_doc, "getvalue"):
+        doc_bytes = buf_doc.getvalue()
+        st.write("🔍 Tamaño de buf_doc (bytes):", len(doc_bytes))
     else:
-        # Si es BytesIO, obtenemos los bytes, si ya fuera bytes los usamos tal cual
-        content = buf_doc.getvalue() if hasattr(buf_doc, "getvalue") else buf_doc
+        doc_bytes = None
+        st.write("❌ buf_doc no tiene método getvalue()")
+
+    # 3. Botón de descarga o mensaje de error
+    if doc_bytes:
         st.download_button(
             label="⬇️ Descargar Reporte .docx",
-            data=content,
+            data=doc_bytes,
             file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
+    else:
+        st.error("No se pudo generar el reporte Word; revisa crear_reporte_consolidado_recomendaciones().")
 
     # B) Libro Excel (.xlsx)
     st.subheader("Libro Excel")
+    # 1. Generar el buffer
     buf_xls = crear_excel_consolidado(store, history)
 
-    if buf_xls is None:
-        st.error("❌ El Excel no se ha generado. Revisa crear_excel_consolidado().")
+    # 2. Debug: verificar tipo y tamaño
+    st.write("🔍 Tipo de buf_xls:", type(buf_xls))
+    if hasattr(buf_xls, "getvalue"):
+        xls_bytes = buf_xls.getvalue()
+        st.write("🔍 Tamaño de buf_xls (bytes):", len(xls_bytes))
     else:
-        content_xls = buf_xls.getvalue() if hasattr(buf_xls, "getvalue") else buf_xls
+        xls_bytes = None
+        st.write("❌ buf_xls no tiene método getvalue()")
+
+    # 3. Botón de descarga o mensaje de error
+    if xls_bytes:
         st.download_button(
             label="⬇️ Descargar Reporte .xlsx",
-            data=content_xls,
+            data=xls_bytes,
             file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-
+    else:
+        st.error("No se pudo generar el reporte Excel; revisa crear_excel_consolidado().")
 
 # Cargar estado
 state_upload = st.sidebar.file_uploader("Cargar Estado", type=["txt"])
