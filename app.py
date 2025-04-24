@@ -1239,22 +1239,34 @@ elif menu == "Reporte Consolidado":
     # A) Documento Word (.docx)
     st.subheader("Documento Word")
     buf_doc = crear_reporte_consolidado_recomendaciones(store, history)
-    st.download_button(
-        label="⬇️ Descargar Reporte .docx",
-        data=buf_doc.getvalue(),  # <-- BytesIO → bytes
-        file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
+
+    # Validamos que efectivamente tenemos un BytesIO o bytes
+    if buf_doc is None:
+        st.error("❌ El reporte no se ha generado. Revisa crear_reporte_consolidado_recomendaciones().")
+    else:
+        # Si es BytesIO, obtenemos los bytes, si ya fuera bytes los usamos tal cual
+        content = buf_doc.getvalue() if hasattr(buf_doc, "getvalue") else buf_doc
+        st.download_button(
+            label="⬇️ Descargar Reporte .docx",
+            data=content,
+            file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
 
     # B) Libro Excel (.xlsx)
     st.subheader("Libro Excel")
     buf_xls = crear_excel_consolidado(store, history)
-    st.download_button(
-        label="⬇️ Descargar Reporte .xlsx",
-        data=buf_xls.getvalue(),  # <-- BytesIO → bytes
-        file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+
+    if buf_xls is None:
+        st.error("❌ El Excel no se ha generado. Revisa crear_excel_consolidado().")
+    else:
+        content_xls = buf_xls.getvalue() if hasattr(buf_xls, "getvalue") else buf_xls
+        st.download_button(
+            label="⬇️ Descargar Reporte .xlsx",
+            data=content_xls,
+            file_name=f"reporte_consolidado_{datetime.datetime.now():%Y%m%d}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 
 # Cargar estado
