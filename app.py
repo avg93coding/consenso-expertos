@@ -615,18 +615,21 @@ def record_vote(code: str, vote, comment: str, name: str, correo: str = None):
     s = store[code]
     pid = hashlib.sha256(name.encode()).hexdigest()[:8]
 
-    # Evitar votos duplicados por nombre
     if name and name in s["names"]:
         idx = s["names"].index(name)
         s["votes"][idx] = vote
         s["comments"][idx] = comment
+        if "correos" in s and idx < len(s["correos"]):
+            s["correos"][idx] = correo  # 🟢 actualiza el correo si ya existía
         return pid
 
     s["votes"].append(vote)
     s["comments"].append(comment)
     s["ids"].append(pid)
     s["names"].append(name)
+    s.setdefault("correos", []).append(correo)  # 🟢 añade el correo nuevo
     return pid
+
 
 def consensus_pct(votes):
     int_votes = [v for v in votes if isinstance(v, (int, float))]
