@@ -793,7 +793,7 @@ if "session" in params:
     if tipo == "STD":
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
-        ⚠️ <strong>Importante:</strong> Solo debe emitir un voto por el paquete de recomendaciones.<br>
+        ⚠️⚠️⚠️ <strong>Importante:</strong> Solo debe emitir un voto por el paquete de recomendaciones.<br>
         Las flechas permiten navegar entre recomendaciones. El voto se registra por paquete completo.
         </div>
         """, unsafe_allow_html=True)
@@ -815,7 +815,7 @@ if "session" in params:
 
         # 📷 Mostrar imágenes relacionadas al paquete
         if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
-            st.markdown("**Haga click sobre las lupas si quiere ver las tablas relacionadas con esta/s recomendacion/es**")
+            st.markdown("Haga click sobre las lupas si quiere ver las tablas relacionadas con esta/s recomendacion/es")
             for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
                 with st.expander(f"🔍 Ver tablas {i+1}"):
                     st.image(img_bytes, use_container_width=True)
