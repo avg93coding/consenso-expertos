@@ -751,10 +751,13 @@ import hashlib
 # ——————————————————————————————
 # Pantalla de votación (oculta el panel de administración)
 # ——————————————————————————————
+# ——————————————————————————————
+# Manejo de la página de votación según ?session=…
+# ——————————————————————————————
 params = st.query_params
 if "session" in params:
     # 1. Extraer y normalizar el código de sesión
-    raw  = params.get("session")
+    raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
@@ -803,7 +806,6 @@ if "session" in params:
 
         st.markdown("### Recomendaciones a Evaluar")
 
-        # Separar recomendaciones si no están divididas aún
         def separar_recomendaciones(texto):
             import re
             partes = re.split(r'\s*\d+\.\s*', str(texto))
@@ -821,9 +823,13 @@ if "session" in params:
 
         st.markdown(f"**Recomendación {index+1} de {total}**")
         st.markdown(reco_actual)
-        
 
-    
+        # 🔽 Mostrar imágenes relacionadas
+        if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
+            st.markdown("📷 **Imágenes relacionadas con esta recomendación:**")
+            for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
+                st.image(img_bytes, caption=f"Imagen {i+1}", use_column_width="always")
+
         # Navegación
         col1, col2, col3 = st.columns([1, 2, 1])
         with col1:
@@ -859,7 +865,6 @@ if "session" in params:
                 del st.session_state.comentarios
                 del st.session_state.reco_index
         st.stop()
-
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
