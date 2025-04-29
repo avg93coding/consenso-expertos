@@ -1092,7 +1092,8 @@ elif menu == "Dashboard":
     mediana, lo, hi = median_ci(votes)
     pct             = consensus_pct(votes) * 100
     quorum          = s.get("n_participantes", 0) // 2 + 1
-    votos_actuales  = n
+    votos_actuales = len(set(s["names"]))
+
 
     # Tres columnas: Resumen | Métricas | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
