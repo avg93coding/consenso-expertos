@@ -756,6 +756,53 @@ import hashlib
 # ——————————————————————————————
 # Manejo de la página de votación según ?session=…
 # ——————————————————————————————
+params = st.query_params
+
+if "session" in params:
+    # Extraer y limpiar el código de sesión
+    raw = params.get("session")
+    code = raw[0] if isinstance(raw, list) else raw
+    code = str(code).strip().upper()
+
+    odds_header()
+
+    # Ocultar barra lateral en la página de votación
+    st.markdown("""
+        <style>
+          [data-testid="stSidebar"] { display: none !important; }
+          [data-testid="collapsedControl"] { display: none !important; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    s = store.get(code)
+    if not s:
+        st.error(f"Sesión inválida: {code}")
+        st.stop()
+
+    tipo = s.get("tipo", "STD")
+
+    st.subheader(f"Panel de votación — Sesión {code}")
+
+    # Capturar nombre y correo
+    name = st.text_input("Nombre completo (nombre y apellido) del participante:")
+    correo = st.text_input("Correo electrónico (obligatorio):")
+
+    if not name or not correo:
+        st.warning("Ingrese nombre y correo electrónico para continuar.")
+        st.stop()
+
+    if not correo_autorizado(correo, code):
+        st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
+        st.stop()
+
+    ya_voto = (
+        (tipo == "STD" and name in s["names"]) or
+        (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
+    )
+    if ya_voto:
+        st.success("✅ Ya registró su participación.")
+        st.stop()
+
     if tipo == "STD":
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
@@ -796,7 +843,7 @@ import hashlib
                 st.session_state.reco_index += 1
                 st.rerun()
 
-        # Solo mostrar el voto cuando esté en la última recomendación
+        # Mostrar el slider solo en la última recomendación
         if index == total - 1:
             st.markdown("---")
             st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
@@ -816,10 +863,12 @@ import hashlib
                 st.balloons()
                 st.success(f"🎉 Su voto ha sido registrado. ID: `{pid}`")
 
+                # Limpiar estado
                 for k in ["lista_recos", "reco_index"]:
                     st.session_state.pop(k, None)
 
                 st.stop()
+
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
