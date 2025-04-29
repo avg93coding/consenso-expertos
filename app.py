@@ -1171,8 +1171,11 @@ elif menu == "Dashboard":
         st.session_state.current_code = code
     c1, c2 = st.columns(2)
     with c1:
-        st.download_button("⬇️ Descargar Excel", to_excel(code),
-                           file_name=f"consenso_{code}.xlsx")
+        buf = to_excel(code)
+           st.download_button("⬇️ Descargar Excel", data=buf.getvalue(),
+                   file_name=f"consenso_{code}.xlsx",
+                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
     with c2:
         st.download_button("⬇️ Descargar TXT", create_report(code),
                            file_name=f"reporte_{code}.txt")
