@@ -843,7 +843,7 @@ if "session" in params:
 
         # Botón de envío final
         if index == total - 1:
-            if st.button("✅ Enviar todos los votos"):
+            if st.button("✅ Enviar voto"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
                 for i in range(total):
                     s["votes"].append(st.session_state.votos[i])
