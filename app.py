@@ -828,7 +828,7 @@ if "session" in params:
         if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
             st.markdown("🖼️ **Imágenes relacionadas con este paquete de recomendaciones:**")
             for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
-                with st.expander(f"🔍 Ver imagen {i+1}"):
+                with st.expander(f"🔍 Ver tablas relacionadas con paquete de recomendaciones {i+1}"):
                     st.image(img_bytes, use_column_width=True)
 
         # Navegación
