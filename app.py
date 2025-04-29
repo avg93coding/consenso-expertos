@@ -758,7 +758,7 @@ if "session" in params:
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
-    # 2. Cabecera y ocultar el sidebar + botón de colapso
+    # 2. Cabecera y ocultar el sidebar
     odds_header()
     st.markdown("""
         <style>
@@ -792,8 +792,15 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # ——— SESIÓN ESTÁNDAR CON PAGINACIÓN Y AVISO ———
+    # ——— SESIÓN ESTÁNDAR CON PAGINACIÓN ———
     if tipo == "STD":
+        st.markdown("""
+        <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
+        ⚠️ <strong>Importante:</strong> Solo debe emitir un voto por el paquete de recomendaciones.<br>
+        Se le pusieron los botones de anterior y siguiente para facilitar la lectura, pero su voto se registra por paquete de recomendaciones.
+        </div>
+        """, unsafe_allow_html=True)
+
         st.markdown("### Recomendaciones a Evaluar")
 
         # Separar recomendaciones si no están divididas aún
@@ -813,16 +820,9 @@ if "session" in params:
         reco_actual = st.session_state.lista_recos[index]
 
         st.markdown(f"**Recomendación {index+1} de {total}**")
-        st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 1rem; border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.05); height: 250px; overflow-y: auto;
-            border-left: 5px solid {PRIMARY}; margin-bottom: 1rem;">
-         {reco_actual}
-         </div>
-         """, unsafe_allow_html=True)
+        st.markdown(reco_actual)
 
-
-        # Botones de navegación arriba
+        # Navegación
         col1, col2, col3 = st.columns([1, 2, 1])
         with col1:
             if st.button("⬅️ Anterior", disabled=(index == 0)):
@@ -833,15 +833,7 @@ if "session" in params:
                 st.session_state.reco_index += 1
                 st.rerun()
 
-        # Caja informativa
-        st.markdown("""
-        <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
-        ⚠️ <strong>Importante:</strong> Solo debe emitir un voto por el paquete de recomendaciones.<br>
-        Se le pusieron los botones de anterior y siguiente para facilitar la lectura, pero su voto se registra por paquete de recomendaciones.
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Escala y comentarios
+        # Escala y comentario
         st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
         voto = st.slider("Su voto:", 1, 9, st.session_state.votos[index], key=f"vote_{index}")
         comentario = st.text_area("Comentario (opcional):", value=st.session_state.comentarios[index], key=f"coment_{index}")
@@ -849,7 +841,7 @@ if "session" in params:
         st.session_state.votos[index] = voto
         st.session_state.comentarios[index] = comentario
 
-        # Envío final
+        # Botón de envío final
         if index == total - 1:
             if st.button("✅ Enviar todos los votos"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
@@ -864,52 +856,6 @@ if "session" in params:
                 del st.session_state.votos
                 del st.session_state.comentarios
                 del st.session_state.reco_index
-        st.stop()
-
-    # ——— PAQUETE GRADE paso a paso ———
-    elif tipo == "GRADE_PKG":
-        st.write(f"### Evaluación GRADE (paquete de {len(s['recs'])} recomendaciones)")
-        st.markdown("**Recomendaciones incluidas:**")
-        for rc in s["recs"]:
-            st.markdown(f"- **{rc}** — {store[rc]['desc']}")
-
-        if "grade_step" not in st.session_state:
-            st.session_state.grade_step = 0
-
-        preguntas = list(PREGUNTAS_GRADE.items())
-        total = len(preguntas)
-        dom, pregunta = preguntas[st.session_state.grade_step]
-
-        st.markdown(f"**Pregunta {st.session_state.grade_step+1} de {total}: {pregunta}**")
-        st.radio("", DOMINIOS_GRADE[dom], key=f"{code}-vote-{dom}")
-        st.text_area("Comentario (opcional):", key=f"{code}-com-{dom}", height=120)
-
-        col1, _, col3 = st.columns([1, 2, 1])
-        with col1:
-            if st.button("⬅️ Anterior", disabled=(st.session_state.grade_step == 0)):
-                st.session_state.grade_step -= 1
-                st.rerun()
-        with col3:
-            if st.session_state.grade_step < total - 1:
-                if st.button("Siguiente ➡️"):
-                    st.session_state.grade_step += 1
-                    st.rerun()
-            else:
-                if st.button("✅ Enviar votos GRADE"):
-                    pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-                    for d, _ in preguntas:
-                        val = st.session_state.get(f"{code}-vote-{d}")
-                        com = st.session_state.get(f"{code}-com-{d}", "")
-                        meta = s["dominios"][d]
-                        meta["ids"].append(pid)
-                        meta["names"].append(name)
-                        meta["votes"].append(val)
-                        meta["comments"].append(com)
-
-                    st.balloons()
-                    st.success(f"🎉 Votos registrados. ID: `{pid}`")
-                    st.info("🔔 El administrador puede descargar los resultados en “Crear Paquete GRADE”.")
-                    del st.session_state.grade_step
         st.stop()
 
 
