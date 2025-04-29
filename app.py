@@ -756,12 +756,10 @@ import hashlib
 # ——————————————————————————————
 params = st.query_params
 if "session" in params:
-    # 1. Extraer y normalizar el código de sesión
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
-    # 2. Cabecera y ocultar el sidebar
     odds_header()
     st.markdown("""
         <style>
@@ -770,7 +768,6 @@ if "session" in params:
         </style>
     """, unsafe_allow_html=True)
 
-    # 3. Recuperar la sesión
     s = store.get(code)
     if not s:
         st.error(f"Sesión inválida: {code}")
@@ -779,13 +776,11 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # 4. Nombre del participante
     name = st.text_input("Nombre del participante:")
     if not name:
         st.warning("Ingrese su nombre para continuar.")
         st.stop()
 
-    # 5. Evitar doble voto
     ya_voto = (
         (tipo == "STD" and name in s["names"])
         or
@@ -795,16 +790,13 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # ——— SESIÓN ESTÁNDAR CON PAGINACIÓN ———
     if tipo == "STD":
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
         ⚠️ <strong>Importante:</strong> Solo debe emitir un voto por el paquete de recomendaciones.<br>
-        Se le pusieron los botones de anterior y siguiente para facilitar la lectura, pero su voto se registra por paquete de recomendaciones.
+        Las flechas permiten navegar entre recomendaciones. El voto se registra por paquete completo.
         </div>
         """, unsafe_allow_html=True)
-
-        st.markdown("### Recomendaciones a Evaluar")
 
         def separar_recomendaciones(texto):
             import re
@@ -821,28 +813,28 @@ if "session" in params:
         total = len(st.session_state.lista_recos)
         reco_actual = st.session_state.lista_recos[index]
 
-        st.markdown(f"**Recomendación {index+1} de {total}**")
-        st.markdown(reco_actual)
-
-        # 🔽 Mostrar imágenes relacionadas al paquete completo
+        # 📷 Mostrar imágenes relacionadas al paquete
         if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
             st.markdown("🖼️ **Imágenes relacionadas con este paquete de recomendaciones:**")
             for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
-                with st.expander(f"🔍 Ver tablas relacionadas con paquete de recomendaciones {i+1}"):
-                    st.image(img_bytes, use_column_width=True)
+                with st.expander(f"🔍 Ver tabla relacionada {i+1}"):
+                    st.image(img_bytes, use_container_width=True)
 
-        # Navegación
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col1:
-            if st.button("⬅️ Anterior", disabled=(index == 0)):
+        # 🔁 Recomendación con navegación tipo carrusel horizontal
+        col_left, col_center, col_right = st.columns([1, 8, 1])
+        with col_left:
+            if st.button("⬅️", key="anterior", disabled=(index == 0)):
                 st.session_state.reco_index -= 1
                 st.rerun()
-        with col3:
-            if st.button("Siguiente ➡️", disabled=(index == total - 1)):
+        with col_center:
+            st.markdown(f"**Recomendación {index+1} de {total}**")
+            st.markdown(reco_actual)
+        with col_right:
+            if st.button("➡️", key="siguiente", disabled=(index == total - 1)):
                 st.session_state.reco_index += 1
                 st.rerun()
 
-        # Escala y comentario
+        # 🔘 Escala y comentario
         st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
         voto = st.slider("Su voto:", 1, 9, st.session_state.votos[index], key=f"vote_{index}")
         comentario = st.text_area("Comentario (opcional):", value=st.session_state.comentarios[index], key=f"coment_{index}")
@@ -850,7 +842,7 @@ if "session" in params:
         st.session_state.votos[index] = voto
         st.session_state.comentarios[index] = comentario
 
-        # Botón de envío final
+        # ✅ Botón de envío al final del paquete
         if index == total - 1:
             if st.button("✅ Enviar voto"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
@@ -861,10 +853,8 @@ if "session" in params:
                     s["names"].append(name)
                 st.balloons()
                 st.success(f"🎉 Todos los votos han sido registrados. ID: `{pid}`")
-                del st.session_state.lista_recos
-                del st.session_state.votos
-                del st.session_state.comentarios
-                del st.session_state.reco_index
+                for k in ["lista_recos", "votos", "comentarios", "reco_index"]:
+                    del st.session_state[k]
         st.stop()
 
 
