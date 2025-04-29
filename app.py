@@ -755,12 +755,16 @@ import hashlib
 # Manejo de la página de votación según ?session=…
 # ——————————————————————————————
 params = st.query_params
+
 if "session" in params:
+    # Extraer y limpiar el código de sesión
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
     odds_header()
+
+    # Ocultar barra lateral en la página de votación
     st.markdown("""
         <style>
           [data-testid="stSidebar"] { display: none !important; }
@@ -772,15 +776,29 @@ if "session" in params:
     if not s:
         st.error(f"Sesión inválida: {code}")
         st.stop()
+
     tipo = s.get("tipo", "STD")
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
+    # Capturar nombre del participante
     name = st.text_input("Nombre completo (nombre y apellido) del participante:")
     if not name:
         st.warning("Ingrese su nombre para continuar.")
         st.stop()
 
+    # Capturar correo electrónico
+    correo = st.text_input("Correo electrónico (obligatorio):")
+    if not correo:
+        st.warning("Debe ingresar su correo electrónico para continuar.")
+        st.stop()
+
+    # Validar si el correo está autorizado
+    if not correo_autorizado(correo, code):
+        st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
+        st.stop()
+
+    # Validar si ya votó previamente
     ya_voto = (
         (tipo == "STD" and name in s["names"])
         or
@@ -790,6 +808,7 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
+    # Módulo de votación tipo STD
     if tipo == "STD":
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
@@ -798,11 +817,13 @@ if "session" in params:
         </div>
         """, unsafe_allow_html=True)
 
+        # Función para separar recomendaciones múltiples
         def separar_recomendaciones(texto):
             import re
             partes = re.split(r'\s*\d+\.\s*', str(texto))
             return [p.strip() for p in partes if p.strip()]
 
+        # Inicializar variables de navegación de recomendaciones
         if "lista_recos" not in st.session_state:
             st.session_state.lista_recos = separar_recomendaciones(s["desc"])
             st.session_state.reco_index = 0
@@ -813,14 +834,14 @@ if "session" in params:
         total = len(st.session_state.lista_recos)
         reco_actual = st.session_state.lista_recos[index]
 
-        # 📷 Mostrar imágenes relacionadas al paquete
+        # Mostrar imágenes relacionadas (si existen)
         if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
             st.markdown("Haga click sobre las lupas si quiere ver las tablas relacionadas con esta/s recomendacion/es")
             for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
                 with st.expander(f"🔍 Ver tablas {i+1}"):
                     st.image(img_bytes, use_container_width=True)
 
-        # 🔁 Recomendación con navegación tipo carrusel horizontal
+        # Carrusel de navegación entre recomendaciones
         col_left, col_center, col_right = st.columns([1, 8, 1])
         with col_left:
             if st.button("⬅️", key="anterior", disabled=(index == 0)):
@@ -834,7 +855,7 @@ if "session" in params:
                 st.session_state.reco_index += 1
                 st.rerun()
 
-        # 🔘 Escala y comentario
+        # Registro de voto y comentario
         st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
         voto = st.slider("Su voto:", 1, 9, st.session_state.votos[index], key=f"vote_{index}")
         comentario = st.text_area("Comentario (opcional):", value=st.session_state.comentarios[index], key=f"coment_{index}")
@@ -842,7 +863,7 @@ if "session" in params:
         st.session_state.votos[index] = voto
         st.session_state.comentarios[index] = comentario
 
-        # ✅ Botón de envío al final del paquete
+        # Botón para enviar voto al final del paquete
         if index == total - 1:
             if st.button("✅ Enviar voto"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
@@ -853,6 +874,7 @@ if "session" in params:
                     s["names"].append(name)
                 st.balloons()
                 st.success(f"🎉 Todos los votos han sido registrados. ID: `{pid}`")
+                # Limpiar variables de sesión
                 for k in ["lista_recos", "votos", "comentarios", "reco_index"]:
                     del st.session_state[k]
         st.stop()
