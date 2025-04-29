@@ -868,16 +868,18 @@ if "session" in params:
 
                 s["votes"].append(voto)
                 s["comments"].append(comentario)
-                s.setdefault("correos", []).append(correo)  # Solo si es privada, se guarda
+                s.setdefault("correos", []).append(correo)
 
                 st.balloons()
                 st.success(f"🎉 Su voto ha sido registrado. ID: `{pid}`")
 
-                # Limpiar estado
                 for k in ["lista_recos", "reco_index"]:
                     st.session_state.pop(k, None)
 
                 st.stop()
+
+    # Detener cualquier render posterior innecesario
+    st.stop()
 
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
