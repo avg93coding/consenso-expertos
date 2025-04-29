@@ -829,7 +829,7 @@ if "session" in params:
         # Caja informativa
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
-        ⚠️ <strong>Importante:</strong> Solo debe emitir un voto por cada recomendación.<br>
+        ⚠️ <strong>Importante:</strong> Solo debe emitir un voto por el paquete de recomendaciones.<br>
         Se le mostrarán una por una para facilitar la lectura, pero todos sus votos se registrarán de forma conjunta al final.
         </div>
         """, unsafe_allow_html=True)
