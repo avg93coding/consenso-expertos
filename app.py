@@ -938,7 +938,7 @@ elif menu == "Crear Recomendación":
                 elif modo == "Seleccionar recomendaciones manualmente":
                     seleccionadas = st.multiselect(
                         "Seleccione las recomendaciones que desea incluir:",
-                        opciones=preguntas
+                        options=preguntas
                     )
                     if seleccionadas:
                         texto_final = ""
