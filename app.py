@@ -795,7 +795,7 @@ if "session" in params:
     # ——— SESIÓN ESTÁNDAR ———
     if tipo == "STD":
         st.markdown("### Recomendación a evaluar")
-        st.markdown(f"**{s['desc']}**")
+        st.markdown(f"**{s['desc'].replace(chr(10), '<br>')}**", unsafe_allow_html=True)
         if s["scale"].startswith("Likert"):
             st.markdown("1-3 Desacuerdo • 4-6 Neutral • 7-9 Acuerdo")
             vote = st.slider("Su voto:", 1, 9, 5)
