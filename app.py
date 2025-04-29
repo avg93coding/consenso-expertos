@@ -792,7 +792,7 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # ——— SESIÓN ESTÁNDAR CON PAGINACIÓN ———
+    # ——— SESIÓN ESTÁNDAR CON PAGINACIÓN Y AVISO ———
     if tipo == "STD":
         st.markdown("### Recomendaciones a Evaluar")
 
@@ -815,14 +815,8 @@ if "session" in params:
         st.markdown(f"**Recomendación {index+1} de {total}**")
         st.markdown(reco_actual)
 
-        st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
-        voto = st.slider("Su voto:", 1, 9, st.session_state.votos[index], key=f"vote_{index}")
-        comentario = st.text_area("Comentario (opcional):", value=st.session_state.comentarios[index], key=f"coment_{index}")
-
-        st.session_state.votos[index] = voto
-        st.session_state.comentarios[index] = comentario
-
-        col1, col2, col3 = st.columns([1, 3, 1])
+        # Botones de navegación arriba
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col1:
             if st.button("⬅️ Anterior", disabled=(index == 0)):
                 st.session_state.reco_index -= 1
@@ -832,6 +826,23 @@ if "session" in params:
                 st.session_state.reco_index += 1
                 st.rerun()
 
+        # Caja informativa
+        st.markdown("""
+        <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
+        ⚠️ <strong>Importante:</strong> Solo debe emitir un voto por cada recomendación.<br>
+        Se le mostrarán una por una para facilitar la lectura, pero todos sus votos se registrarán de forma conjunta al final.
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Escala y comentarios
+        st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
+        voto = st.slider("Su voto:", 1, 9, st.session_state.votos[index], key=f"vote_{index}")
+        comentario = st.text_area("Comentario (opcional):", value=st.session_state.comentarios[index], key=f"coment_{index}")
+
+        st.session_state.votos[index] = voto
+        st.session_state.comentarios[index] = comentario
+
+        # Envío final
         if index == total - 1:
             if st.button("✅ Enviar todos los votos"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
