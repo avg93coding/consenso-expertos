@@ -792,24 +792,60 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # ——— SESIÓN ESTÁNDAR ———
+    # ——— SESIÓN ESTÁNDAR CON PAGINACIÓN ———
     if tipo == "STD":
-        st.markdown("### Recomendación a evaluar")
-        st.markdown(f"**{s['desc'].replace(chr(10), '<br>')}**", unsafe_allow_html=True)
-        if s["scale"].startswith("Likert"):
-            st.markdown("1-3 Desacuerdo • 4-6 Neutral • 7-9 Acuerdo")
-            vote = st.slider("Su voto:", 1, 9, 5)
-        else:
-            vote = st.radio("Su voto:", ["Sí", "No"])
-        comment = st.text_area("Comentario (opcional):")
+        st.markdown("### Recomendaciones a Evaluar")
 
-        if st.button("Enviar voto"):
-            pid = record_vote(code, vote, comment, name)
-            if pid:
+        # Separar recomendaciones si no están divididas aún
+        def separar_recomendaciones(texto):
+            import re
+            partes = re.split(r'\s*\d+\.\s*', str(texto))
+            return [p.strip() for p in partes if p.strip()]
+
+        if "lista_recos" not in st.session_state:
+            st.session_state.lista_recos = separar_recomendaciones(s["desc"])
+            st.session_state.reco_index = 0
+            st.session_state.votos = [5] * len(st.session_state.lista_recos)
+            st.session_state.comentarios = [""] * len(st.session_state.lista_recos)
+
+        index = st.session_state.reco_index
+        total = len(st.session_state.lista_recos)
+        reco_actual = st.session_state.lista_recos[index]
+
+        st.markdown(f"**Recomendación {index+1} de {total}**")
+        st.markdown(reco_actual)
+
+        st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
+        voto = st.slider("Su voto:", 1, 9, st.session_state.votos[index], key=f"vote_{index}")
+        comentario = st.text_area("Comentario (opcional):", value=st.session_state.comentarios[index], key=f"coment_{index}")
+
+        st.session_state.votos[index] = voto
+        st.session_state.comentarios[index] = comentario
+
+        col1, col2, col3 = st.columns([1, 3, 1])
+        with col1:
+            if st.button("⬅️ Anterior", disabled=(index == 0)):
+                st.session_state.reco_index -= 1
+                st.rerun()
+        with col3:
+            if st.button("Siguiente ➡️", disabled=(index == total - 1)):
+                st.session_state.reco_index += 1
+                st.rerun()
+
+        if index == total - 1:
+            if st.button("✅ Enviar todos los votos"):
+                pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+                for i in range(total):
+                    s["votes"].append(st.session_state.votos[i])
+                    s["comments"].append(st.session_state.comentarios[i])
+                    s["ids"].append(pid)
+                    s["names"].append(name)
                 st.balloons()
-                st.success(f"🎉 Gracias. ID de voto: `{pid}`")
-            else:
-                st.error("No se pudo registrar el voto.")
+                st.success(f"🎉 Todos los votos han sido registrados. ID: `{pid}`")
+                del st.session_state.lista_recos
+                del st.session_state.votos
+                del st.session_state.comentarios
+                del st.session_state.reco_index
         st.stop()
 
     # ——— PAQUETE GRADE paso a paso ———
@@ -857,6 +893,7 @@ if "session" in params:
                     st.info("🔔 El administrador puede descargar los resultados en “Crear Paquete GRADE”.")
                     del st.session_state.grade_step
         st.stop()
+
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
