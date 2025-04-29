@@ -823,7 +823,7 @@ if "session" in params:
             partes = re.split(r'\s*\d+\.\s*', str(texto))
             return [p.strip() for p in partes if p.strip()]
 
-        # Inicializar variables de navegación de recomendaciones
+        # Inicializar variables de navegación
         if "lista_recos" not in st.session_state:
             st.session_state.lista_recos = separar_recomendaciones(s["desc"])
             st.session_state.reco_index = 0
@@ -841,7 +841,7 @@ if "session" in params:
                 with st.expander(f"🔍 Ver tablas {i+1}"):
                     st.image(img_bytes, use_container_width=True)
 
-        # Carrusel de navegación entre recomendaciones
+        # Carrusel de navegación
         col_left, col_center, col_right = st.columns([1, 8, 1])
         with col_left:
             if st.button("⬅️", key="anterior", disabled=(index == 0)):
@@ -867,17 +867,21 @@ if "session" in params:
         if index == total - 1:
             if st.button("✅ Enviar voto"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-                for i in range(total):
-                    s["votes"].append(st.session_state.votos[i])
-                    s["comments"].append(st.session_state.comentarios[i])
-                    s["ids"].append(pid)
-                    s["names"].append(name)
+
+                # Registrar una única entrada por participante
+                s["votes"].append(st.session_state.votos)
+                s["comments"].append(st.session_state.comentarios)
+                s["ids"].append(pid)
+                s["names"].append(name)
+
                 st.balloons()
                 st.success(f"🎉 Todos los votos han sido registrados. ID: `{pid}`")
+
                 # Limpiar variables de sesión
                 for k in ["lista_recos", "votos", "comentarios", "reco_index"]:
                     del st.session_state[k]
         st.stop()
+
 
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
