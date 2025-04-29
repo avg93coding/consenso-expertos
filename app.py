@@ -303,45 +303,44 @@ SECONDARY = "#F1592A" # Naranja ODDS (opcional)
 import io
 import pandas as pd
 from scipy import stats
-
 def to_excel(code: str) -> io.BytesIO:
     if code not in store:
         return io.BytesIO()
 
     s = store[code]
 
-    # —— A. Sesión estándar —— (sin cambios)
+    # A. Sesión estándar
     if s.get("tipo", "STD") == "STD":
+        # Asegurar que todas las listas tienen la misma longitud
+        n = min(
+            len(s["ids"]),
+            len(s["names"]),
+            len(s["votes"]),
+            len(s["comments"]),
+            len(s.get("correos", []))  # solo si está presente
+        )
         df = pd.DataFrame({
-            "ID anónimo":    s["ids"],
-            "Nombre real":   s["names"],
-            "Recomendación": [s["desc"]] * len(s["ids"]),
-            "Ronda":         [s["round"]] * len(s["ids"]),
-            "Voto":          s["votes"],
-            "Comentario":    s["comments"],
-            "Fecha":         [s["created_at"]] * len(s["ids"])
+            "ID anónimo":    s["ids"][:n],
+            "Nombre real":   s["names"][:n],
+            "Correo":        s.get("correos", [""] * n)[:n],
+            "Recomendación": [s["desc"]] * n,
+            "Ronda":         [s["round"]] * n,
+            "Voto":          s["votes"][:n],
+            "Comentario":    s["comments"][:n],
+            "Fecha":         [s["created_at"]] * n
         })
 
-    # —— B. Paquete GRADE (filas=dominios, columnas=participantes) ——
     elif s.get("tipo") == "GRADE_PKG":
         dominios = list(s["dominios"].keys())
-        # Tomamos la lista de participantes a partir de cualquier dominio
         participantes = s["dominios"][dominios[0]]["names"]
-
-        # Construimos un dict dominio → lista de votos
         votos_por_dominio = {
             dom: s["dominios"][dom]["votes"]
             for dom in dominios
         }
-
-        # Creamos el DataFrame con índices=participantes y columnas=dominios,
-        # luego lo transponemos para tener:
-        #   index = dominios, columns = participantes
         df = pd.DataFrame(votos_por_dominio, index=participantes).T
         df.index.name = "Dominio"
         df.columns.name = "Participante"
 
-    # — Guardar en buffer y devolver —
     buf = io.BytesIO()
     df.to_excel(buf, index=True)
     buf.seek(0)
