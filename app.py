@@ -824,11 +824,12 @@ if "session" in params:
         st.markdown(f"**Recomendación {index+1} de {total}**")
         st.markdown(reco_actual)
 
-        # 🔽 Mostrar imágenes relacionadas
+        # 🔽 Mostrar imágenes relacionadas al paquete completo
         if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
-            st.markdown("📷 **Imágenes relacionadas con esta recomendación:**")
+            st.markdown("🖼️ **Imágenes relacionadas con este paquete de recomendaciones:**")
             for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
-                st.image(img_bytes, caption=f"Imagen {i+1}", use_column_width="always")
+                with st.expander(f"🔍 Ver imagen {i+1}"):
+                    st.image(img_bytes, use_column_width=True)
 
         # Navegación
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -865,6 +866,7 @@ if "session" in params:
                 del st.session_state.comentarios
                 del st.session_state.reco_index
         st.stop()
+
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
