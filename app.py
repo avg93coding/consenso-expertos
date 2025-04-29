@@ -781,34 +781,26 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # Capturar nombre del participante
+    # Capturar nombre y correo
     name = st.text_input("Nombre completo (nombre y apellido) del participante:")
-    if not name:
-        st.warning("Ingrese su nombre para continuar.")
-        st.stop()
-
-    # Capturar correo electrónico
     correo = st.text_input("Correo electrónico (obligatorio):")
-    if not correo:
-        st.warning("Debe ingresar su correo electrónico para continuar.")
+
+    if not name or not correo:
+        st.warning("Ingrese nombre y correo electrónico para continuar.")
         st.stop()
 
-    # Validar si el correo está autorizado
     if not correo_autorizado(correo, code):
         st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
         st.stop()
 
-    # Validar si ya votó previamente
     ya_voto = (
-        (tipo == "STD" and name in s["names"])
-        or
+        (tipo == "STD" and name in s["names"]) or
         (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
     )
     if ya_voto:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # Módulo de votación tipo STD
     if tipo == "STD":
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
@@ -817,13 +809,11 @@ if "session" in params:
         </div>
         """, unsafe_allow_html=True)
 
-        # Función para separar recomendaciones múltiples
+        import re
         def separar_recomendaciones(texto):
-            import re
             partes = re.split(r'\s*\d+\.\s*', str(texto))
             return [p.strip() for p in partes if p.strip()]
 
-        # Inicializar variables de navegación
         if "lista_recos" not in st.session_state:
             st.session_state.lista_recos = separar_recomendaciones(s["desc"])
             st.session_state.reco_index = 0
@@ -834,14 +824,12 @@ if "session" in params:
         total = len(st.session_state.lista_recos)
         reco_actual = st.session_state.lista_recos[index]
 
-        # Mostrar imágenes relacionadas (si existen)
         if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
             st.markdown("Haga click sobre las lupas si quiere ver las tablas relacionadas con esta/s recomendacion/es")
             for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
                 with st.expander(f"🔍 Ver tablas {i+1}"):
                     st.image(img_bytes, use_container_width=True)
 
-        # Carrusel de navegación
         col_left, col_center, col_right = st.columns([1, 8, 1])
         with col_left:
             if st.button("⬅️", key="anterior", disabled=(index == 0)):
@@ -855,7 +843,6 @@ if "session" in params:
                 st.session_state.reco_index += 1
                 st.rerun()
 
-        # Registro de voto y comentario
         st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
         voto = st.slider("Su voto:", 1, 9, st.session_state.votos[index], key=f"vote_{index}")
         comentario = st.text_area("Comentario (opcional):", value=st.session_state.comentarios[index], key=f"coment_{index}")
@@ -863,25 +850,25 @@ if "session" in params:
         st.session_state.votos[index] = voto
         st.session_state.comentarios[index] = comentario
 
-        # Botón para enviar voto al final del paquete
         if index == total - 1:
             if st.button("✅ Enviar voto"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
 
-                # Registrar una única entrada por participante
-                s["votes"].append(st.session_state.votos)
-                s["comments"].append(st.session_state.comentarios)
-                s["ids"].append(pid)
-                s["names"].append(name)
+                # Solo registrar el nombre una vez (para contar en el quórum)
+                if name not in s["names"]:
+                    s["names"].append(name)
+                    s["ids"].append(pid)
+
+                # Registrar todos los votos del paquete
+                s["votes"].extend(st.session_state.votos)
+                s["comments"].extend(st.session_state.comentarios)
 
                 st.balloons()
                 st.success(f"🎉 Todos los votos han sido registrados. ID: `{pid}`")
 
-                # Limpiar variables de sesión
                 for k in ["lista_recos", "votos", "comentarios", "reco_index"]:
                     del st.session_state[k]
         st.stop()
-
 
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
