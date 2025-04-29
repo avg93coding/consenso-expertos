@@ -1087,13 +1087,12 @@ elif menu == "Dashboard":
     s = store[code]
     votes           = [v for v in s["votes"] if isinstance(v, (int, float))]
     n               = len(votes)
-    media           = np.mean(votes)    if n > 0 else 0.0
+    media           = np.mean(votes) if n > 0 else 0.0
     desv_std        = np.std(votes, ddof=1) if n > 1 else 0.0
     mediana, lo, hi = median_ci(votes)
     pct             = consensus_pct(votes) * 100
     quorum          = s.get("n_participantes", 0) // 2 + 1
-    votos_actuales = len(set(s["names"]))
-
+    votos_actuales  = len(set(s["names"]))
 
     # Tres columnas: Resumen | Métricas | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
@@ -1114,7 +1113,7 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # --- Columna 2: Métricas en columna única (sin "Total votos") ---
+    # --- Columna 2: Métricas en columna única ---
     with col_kpi:
         st.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
         st.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
@@ -1169,12 +1168,16 @@ elif menu == "Dashboard":
         history.setdefault(code, []).append(copy.deepcopy(s))
         st.session_state.modify_recommendation = True
         st.session_state.current_code = code
+
     c1, c2 = st.columns(2)
     with c1:
         buf = to_excel(code)
-           st.download_button("⬇️ Descargar Excel", data=buf.getvalue(),
-                   file_name=f"consenso_{code}.xlsx",
-                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        if buf:
+            st.download_button("⬇️ Descargar Excel", data=buf.getvalue(),
+                               file_name=f"consenso_{code}.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        else:
+            st.warning("⚠️ No hay datos disponibles para exportar en Excel.")
 
     with c2:
         st.download_button("⬇️ Descargar TXT", create_report(code),
