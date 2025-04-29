@@ -905,16 +905,12 @@ elif menu == "Crear Recomendación":
     st.subheader("Crear Nueva Recomendación")
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    # Función para separar recomendaciones si vienen varias en un solo campo
     import re
     def separar_recomendaciones(texto):
         partes = re.split(r'\s*\d+\.\s*', str(texto))
-        partes = [p.strip() for p in partes if p.strip()]
-        return partes
+        return [p.strip() for p in partes if p.strip()]
 
-    # ─────────── 1. Cargar banco de Excel (opcional) ────────────
     st.markdown("### Cargar recomendaciones desde Excel")
-
     if "uploader_key" not in st.session_state:
         st.session_state.uploader_key = 0
 
@@ -928,38 +924,20 @@ elif menu == "Crear Recomendación":
         try:
             df = pd.read_excel(excel_file, engine="openpyxl")
             df.columns = df.columns.str.strip().str.lower()
-            required_cols = {"recomendacion"}
-
-            if not required_cols.issubset(df.columns):
+            if "recomendacion" not in df.columns:
                 st.error("El archivo debe tener al menos una columna llamada 'recomendacion'.")
             else:
                 preguntas = df["recomendacion"].dropna().tolist()
-
-                # 🛠️ Nueva opción: elegir modo
-                modo = st.radio(
-                    "¿Cómo desea proceder con las recomendaciones?",
-                    ["Usar todas las recomendaciones", "Seleccionar recomendaciones manualmente"]
-                )
-
+                modo = st.radio("¿Cómo desea proceder con las recomendaciones?", ["Usar todas las recomendaciones", "Seleccionar recomendaciones manualmente"])
                 if modo == "Usar todas las recomendaciones":
-                    texto_final = ""
-                    for idx, rec in enumerate(preguntas, start=1):
-                        texto_final += f"{idx}. {rec}\n"
-
+                    texto_final = "\n".join([f"{i+1}. {rec}" for i, rec in enumerate(preguntas)])
                     st.session_state["ronda_precargada"] = df["ronda"].iloc[0] if "ronda" in df.columns else ""
                     st.session_state["recomendaciones_precargadas"] = texto_final.strip()
                     st.success(f"✅ {len(preguntas)} recomendaciones cargadas para la sesión.")
-
                 elif modo == "Seleccionar recomendaciones manualmente":
-                    seleccionadas = st.multiselect(
-                        "Seleccione las recomendaciones que desea incluir:",
-                        options=preguntas
-                    )
+                    seleccionadas = st.multiselect("Seleccione las recomendaciones que desea incluir:", options=preguntas)
                     if seleccionadas:
-                        texto_final = ""
-                        for idx, rec in enumerate(seleccionadas, start=1):
-                            texto_final += f"{idx}. {rec}\n"
-
+                        texto_final = "\n".join([f"{i+1}. {rec}" for i, rec in enumerate(seleccionadas)])
                         st.session_state["ronda_precargada"] = df["ronda"].iloc[0] if "ronda" in df.columns else ""
                         st.session_state["recomendaciones_precargadas"] = texto_final.strip()
                         st.success(f"✅ {len(seleccionadas)} recomendaciones seleccionadas para la sesión.")
@@ -974,37 +952,18 @@ elif menu == "Crear Recomendación":
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # ─────────── 2. Formulario manual de creación ────────────
+    # —— Formulario de creación manual ——
     with st.form("create_form", clear_on_submit=True):
-        nombre_ronda = st.text_input(
-            "Nombre de la ronda:",
-            value=st.session_state.pop("ronda_precargada", "")
-        )
-        desc = st.text_area(
-            "Recomendaciones a evaluar:",
-            value=st.session_state.pop("recomendaciones_precargadas", ""),
-            height=300
-        )
+        codigo_manual = st.text_input("Código personalizado para la sesión (opcional):").strip().upper()
+        nombre_ronda = st.text_input("Nombre de la ronda:", value=st.session_state.pop("ronda_precargada", ""))
+        desc = st.text_area("Recomendaciones a evaluar:", value=st.session_state.pop("recomendaciones_precargadas", ""), height=300)
         scale = st.selectbox("Escala de votación:", ["Likert 1-9", "Sí/No"])
-        n_participantes = st.number_input(
-            "¿Cuántos participantes están habilitados para votar?",
-            min_value=1, step=1
-        )
+        n_participantes = st.number_input("¿Cuántos participantes están habilitados para votar?", min_value=1, step=1)
         es_privada = st.checkbox("¿Esta recomendación será privada?")
+        imagenes_subidas = st.file_uploader("📷 Cargar imágenes relacionadas (opcional)", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
-        # ➡️ Cargar imágenes relacionadas
-        imagenes_subidas = st.file_uploader(
-            "📷 Cargar imágenes relacionadas (opcional)",
-            type=["png", "jpg", "jpeg"],
-            accept_multiple_files=True
-        )
-
-        # ➡️ Cargar correos autorizados
         correos_autorizados = []
-        archivo_correos = st.file_uploader(
-            "📧 Lista de correos autorizados (CSV con columna 'correo')",
-            type=["csv"]
-        )
+        archivo_correos = st.file_uploader("📧 Lista de correos autorizados (CSV con columna 'correo')", type=["csv"])
         if archivo_correos:
             try:
                 df_correos = pd.read_csv(archivo_correos)
@@ -1024,17 +983,18 @@ elif menu == "Crear Recomendación":
         </div>
         """, unsafe_allow_html=True)
 
-        # Botón de creación de recomendación
         if st.form_submit_button("Crear Recomendación"):
             if not desc:
                 st.warning("Por favor, ingrese la recomendación.")
                 st.stop()
 
-            code = uuid.uuid4().hex[:6].upper()
+            code = codigo_manual if codigo_manual else uuid.uuid4().hex[:6].upper()
+            if code in store:
+                st.error("❌ Ese código ya está en uso. Elija otro.")
+                st.stop()
+
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            descripcion_final = (
-                f"{desc} ({nombre_ronda})" if nombre_ronda else desc
-            )
+            descripcion_final = f"{desc} ({nombre_ronda})" if nombre_ronda else desc
 
             store[code] = {
                 "desc": descripcion_final,
