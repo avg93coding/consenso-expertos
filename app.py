@@ -780,21 +780,29 @@ if "session" in params:
         st.stop()
 
     tipo = s.get("tipo", "STD")
+    es_privada = s.get("privado", False)
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # Capturar nombre y correo
+    # Capturar nombre
     name = st.text_input("Nombre completo (nombre y apellido) del participante:")
-    correo = st.text_input("Correo electrónico (obligatorio):")
 
-    if not name or not correo:
-        st.warning("Ingrese nombre y correo electrónico para continuar.")
-        st.stop()
+    # Capturar correo solo si la sesión es privada
+    correo = None
+    if es_privada:
+        correo = st.text_input("Correo electrónico (obligatorio):")
+        if not name or not correo:
+            st.warning("Ingrese nombre y correo electrónico para continuar.")
+            st.stop()
+        if not correo_autorizado(correo, code):
+            st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
+            st.stop()
+    else:
+        if not name:
+            st.warning("Ingrese su nombre para continuar.")
+            st.stop()
 
-    if not correo_autorizado(correo, code):
-        st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
-        st.stop()
-
+    # Verificar si ya votó
     ya_voto = (
         (tipo == "STD" and name in s["names"]) or
         (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
@@ -803,6 +811,7 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
+    # Tipo estándar: Voto por paquete de recomendaciones
     if tipo == "STD":
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
@@ -843,7 +852,7 @@ if "session" in params:
                 st.session_state.reco_index += 1
                 st.rerun()
 
-        # Mostrar el slider solo en la última recomendación
+        # Solo permitir votar en la última recomendación
         if index == total - 1:
             st.markdown("---")
             st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
@@ -859,6 +868,7 @@ if "session" in params:
 
                 s["votes"].append(voto)
                 s["comments"].append(comentario)
+                s.setdefault("correos", []).append(correo)  # Solo si es privada, se guarda
 
                 st.balloons()
                 st.success(f"🎉 Su voto ha sido registrado. ID: `{pid}`")
