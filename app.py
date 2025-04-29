@@ -890,10 +890,17 @@ elif menu == "Crear Recomendación":
     st.subheader("Crear Nueva Recomendación")
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
+    # Función para separar recomendaciones si vienen varias en un solo campo
+    import re
+    def separar_recomendaciones(texto):
+        # Usa regex para detectar numeraciones tipo 1. 2. 3.
+        partes = re.split(r'\s*\d+\.\s*', str(texto))
+        partes = [p.strip() for p in partes if p.strip()]
+        return partes
+
     # ─────────── 1.  Cargar banco de Excel (opcional) ────────────
     st.markdown("### Cargar recomendaciones desde Excel")
 
-    # key dinámico → permite “vaciar” el uploader sin recargar la página
     if "uploader_key" not in st.session_state:
         st.session_state.uploader_key = 0
 
@@ -903,7 +910,6 @@ elif menu == "Crear Recomendación":
         key=f"excel_{st.session_state.uploader_key}"
     )
 
-    # Si se sube un archivo por primera vez (o con la nueva key)
     if excel_file and "df_rec" not in st.session_state:
         try:
             df = pd.read_excel(excel_file, engine="openpyxl")
@@ -912,21 +918,26 @@ elif menu == "Crear Recomendación":
             if not req.issubset(df.columns):
                 st.error("El Excel debe tener columnas 'ronda' y 'recomendacion'.")
             else:
-                df = df.dropna(subset=["ronda", "recomendacion"])
-                st.session_state["df_rec"] = df
-                st.success(f"✅ {len(df)} recomendaciones cargadas.")
+                nuevas_filas = []
+                for idx, fila in df.iterrows():
+                    recomendaciones = separar_recomendaciones(fila['recomendacion'])
+                    for rec in recomendaciones:
+                        nuevas_filas.append({
+                            "ronda": fila["ronda"],
+                            "recomendacion": rec
+                        })
+                st.session_state["df_rec"] = pd.DataFrame(nuevas_filas)
+                st.success(f"✅ {len(nuevas_filas)} recomendaciones individuales cargadas.")
         except Exception as e:
             st.error(f"Error al leer el archivo: {e}")
 
-    # Muestra selector si el DataFrame está en memoria
     if "df_rec" in st.session_state:
         df_rec = st.session_state["df_rec"]
 
-        # Botón para quitar el archivo cargado y resetear el uploader
         if st.button("❌ Quitar archivo cargado"):
             for k in ["df_rec", "ronda_precargada", "recomendacion_precargada"]:
                 st.session_state.pop(k, None)
-            st.session_state.uploader_key += 1  # fuerza un uploader nuevo vacío
+            st.session_state.uploader_key += 1
             st.experimental_rerun()
 
         opciones = (
@@ -943,7 +954,7 @@ elif menu == "Crear Recomendación":
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # ─────────── 2.  Formulario de creación (manual o precargado) ────────────
+    # ─────────── 2.  Formulario manual de creación ────────────
     with st.form("create_form", clear_on_submit=True):
         nombre_ronda = st.text_input(
             "Nombre de la ronda:",
@@ -961,7 +972,7 @@ elif menu == "Crear Recomendación":
         )
         es_privada = st.checkbox("¿Esta recomendación será privada?")
 
-        # —— Lista de correos autorizados (opcional) ——
+        # —— Cargar correos autorizados (opcional) ——
         correos_autorizados = []
         archivo_correos = st.file_uploader(
             "📧 Lista de correos autorizados (CSV con columna 'correo')",
@@ -971,9 +982,7 @@ elif menu == "Crear Recomendación":
             try:
                 df_correos = pd.read_csv(archivo_correos)
                 if "correo" in df_correos.columns:
-                    correos_autorizados = (
-                        df_correos["correo"].astype(str).str.strip().tolist()
-                    )
+                    correos_autorizados = df_correos["correo"].astype(str).str.strip().tolist()
                     st.success(f"{len(correos_autorizados)} correos cargados.")
                 else:
                     st.error("El CSV debe contener una columna llamada 'correo'.")
@@ -988,7 +997,6 @@ elif menu == "Crear Recomendación":
         </div>
         """, unsafe_allow_html=True)
 
-        # ———  Botón de creación  ———
         if st.form_submit_button("Crear Recomendación"):
             if not desc:
                 st.warning("Por favor, ingrese la recomendación.")
@@ -1003,9 +1011,12 @@ elif menu == "Crear Recomendación":
             store[code] = {
                 "desc": descripcion_final,
                 "scale": scale,
-                "votes": [], "comments": [],
-                "ids": [], "names": [],
-                "created_at": timestamp, "round": 1,
+                "votes": [],
+                "comments": [],
+                "ids": [],
+                "names": [],
+                "created_at": timestamp,
+                "round": 1,
                 "is_active": True,
                 "n_participantes": int(n_participantes),
                 "privado": es_privada,
@@ -1029,10 +1040,6 @@ elif menu == "Crear Recomendación":
             st.info(f"URL para compartir: {url}")
             st.write(f"[Abrir página de votación]({url})")
             st.markdown("</div>", unsafe_allow_html=True)
-   
-
-
-
 
 
 elif menu == "Dashboard":
