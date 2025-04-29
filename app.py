@@ -913,19 +913,41 @@ elif menu == "Crear Recomendación":
         try:
             df = pd.read_excel(excel_file, engine="openpyxl")
             df.columns = df.columns.str.strip().str.lower()
-            req = {"ronda", "recomendacion"}
-            if not req.issubset(df.columns):
-                st.error("El Excel debe tener columnas 'ronda' y 'recomendacion'.")
-            else:
-                fila = df.iloc[0]
-                recomendaciones = separar_recomendaciones(fila['recomendacion'])
-                texto_final = ""
-                for idx, rec in enumerate(recomendaciones, start=1):
-                    texto_final += f"{idx}. {rec}\n"
+            required_cols = {"recomendacion"}
 
-                st.session_state["ronda_precargada"] = fila["ronda"]
-                st.session_state["recomendaciones_precargadas"] = texto_final.strip()
-                st.success(f"✅ {len(recomendaciones)} recomendaciones detectadas y agrupadas para una sola sesión.")
+            if not required_cols.issubset(df.columns):
+                st.error("El archivo debe tener al menos una columna llamada 'recomendacion'.")
+            else:
+                preguntas = df["recomendacion"].dropna().tolist()
+
+                # 🛠️ Nueva opción: elegir modo
+                modo = st.radio(
+                    "¿Cómo desea proceder con las recomendaciones?",
+                    ["Usar todas las recomendaciones", "Seleccionar recomendaciones manualmente"]
+                )
+
+                if modo == "Usar todas las recomendaciones":
+                    texto_final = ""
+                    for idx, rec in enumerate(preguntas, start=1):
+                        texto_final += f"{idx}. {rec}\n"
+
+                    st.session_state["ronda_precargada"] = df["ronda"].iloc[0] if "ronda" in df.columns else ""
+                    st.session_state["recomendaciones_precargadas"] = texto_final.strip()
+                    st.success(f"✅ {len(preguntas)} recomendaciones cargadas para la sesión.")
+
+                elif modo == "Seleccionar recomendaciones manualmente":
+                    seleccionadas = st.multiselect(
+                        "Seleccione las recomendaciones que desea incluir:",
+                        opciones=preguntas
+                    )
+                    if seleccionadas:
+                        texto_final = ""
+                        for idx, rec in enumerate(seleccionadas, start=1):
+                            texto_final += f"{idx}. {rec}\n"
+
+                        st.session_state["ronda_precargada"] = df["ronda"].iloc[0] if "ronda" in df.columns else ""
+                        st.session_state["recomendaciones_precargadas"] = texto_final.strip()
+                        st.success(f"✅ {len(seleccionadas)} recomendaciones seleccionadas para la sesión.")
         except Exception as e:
             st.error(f"Error al leer el archivo: {e}")
 
@@ -955,14 +977,14 @@ elif menu == "Crear Recomendación":
         )
         es_privada = st.checkbox("¿Esta recomendación será privada?")
 
-        # ➡️ Nuevo: Cargar imágenes relacionadas
+        # ➡️ Cargar imágenes relacionadas
         imagenes_subidas = st.file_uploader(
             "📷 Cargar imágenes relacionadas (opcional)",
             type=["png", "jpg", "jpeg"],
             accept_multiple_files=True
         )
 
-        # Cargar correos autorizados (opcional)
+        # ➡️ Cargar correos autorizados
         correos_autorizados = []
         archivo_correos = st.file_uploader(
             "📧 Lista de correos autorizados (CSV con columna 'correo')",
@@ -987,7 +1009,7 @@ elif menu == "Crear Recomendación":
         </div>
         """, unsafe_allow_html=True)
 
-        # Botón de creación
+        # Botón de creación de recomendación
         if st.form_submit_button("Crear Recomendación"):
             if not desc:
                 st.warning("Por favor, ingrese la recomendación.")
@@ -1016,7 +1038,7 @@ elif menu == "Crear Recomendación":
             }
             history[code] = []
 
-            st.success("Sesión creada exitosamente.")
+            st.success("✅ Sesión creada exitosamente.")
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown(f"""
@@ -1032,6 +1054,7 @@ elif menu == "Crear Recomendación":
             st.info(f"URL para compartir: {url}")
             st.write(f"[Abrir página de votación]({url})")
             st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 elif menu == "Dashboard":
