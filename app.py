@@ -821,7 +821,9 @@ if "session" in params:
 
         st.markdown(f"**Recomendación {index+1} de {total}**")
         st.markdown(reco_actual)
+        
 
+    
         # Navegación
         col1, col2, col3 = st.columns([1, 2, 1])
         with col1:
@@ -894,12 +896,11 @@ elif menu == "Crear Recomendación":
     # Función para separar recomendaciones si vienen varias en un solo campo
     import re
     def separar_recomendaciones(texto):
-        # Usa regex para detectar numeraciones tipo 1. 2. 3.
         partes = re.split(r'\s*\d+\.\s*', str(texto))
         partes = [p.strip() for p in partes if p.strip()]
         return partes
 
-    # ─────────── 1.  Cargar banco de Excel (opcional) ────────────
+    # ─────────── 1. Cargar banco de Excel (opcional) ────────────
     st.markdown("### Cargar recomendaciones desde Excel")
 
     if "uploader_key" not in st.session_state:
@@ -919,7 +920,7 @@ elif menu == "Crear Recomendación":
             if not req.issubset(df.columns):
                 st.error("El Excel debe tener columnas 'ronda' y 'recomendacion'.")
             else:
-                fila = df.iloc[0]  # Solo la primera fila
+                fila = df.iloc[0]
                 recomendaciones = separar_recomendaciones(fila['recomendacion'])
                 texto_final = ""
                 for idx, rec in enumerate(recomendaciones, start=1):
@@ -931,7 +932,6 @@ elif menu == "Crear Recomendación":
         except Exception as e:
             st.error(f"Error al leer el archivo: {e}")
 
-    # Botón para quitar archivo cargado
     if "recomendaciones_precargadas" in st.session_state and st.button("❌ Quitar archivo cargado"):
         for k in ["ronda_precargada", "recomendaciones_precargadas"]:
             st.session_state.pop(k, None)
@@ -940,7 +940,7 @@ elif menu == "Crear Recomendación":
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # ─────────── 2.  Formulario manual de creación ────────────
+    # ─────────── 2. Formulario manual de creación ────────────
     with st.form("create_form", clear_on_submit=True):
         nombre_ronda = st.text_input(
             "Nombre de la ronda:",
@@ -957,6 +957,13 @@ elif menu == "Crear Recomendación":
             min_value=1, step=1
         )
         es_privada = st.checkbox("¿Esta recomendación será privada?")
+
+        # ➡️ Nuevo: Cargar imágenes relacionadas
+        imagenes_subidas = st.file_uploader(
+            "📷 Cargar imágenes relacionadas (opcional)",
+            type=["png", "jpg", "jpeg"],
+            accept_multiple_files=True
+        )
 
         # Cargar correos autorizados (opcional)
         correos_autorizados = []
@@ -1007,7 +1014,8 @@ elif menu == "Crear Recomendación":
                 "is_active": True,
                 "n_participantes": int(n_participantes),
                 "privado": es_privada,
-                "correos_autorizados": correos_autorizados
+                "correos_autorizados": correos_autorizados,
+                "imagenes_relacionadas": [img.getvalue() for img in imagenes_subidas] if imagenes_subidas else []
             }
             history[code] = []
 
@@ -1027,6 +1035,7 @@ elif menu == "Crear Recomendación":
             st.info(f"URL para compartir: {url}")
             st.write(f"[Abrir página de votación]({url})")
             st.markdown("</div>", unsafe_allow_html=True)
+
 
 elif menu == "Dashboard":
     st.subheader("Dashboard en Tiempo Real")
