@@ -813,7 +813,14 @@ if "session" in params:
         reco_actual = st.session_state.lista_recos[index]
 
         st.markdown(f"**Recomendación {index+1} de {total}**")
-        st.markdown(reco_actual)
+        st.markdown(f"""
+        <div style="background-color: #ffffff; padding: 1rem; border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05); height: 250px; overflow-y: auto;
+            border-left: 5px solid {PRIMARY}; margin-bottom: 1rem;">
+         {reco_actual}
+         </div>
+         """, unsafe_allow_html=True)
+
 
         # Botones de navegación arriba
         col1, col2, col3 = st.columns([1, 2, 1])
