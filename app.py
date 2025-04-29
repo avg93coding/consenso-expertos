@@ -776,7 +776,7 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    name = st.text_input("Nombre del participante:")
+    name = st.text_input("Nombre completo (nombre y apellido) del participante:")
     if not name:
         st.warning("Ingrese su nombre para continuar.")
         st.stop()
