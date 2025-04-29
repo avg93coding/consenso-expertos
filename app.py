@@ -756,58 +756,11 @@ import hashlib
 # ——————————————————————————————
 # Manejo de la página de votación según ?session=…
 # ——————————————————————————————
-params = st.query_params
-
-if "session" in params:
-    # Extraer y limpiar el código de sesión
-    raw = params.get("session")
-    code = raw[0] if isinstance(raw, list) else raw
-    code = str(code).strip().upper()
-
-    odds_header()
-
-    # Ocultar barra lateral en la página de votación
-    st.markdown("""
-        <style>
-          [data-testid="stSidebar"] { display: none !important; }
-          [data-testid="collapsedControl"] { display: none !important; }
-        </style>
-    """, unsafe_allow_html=True)
-
-    s = store.get(code)
-    if not s:
-        st.error(f"Sesión inválida: {code}")
-        st.stop()
-
-    tipo = s.get("tipo", "STD")
-
-    st.subheader(f"Panel de votación — Sesión {code}")
-
-    # Capturar nombre y correo
-    name = st.text_input("Nombre completo (nombre y apellido) del participante:")
-    correo = st.text_input("Correo electrónico (obligatorio):")
-
-    if not name or not correo:
-        st.warning("Ingrese nombre y correo electrónico para continuar.")
-        st.stop()
-
-    if not correo_autorizado(correo, code):
-        st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
-        st.stop()
-
-    ya_voto = (
-        (tipo == "STD" and name in s["names"]) or
-        (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
-    )
-    if ya_voto:
-        st.success("✅ Ya registró su participación.")
-        st.stop()
-
     if tipo == "STD":
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
-        ⚠️⚠️⚠️ <strong>Importante:</strong> Solo debe emitir un voto por el paquete de recomendaciones.<br>
-        Las flechas permiten navegar entre recomendaciones. El voto se registra por paquete completo.
+        ⚠️ <strong>Importante:</strong> Lea todas las recomendaciones antes de emitir su voto.<br>
+        Al finalizar el recorrido podrá emitir un único voto global para todo el paquete.
         </div>
         """, unsafe_allow_html=True)
 
@@ -819,8 +772,6 @@ if "session" in params:
         if "lista_recos" not in st.session_state:
             st.session_state.lista_recos = separar_recomendaciones(s["desc"])
             st.session_state.reco_index = 0
-            st.session_state.votos = [5] * len(st.session_state.lista_recos)
-            st.session_state.comentarios = [""] * len(st.session_state.lista_recos)
 
         index = st.session_state.reco_index
         total = len(st.session_state.lista_recos)
@@ -845,33 +796,30 @@ if "session" in params:
                 st.session_state.reco_index += 1
                 st.rerun()
 
-        st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
-        voto = st.slider("Su voto:", 1, 9, st.session_state.votos[index], key=f"vote_{index}")
-        comentario = st.text_area("Comentario (opcional):", value=st.session_state.comentarios[index], key=f"coment_{index}")
-
-        st.session_state.votos[index] = voto
-        st.session_state.comentarios[index] = comentario
-
+        # Solo mostrar el voto cuando esté en la última recomendación
         if index == total - 1:
+            st.markdown("---")
+            st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
+            voto = st.slider("Su voto global para todas las recomendaciones:", 1, 9, 5, key="voto_final")
+            comentario = st.text_area("Comentario (opcional):", key="comentario_final")
+
             if st.button("✅ Enviar voto"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
 
-                # Solo registrar el nombre una vez (para contar en el quórum)
                 if name not in s["names"]:
                     s["names"].append(name)
                     s["ids"].append(pid)
 
-                # Registrar todos los votos del paquete
-                s["votes"].extend(st.session_state.votos)
-                s["comments"].extend(st.session_state.comentarios)
+                s["votes"].append(voto)
+                s["comments"].append(comentario)
 
                 st.balloons()
-                st.success(f"🎉 Todos los votos han sido registrados. ID: `{pid}`")
+                st.success(f"🎉 Su voto ha sido registrado. ID: `{pid}`")
 
-                for k in ["lista_recos", "votos", "comentarios", "reco_index"]:
-                    del st.session_state[k]
-        st.stop()
+                for k in ["lista_recos", "reco_index"]:
+                    st.session_state.pop(k, None)
 
+                st.stop()
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
