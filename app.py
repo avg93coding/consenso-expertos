@@ -756,17 +756,18 @@ import hashlib
 # ——————————————————————————————
 # Manejo de la página de votación según ?session=…
 # ——————————————————————————————
+# --- Inicio: Manejo de params para flujo de votación ---
 params = st.query_params
 
 if "session" in params:
-    # Extraer código de sesión
+    # Obtener código limpio de sesión
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
     odds_header()
 
-    # Ocultar barra lateral
+    # Ocultar barra lateral en la página de votación
     st.markdown("""
         <style>
           [data-testid="stSidebar"] { display: none !important; }
@@ -774,6 +775,7 @@ if "session" in params:
         </style>
     """, unsafe_allow_html=True)
 
+    # Verificar que el código exista en store
     s = store.get(code)
     if not s:
         st.error(f"Sesión inválida: {code}")
@@ -784,41 +786,51 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # —— Formulario inicial ——
-    with st.form("form_identificacion"):
-        name = st.text_input("Nombre completo (nombre y apellido) del participante:")
-        correo = st.text_input("Correo electrónico (obligatorio):") if es_privada else None
-        continuar = st.form_submit_button("Siguiente")
+    # Fase 1: Captura de identidad (nombre y correo si aplica)
+    if "nombre_registrado" not in st.session_state:
+        with st.form("form_identificacion"):
+            name = st.text_input("Nombre completo (nombre y apellido) del participante:")
+            correo = st.text_input("Correo electrónico (obligatorio):") if es_privada else None
+            continuar = st.form_submit_button("Siguiente")
 
-    if not continuar:
+        if not continuar:
+            st.stop()
+
+        if not name or (es_privada and not correo):
+            st.warning("Debe completar todos los campos para continuar.")
+            st.stop()
+
+        if es_privada and not correo_autorizado(correo, code):
+            st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
+            st.stop()
+
+        # Validar si ya votó
+        ya_voto = (
+            (tipo == "STD" and name in s["names"]) or
+            (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
+        )
+        if ya_voto:
+            st.success("✅ Ya registró su participación.")
+            st.stop()
+
+        st.session_state.nombre_registrado = name
+        st.session_state.correo_registrado = correo
+        st.rerun()
+
+    name = st.session_state.nombre_registrado
+    correo = st.session_state.correo_registrado
+
+    # Fase 2: Elección de modo de revisión
+    if "modo_votacion" not in st.session_state:
+        st.session_state.modo_votacion = st.radio(
+            "¿Cómo desea proceder?",
+            ["Leer las recomendaciones una por una", "Ir directamente a la escala de votación"],
+            index=0
+        )
         st.stop()
 
-    if not name or (es_privada and not correo):
-        st.warning("Debe completar todos los campos.")
-        st.stop()
-
-    if es_privada and not correo_autorizado(correo, code):
-        st.error("❌ El correo ingresado no está autorizado para esta sesión.")
-        st.stop()
-
-    # Validar si ya votó
-    ya_voto = (
-        (tipo == "STD" and name in s["names"]) or
-        (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
-    )
-    if ya_voto:
-        st.success("✅ Ya registró su participación.")
-        st.stop()
-
-    # —— Votación tipo estándar ——
+    # Fase 3: Proceso de votación tipo estándar
     if tipo == "STD":
-        st.markdown("""
-        <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
-        ⚠️ <strong>Importante:</strong> Lea todas las recomendaciones antes de emitir su voto.<br>
-        Al finalizar el recorrido podrá emitir un único voto global para todo el paquete.
-        </div>
-        """, unsafe_allow_html=True)
-
         import re
         def separar_recomendaciones(texto):
             partes = re.split(r'\s*\d+\.\s*', str(texto))
@@ -828,29 +840,16 @@ if "session" in params:
             st.session_state.lista_recos = separar_recomendaciones(s["desc"])
             st.session_state.reco_index = 0
 
-        # Guardar la elección del modo de revisión
-        if "modo_votacion" not in st.session_state:
-            st.session_state.modo_votacion = st.radio(
-                "¿Cómo desea proceder?",
-                ["Leer las recomendaciones una por una", "Ir directamente a la escala de votación"],
-                index=0
-            )
-            st.stop()  # Esperar a que el usuario seleccione antes de continuar
+        index = st.session_state.reco_index
+        total = len(st.session_state.lista_recos)
 
-        # Si elige ir directamente, ir al final
-        if st.session_state.modo_votacion == "Ir directamente a la escala de votación":
-            mostrar_votacion = True
-        else:
-            mostrar_votacion = (st.session_state.reco_index == len(st.session_state.lista_recos) - 1)
+        mostrar_votacion = st.session_state.modo_votacion == "Ir directamente a la escala de votación" or index == total - 1
 
-        # Mostrar recomendaciones solo si no eligió saltarlas
+        # Mostrar recomendaciones si se eligió leer una por una
         if st.session_state.modo_votacion != "Ir directamente a la escala de votación":
-            index = st.session_state.reco_index
-            total = len(st.session_state.lista_recos)
             reco_actual = st.session_state.lista_recos[index]
 
             if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
-                st.markdown("Haga click sobre las lupas para ver las tablas relacionadas:")
                 for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
                     with st.expander(f"🔍 Ver tabla {i+1}"):
                         st.image(img_bytes, use_container_width=True)
@@ -868,7 +867,7 @@ if "session" in params:
                     st.session_state.reco_index += 1
                     st.rerun()
 
-        # — Votación —
+        # Fase 4: Mostrar Likert y capturar voto solo cuando corresponde
         if mostrar_votacion:
             st.markdown("---")
             st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
@@ -889,12 +888,12 @@ if "session" in params:
                 st.balloons()
                 st.success(f"🎉 Su voto ha sido registrado. ID: `{pid}`")
 
-                for k in ["lista_recos", "reco_index", "modo_votacion"]:
+                # Limpiar estados
+                for k in ["lista_recos", "reco_index", "modo_votacion", "nombre_registrado", "correo_registrado"]:
                     st.session_state.pop(k, None)
 
                 st.stop()
-
-
+# --- Fin ---
 
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
