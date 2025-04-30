@@ -781,32 +781,25 @@ if "session" in params:
 
     tipo = s.get("tipo", "STD")
     es_privada = s.get("privado", False)
+
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # —— Paso 1: Captura de nombre/correo ——
-    if "identificado" not in st.session_state:
-        with st.form("form_identificacion"):
-            name = st.text_input("Nombre completo (nombre y apellido):")
-            correo = st.text_input("Correo electrónico (obligatorio):") if es_privada else None
-            continuar = st.form_submit_button("Siguiente")
+    # —— Formulario inicial ——
+    with st.form("form_identificacion"):
+        name = st.text_input("Nombre completo (nombre y apellido) del participante:")
+        correo = st.text_input("Correo electrónico (obligatorio):") if es_privada else None
+        continuar = st.form_submit_button("Siguiente")
 
-        if not continuar:
-            st.stop()
-        if not name or (es_privada and not correo):
-            st.warning("Debe completar todos los campos.")
-            st.stop()
-        if es_privada and not correo_autorizado(correo, code):
-            st.error("Correo no autorizado para esta sesión privada.")
-            st.stop()
+    if not continuar:
+        st.stop()
 
-        # Guardar en session_state
-        st.session_state.name = name
-        st.session_state.correo = correo
-        st.session_state.identificado = True
-        st.rerun()
+    if not name or (es_privada and not correo):
+        st.warning("Debe completar todos los campos.")
+        st.stop()
 
-    name = st.session_state.name
-    correo = st.session_state.correo
+    if es_privada and not correo_autorizado(correo, code):
+        st.error("❌ El correo ingresado no está autorizado para esta sesión.")
+        st.stop()
 
     # Validar si ya votó
     ya_voto = (
@@ -817,81 +810,90 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # —— Paso 2: Selección del modo de votación ——
+    # —— Votación tipo estándar ——
     if tipo == "STD":
+        st.markdown("""
+        <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
+        ⚠️ <strong>Importante:</strong> Lea todas las recomendaciones antes de emitir su voto.<br>
+        Al finalizar el recorrido podrá emitir un único voto global para todo el paquete.
+        </div>
+        """, unsafe_allow_html=True)
+
+        import re
+        def separar_recomendaciones(texto):
+            partes = re.split(r'\s*\d+\.\s*', str(texto))
+            return [p.strip() for p in partes if p.strip()]
+
         if "lista_recos" not in st.session_state:
-            import re
-            def separar_recomendaciones(texto):
-                partes = re.split(r'\s*\d+\.\s*', str(texto))
-                return [p.strip() for p in partes if p.strip()]
             st.session_state.lista_recos = separar_recomendaciones(s["desc"])
             st.session_state.reco_index = 0
 
+        # Guardar la elección del modo de revisión
         if "modo_votacion" not in st.session_state:
-            with st.form("form_modo_votacion"):
-                modo = st.radio(
-                    "¿Cómo desea proceder?",
-                    ["Leer las recomendaciones una por una", "Ir directamente a la escala de votación"],
-                    index=0
-                )
-                avanzar = st.form_submit_button("Continuar")
+            st.session_state.modo_votacion = st.radio(
+                "¿Cómo desea proceder?",
+                ["Leer las recomendaciones una por una", "Ir directamente a la escala de votación"],
+                index=0
+            )
+            st.stop()  # Esperar a que el usuario seleccione antes de continuar
 
-            if not avanzar:
-                st.stop()
+        # Si elige ir directamente, ir al final
+        if st.session_state.modo_votacion == "Ir directamente a la escala de votación":
+            mostrar_votacion = True
+        else:
+            mostrar_votacion = (st.session_state.reco_index == len(st.session_state.lista_recos) - 1)
 
-            st.session_state.modo_votacion = modo
-            if modo == "Ir directamente a la escala de votación":
-                st.session_state.reco_index = len(st.session_state.lista_recos) - 1
-            st.rerun()
+        # Mostrar recomendaciones solo si no eligió saltarlas
+        if st.session_state.modo_votacion != "Ir directamente a la escala de votación":
+            index = st.session_state.reco_index
+            total = len(st.session_state.lista_recos)
+            reco_actual = st.session_state.lista_recos[index]
 
-        # —— Paso 3: Visualización y votación ——
-        index = st.session_state.reco_index
-        total = len(st.session_state.lista_recos)
-        reco_actual = st.session_state.lista_recos[index]
+            if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
+                st.markdown("Haga click sobre las lupas para ver las tablas relacionadas:")
+                for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
+                    with st.expander(f"🔍 Ver tabla {i+1}"):
+                        st.image(img_bytes, use_container_width=True)
 
-        if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
-            st.markdown("Haga click sobre las lupas para ver tablas relacionadas:")
-            for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
-                with st.expander(f"🔍 Ver tabla {i+1}"):
-                    st.image(img_bytes, use_container_width=True)
+            col_left, col_center, col_right = st.columns([1, 8, 1])
+            with col_left:
+                if st.button("⬅️", key="anterior", disabled=(index == 0)):
+                    st.session_state.reco_index -= 1
+                    st.rerun()
+            with col_center:
+                st.markdown(f"**Recomendación {index+1} de {total}**")
+                st.markdown(reco_actual)
+            with col_right:
+                if st.button("➡️", key="siguiente", disabled=(index == total - 1)):
+                    st.session_state.reco_index += 1
+                    st.rerun()
 
-        col_left, col_center, col_right = st.columns([1, 8, 1])
-        with col_left:
-            if st.button("⬅️", key="anterior", disabled=(index == 0)):
-                st.session_state.reco_index -= 1
-                st.rerun()
-        with col_center:
-            st.markdown(f"**Recomendación {index+1} de {total}**")
-            st.markdown(reco_actual)
-        with col_right:
-            if st.button("➡️", key="siguiente", disabled=(index == total - 1)):
-                st.session_state.reco_index += 1
-                st.rerun()
-
-        # Mostrar votación solo si corresponde
-        mostrar_votacion = (
-            st.session_state.modo_votacion == "Ir directamente a la escala de votación" or
-            st.session_state.reco_index == total - 1
-        )
+        # — Votación —
         if mostrar_votacion:
             st.markdown("---")
             st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
-            voto = st.slider("Su voto global para todas las recomendaciones:", 1, 9, 5)
-            comentario = st.text_area("Comentario (opcional):")
+            voto = st.slider("Su voto global para todas las recomendaciones:", 1, 9, 5, key="voto_final")
+            comentario = st.text_area("Comentario (opcional):", key="comentario_final")
 
             if st.button("✅ Enviar voto"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-                s["names"].append(name)
-                s["ids"].append(pid)
+
+                if name not in s["names"]:
+                    s["names"].append(name)
+                    s["ids"].append(pid)
+
                 s["votes"].append(voto)
                 s["comments"].append(comentario)
                 s.setdefault("correos", []).append(correo)
 
                 st.balloons()
                 st.success(f"🎉 Su voto ha sido registrado. ID: `{pid}`")
-                for k in ["lista_recos", "reco_index", "modo_votacion", "identificado"]:
+
+                for k in ["lista_recos", "reco_index", "modo_votacion"]:
                     st.session_state.pop(k, None)
+
                 st.stop()
+
 
 
 
