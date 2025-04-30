@@ -784,23 +784,22 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # Capturar nombre
-    name = st.text_input("Nombre completo (nombre y apellido) del participante:")
+    # ——— NUEVO: Captura con botón "Siguiente" ———
+    with st.form("form_identificacion"):
+        name = st.text_input("Nombre completo (nombre y apellido) del participante:")
+        correo = st.text_input("Correo electrónico (obligatorio):") if es_privada else None
+        continuar = st.form_submit_button("Siguiente")
 
-    # Capturar correo solo si la sesión es privada
-    correo = None
-    if es_privada:
-        correo = st.text_input("Correo electrónico (obligatorio):")
-        if not name or not correo:
-            st.warning("Ingrese nombre y correo electrónico para continuar.")
-            st.stop()
-        if not correo_autorizado(correo, code):
-            st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
-            st.stop()
-    else:
-        if not name:
-            st.warning("Ingrese su nombre para continuar.")
-            st.stop()
+    if not continuar:
+        st.stop()
+
+    if not name or (es_privada and not correo):
+        st.warning("Debe completar todos los campos para continuar.")
+        st.stop()
+
+    if es_privada and not correo_autorizado(correo, code):
+        st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
+        st.stop()
 
     # Verificar si ya votó
     ya_voto = (
@@ -811,7 +810,7 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # Tipo estándar: Voto por paquete de recomendaciones
+    # ——— FLUJO PARA SESIÓN ESTÁNDAR ———
     if tipo == "STD":
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
@@ -828,6 +827,16 @@ if "session" in params:
         if "lista_recos" not in st.session_state:
             st.session_state.lista_recos = separar_recomendaciones(s["desc"])
             st.session_state.reco_index = 0
+
+        # ——— NUEVO: Saltar lectura ———
+        mostrar_recomendaciones = st.radio(
+            "¿Cómo desea proceder?",
+            ["Leer las recomendaciones una por una", "Ir directamente a la escala de votación"],
+            index=0
+        )
+
+        if mostrar_recomendaciones == "Ir directamente a la escala de votación":
+            st.session_state.reco_index = len(st.session_state.lista_recos) - 1
 
         index = st.session_state.reco_index
         total = len(st.session_state.lista_recos)
@@ -878,8 +887,6 @@ if "session" in params:
 
                 st.stop()
 
-    # Detener cualquier render posterior innecesario
-    st.stop()
 
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
