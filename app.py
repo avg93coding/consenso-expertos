@@ -756,11 +756,10 @@ import hashlib
 # ——————————————————————————————
 # Manejo de la página de votación según ?session=…
 # ——————————————————————————————
-# --- Inicio: Manejo de params para flujo de votación ---
 params = st.query_params
 
 if "session" in params:
-    # Obtener código limpio de sesión
+    # Extraer y limpiar el código de sesión
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
@@ -775,62 +774,43 @@ if "session" in params:
         </style>
     """, unsafe_allow_html=True)
 
-    # Verificar que el código exista en store
     s = store.get(code)
     if not s:
         st.error(f"Sesión inválida: {code}")
         st.stop()
 
     tipo = s.get("tipo", "STD")
-    es_privada = s.get("privado", False)
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # Fase 1: Captura de identidad (nombre y correo si aplica)
-    if "nombre_registrado" not in st.session_state:
-        with st.form("form_identificacion"):
-            name = st.text_input("Nombre completo (nombre y apellido) del participante:")
-            correo = st.text_input("Correo electrónico (obligatorio):") if es_privada else None
-            continuar = st.form_submit_button("Siguiente")
+    # Capturar nombre y correo
+    name = st.text_input("Nombre completo (nombre y apellido) del participante:")
+    correo = st.text_input("Correo electrónico (obligatorio):")
 
-        if not continuar:
-            st.stop()
-
-        if not name or (es_privada and not correo):
-            st.warning("Debe completar todos los campos para continuar.")
-            st.stop()
-
-        if es_privada and not correo_autorizado(correo, code):
-            st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
-            st.stop()
-
-        # Validar si ya votó
-        ya_voto = (
-            (tipo == "STD" and name in s["names"]) or
-            (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
-        )
-        if ya_voto:
-            st.success("✅ Ya registró su participación.")
-            st.stop()
-
-        st.session_state.nombre_registrado = name
-        st.session_state.correo_registrado = correo
-        st.rerun()
-
-    name = st.session_state.nombre_registrado
-    correo = st.session_state.correo_registrado
-
-    # Fase 2: Elección de modo de revisión
-    if "modo_votacion" not in st.session_state:
-        st.session_state.modo_votacion = st.radio(
-            "¿Cómo desea proceder?",
-            ["Leer las recomendaciones una por una", "Ir directamente a la escala de votación"],
-            index=0
-        )
+    if not name or not correo:
+        st.warning("Ingrese nombre y correo electrónico para continuar.")
         st.stop()
 
-    # Fase 3: Proceso de votación tipo estándar
+    if not correo_autorizado(correo, code):
+        st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
+        st.stop()
+
+    ya_voto = (
+        (tipo == "STD" and name in s["names"]) or
+        (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
+    )
+    if ya_voto:
+        st.success("✅ Ya registró su participación.")
+        st.stop()
+
     if tipo == "STD":
+        st.markdown("""
+        <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
+        ⚠️⚠️⚠️ <strong>Importante:</strong> Solo debe emitir un voto por el paquete de recomendaciones.<br>
+        Las flechas permiten navegar entre recomendaciones. El voto se registra por paquete completo.
+        </div>
+        """, unsafe_allow_html=True)
+
         import re
         def separar_recomendaciones(texto):
             partes = re.split(r'\s*\d+\.\s*', str(texto))
@@ -839,61 +819,58 @@ if "session" in params:
         if "lista_recos" not in st.session_state:
             st.session_state.lista_recos = separar_recomendaciones(s["desc"])
             st.session_state.reco_index = 0
+            st.session_state.votos = [5] * len(st.session_state.lista_recos)
+            st.session_state.comentarios = [""] * len(st.session_state.lista_recos)
 
         index = st.session_state.reco_index
         total = len(st.session_state.lista_recos)
+        reco_actual = st.session_state.lista_recos[index]
 
-        mostrar_votacion = st.session_state.modo_votacion == "Ir directamente a la escala de votación" or index == total - 1
+        if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
+            st.markdown("Haga click sobre las lupas si quiere ver las tablas relacionadas con esta/s recomendacion/es")
+            for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
+                with st.expander(f"🔍 Ver tablas {i+1}"):
+                    st.image(img_bytes, use_container_width=True)
 
-        # Mostrar recomendaciones si se eligió leer una por una
-        if st.session_state.modo_votacion != "Ir directamente a la escala de votación":
-            reco_actual = st.session_state.lista_recos[index]
+        col_left, col_center, col_right = st.columns([1, 8, 1])
+        with col_left:
+            if st.button("⬅️", key="anterior", disabled=(index == 0)):
+                st.session_state.reco_index -= 1
+                st.rerun()
+        with col_center:
+            st.markdown(f"**Recomendación {index+1} de {total}**")
+            st.markdown(reco_actual)
+        with col_right:
+            if st.button("➡️", key="siguiente", disabled=(index == total - 1)):
+                st.session_state.reco_index += 1
+                st.rerun()
 
-            if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
-                for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
-                    with st.expander(f"🔍 Ver tabla {i+1}"):
-                        st.image(img_bytes, use_container_width=True)
+        st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
+        voto = st.slider("Su voto:", 1, 9, st.session_state.votos[index], key=f"vote_{index}")
+        comentario = st.text_area("Comentario (opcional):", value=st.session_state.comentarios[index], key=f"coment_{index}")
 
-            col_left, col_center, col_right = st.columns([1, 8, 1])
-            with col_left:
-                if st.button("⬅️", key="anterior", disabled=(index == 0)):
-                    st.session_state.reco_index -= 1
-                    st.rerun()
-            with col_center:
-                st.markdown(f"**Recomendación {index+1} de {total}**")
-                st.markdown(reco_actual)
-            with col_right:
-                if st.button("➡️", key="siguiente", disabled=(index == total - 1)):
-                    st.session_state.reco_index += 1
-                    st.rerun()
+        st.session_state.votos[index] = voto
+        st.session_state.comentarios[index] = comentario
 
-        # Fase 4: Mostrar Likert y capturar voto solo cuando corresponde
-        if mostrar_votacion:
-            st.markdown("---")
-            st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
-            voto = st.slider("Su voto global para todas las recomendaciones:", 1, 9, 5, key="voto_final")
-            comentario = st.text_area("Comentario (opcional):", key="comentario_final")
-
+        if index == total - 1:
             if st.button("✅ Enviar voto"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
 
+                # Solo registrar el nombre una vez (para contar en el quórum)
                 if name not in s["names"]:
                     s["names"].append(name)
                     s["ids"].append(pid)
 
-                s["votes"].append(voto)
-                s["comments"].append(comentario)
-                s.setdefault("correos", []).append(correo)
+                # Registrar todos los votos del paquete
+                s["votes"].extend(st.session_state.votos)
+                s["comments"].extend(st.session_state.comentarios)
 
                 st.balloons()
-                st.success(f"🎉 Su voto ha sido registrado. ID: `{pid}`")
+                st.success(f"🎉 Todos los votos han sido registrados. ID: `{pid}`")
 
-                # Limpiar estados
-                for k in ["lista_recos", "reco_index", "modo_votacion", "nombre_registrado", "correo_registrado"]:
-                    st.session_state.pop(k, None)
-
-                st.stop()
-# --- Fin ---
+                for k in ["lista_recos", "votos", "comentarios", "reco_index"]:
+                    del st.session_state[k]
+        st.stop()
 
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
@@ -928,12 +905,16 @@ elif menu == "Crear Recomendación":
     st.subheader("Crear Nueva Recomendación")
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
+    # Función para separar recomendaciones si vienen varias en un solo campo
     import re
     def separar_recomendaciones(texto):
         partes = re.split(r'\s*\d+\.\s*', str(texto))
-        return [p.strip() for p in partes if p.strip()]
+        partes = [p.strip() for p in partes if p.strip()]
+        return partes
 
+    # ─────────── 1. Cargar banco de Excel (opcional) ────────────
     st.markdown("### Cargar recomendaciones desde Excel")
+
     if "uploader_key" not in st.session_state:
         st.session_state.uploader_key = 0
 
@@ -947,20 +928,38 @@ elif menu == "Crear Recomendación":
         try:
             df = pd.read_excel(excel_file, engine="openpyxl")
             df.columns = df.columns.str.strip().str.lower()
-            if "recomendacion" not in df.columns:
+            required_cols = {"recomendacion"}
+
+            if not required_cols.issubset(df.columns):
                 st.error("El archivo debe tener al menos una columna llamada 'recomendacion'.")
             else:
                 preguntas = df["recomendacion"].dropna().tolist()
-                modo = st.radio("¿Cómo desea proceder con las recomendaciones?", ["Usar todas las recomendaciones", "Seleccionar recomendaciones manualmente"])
+
+                # 🛠️ Nueva opción: elegir modo
+                modo = st.radio(
+                    "¿Cómo desea proceder con las recomendaciones?",
+                    ["Usar todas las recomendaciones", "Seleccionar recomendaciones manualmente"]
+                )
+
                 if modo == "Usar todas las recomendaciones":
-                    texto_final = "\n".join([f"{i+1}. {rec}" for i, rec in enumerate(preguntas)])
+                    texto_final = ""
+                    for idx, rec in enumerate(preguntas, start=1):
+                        texto_final += f"{idx}. {rec}\n"
+
                     st.session_state["ronda_precargada"] = df["ronda"].iloc[0] if "ronda" in df.columns else ""
                     st.session_state["recomendaciones_precargadas"] = texto_final.strip()
                     st.success(f"✅ {len(preguntas)} recomendaciones cargadas para la sesión.")
+
                 elif modo == "Seleccionar recomendaciones manualmente":
-                    seleccionadas = st.multiselect("Seleccione las recomendaciones que desea incluir:", options=preguntas)
+                    seleccionadas = st.multiselect(
+                        "Seleccione las recomendaciones que desea incluir:",
+                        options=preguntas
+                    )
                     if seleccionadas:
-                        texto_final = "\n".join([f"{i+1}. {rec}" for i, rec in enumerate(seleccionadas)])
+                        texto_final = ""
+                        for idx, rec in enumerate(seleccionadas, start=1):
+                            texto_final += f"{idx}. {rec}\n"
+
                         st.session_state["ronda_precargada"] = df["ronda"].iloc[0] if "ronda" in df.columns else ""
                         st.session_state["recomendaciones_precargadas"] = texto_final.strip()
                         st.success(f"✅ {len(seleccionadas)} recomendaciones seleccionadas para la sesión.")
@@ -975,18 +974,37 @@ elif menu == "Crear Recomendación":
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # —— Formulario de creación manual ——
+    # ─────────── 2. Formulario manual de creación ────────────
     with st.form("create_form", clear_on_submit=True):
-        codigo_manual = st.text_input("Código personalizado para la sesión (opcional):").strip().upper()
-        nombre_ronda = st.text_input("Nombre de la ronda:", value=st.session_state.pop("ronda_precargada", ""))
-        desc = st.text_area("Recomendaciones a evaluar:", value=st.session_state.pop("recomendaciones_precargadas", ""), height=300)
+        nombre_ronda = st.text_input(
+            "Nombre de la ronda:",
+            value=st.session_state.pop("ronda_precargada", "")
+        )
+        desc = st.text_area(
+            "Recomendaciones a evaluar:",
+            value=st.session_state.pop("recomendaciones_precargadas", ""),
+            height=300
+        )
         scale = st.selectbox("Escala de votación:", ["Likert 1-9", "Sí/No"])
-        n_participantes = st.number_input("¿Cuántos participantes están habilitados para votar?", min_value=1, step=1)
+        n_participantes = st.number_input(
+            "¿Cuántos participantes están habilitados para votar?",
+            min_value=1, step=1
+        )
         es_privada = st.checkbox("¿Esta recomendación será privada?")
-        imagenes_subidas = st.file_uploader("📷 Cargar imágenes relacionadas (opcional)", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
+        # ➡️ Cargar imágenes relacionadas
+        imagenes_subidas = st.file_uploader(
+            "📷 Cargar imágenes relacionadas (opcional)",
+            type=["png", "jpg", "jpeg"],
+            accept_multiple_files=True
+        )
+
+        # ➡️ Cargar correos autorizados
         correos_autorizados = []
-        archivo_correos = st.file_uploader("📧 Lista de correos autorizados (CSV con columna 'correo')", type=["csv"])
+        archivo_correos = st.file_uploader(
+            "📧 Lista de correos autorizados (CSV con columna 'correo')",
+            type=["csv"]
+        )
         if archivo_correos:
             try:
                 df_correos = pd.read_csv(archivo_correos)
@@ -1006,18 +1024,17 @@ elif menu == "Crear Recomendación":
         </div>
         """, unsafe_allow_html=True)
 
+        # Botón de creación de recomendación
         if st.form_submit_button("Crear Recomendación"):
             if not desc:
                 st.warning("Por favor, ingrese la recomendación.")
                 st.stop()
 
-            code = codigo_manual if codigo_manual else uuid.uuid4().hex[:6].upper()
-            if code in store:
-                st.error("❌ Ese código ya está en uso. Elija otro.")
-                st.stop()
-
+            code = uuid.uuid4().hex[:6].upper()
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            descripcion_final = f"{desc} ({nombre_ronda})" if nombre_ronda else desc
+            descripcion_final = (
+                f"{desc} ({nombre_ronda})" if nombre_ronda else desc
+            )
 
             store[code] = {
                 "desc": descripcion_final,
@@ -1068,25 +1085,16 @@ elif menu == "Dashboard":
     if not code:
         st.stop()
 
-    # Datos de la sesión
-    s = store.get(code)
-    if not s:
-        st.error("Código de sesión no encontrado.")
-        st.stop()
-
-    # Importante: solo tomar un voto por participante
-    votes = [
-        s["votes"][i] for i in range(len(s["names"]))
-        if i < len(s["votes"]) and isinstance(s["votes"][i], (int, float))
-    ]
-
-    n = len(votes)
-    media = np.mean(votes) if n > 0 else 0.0
-    desv_std = np.std(votes, ddof=1) if n > 1 else 0.0
+    # Cálculo de métricas
+    s = store[code]
+    votes           = [v for v in s["votes"] if isinstance(v, (int, float))]
+    n               = len(votes)
+    media           = np.mean(votes) if n > 0 else 0.0
+    desv_std        = np.std(votes, ddof=1) if n > 1 else 0.0
     mediana, lo, hi = median_ci(votes)
-    pct = consensus_pct(votes) * 100
-    quorum = s.get("n_participantes", 0) // 2 + 1
-    votos_actuales = len(set(s["names"]))
+    pct             = consensus_pct(votes) * 100
+    quorum          = s.get("n_participantes", 0) // 2 + 1
+    votos_actuales  = len(set(s["names"]))
 
     # Tres columnas: Resumen | Métricas | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
@@ -1107,13 +1115,16 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # --- Columna 2: Métricas ---
+    # --- Columna 2: Métricas en columna única ---
     with col_kpi:
         st.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
         st.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
         st.markdown(card_html("% Consenso", f"{pct:.1f}%"), unsafe_allow_html=True)
         if n > 0:
-            st.markdown(card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]"), unsafe_allow_html=True)
+            st.markdown(
+                card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]"),
+                unsafe_allow_html=True
+            )
 
     # --- Columna 3: Histograma ---
     with col_chart:
@@ -1137,7 +1148,7 @@ elif menu == "Dashboard":
         else:
             st.info("🔍 Aún no hay votos para mostrar.")
 
-    # Estado de consenso
+    # --- Estado de consenso ---
     st.markdown("---")
     if votos_actuales < quorum:
         st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
@@ -1153,7 +1164,7 @@ elif menu == "Dashboard":
         else:
             st.warning("⚠️ NO SE ALCANZÓ CONSENSO")
 
-    # Acciones de exportación
+    # --- Acciones y Exportes ---
     st.subheader("Acciones y Exportación")
     if st.button("Iniciar nueva ronda"):
         history.setdefault(code, []).append(copy.deepcopy(s))
@@ -1174,10 +1185,10 @@ elif menu == "Dashboard":
         st.download_button("⬇️ Descargar TXT", create_report(code),
                            file_name=f"reporte_{code}.txt")
 
-    # Comentarios
+    # --- Comentarios de Participantes ---
     if s.get("comments"):
         st.subheader("Comentarios de Participantes")
-        for pid, name, vote, com in zip(s["ids"], s["names"], s["votes"], s["comments"]):
+        for pid, name, vote, com in zip(s["ids"], s["names"], votes, s["comments"]):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
 
@@ -1355,4 +1366,3 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("**ODDS Epidemiology**")
 st.sidebar.markdown("v1.0.0 - 2025")
 st.sidebar.markdown("© Todos los derechos reservados")
-
