@@ -784,7 +784,7 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # ——— NUEVO: Captura con botón "Siguiente" ———
+    # ——— Captura de nombre/correo con botón ———
     with st.form("form_identificacion"):
         name = st.text_input("Nombre completo (nombre y apellido) del participante:")
         correo = st.text_input("Correo electrónico (obligatorio):") if es_privada else None
@@ -801,7 +801,7 @@ if "session" in params:
         st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
         st.stop()
 
-    # Verificar si ya votó
+    # Validación de participación previa
     ya_voto = (
         (tipo == "STD" and name in s["names"]) or
         (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
@@ -810,7 +810,7 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # ——— FLUJO PARA SESIÓN ESTÁNDAR ———
+    # ——— Lógica de votación tipo estándar ———
     if tipo == "STD":
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
@@ -828,7 +828,6 @@ if "session" in params:
             st.session_state.lista_recos = separar_recomendaciones(s["desc"])
             st.session_state.reco_index = 0
 
-        # ——— NUEVO: Saltar lectura ———
         mostrar_recomendaciones = st.radio(
             "¿Cómo desea proceder?",
             ["Leer las recomendaciones una por una", "Ir directamente a la escala de votación"],
@@ -836,7 +835,12 @@ if "session" in params:
         )
 
         if mostrar_recomendaciones == "Ir directamente a la escala de votación":
+            mostrar_votacion = True
             st.session_state.reco_index = len(st.session_state.lista_recos) - 1
+        else:
+            mostrar_votacion = (
+                st.session_state.reco_index == len(st.session_state.lista_recos) - 1
+            )
 
         index = st.session_state.reco_index
         total = len(st.session_state.lista_recos)
@@ -861,8 +865,8 @@ if "session" in params:
                 st.session_state.reco_index += 1
                 st.rerun()
 
-        # Solo permitir votar en la última recomendación
-        if index == total - 1:
+        # ✅ Mostrar votación solo si corresponde
+        if mostrar_votacion:
             st.markdown("---")
             st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
             voto = st.slider("Su voto global para todas las recomendaciones:", 1, 9, 5, key="voto_final")
