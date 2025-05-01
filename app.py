@@ -757,6 +757,7 @@ import hashlib
 # Manejo de la página de votación según ?session=…
 # ——————————————————————————————
 # Código del formulario mejorado
+# Código del formulario mejorado
 params = st.query_params
 
 if "session" in params:
@@ -910,12 +911,16 @@ if "session" in params:
     st.markdown("<div class='form-container'>", unsafe_allow_html=True)
     st.markdown("### 👤 Información del participante")
     
-    col1, col2 = st.columns([2, 1]) if es_privada else [st, None]
-    
-    with col1:
+    if es_privada:
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            name = st.text_input("Nombre completo:", 
+                            placeholder="Ingrese su nombre y apellido",
+                            help="Su nombre completo tal como aparece en sus documentos oficiales")
+    else:
         name = st.text_input("Nombre completo:", 
-                           placeholder="Ingrese su nombre y apellido",
-                           help="Su nombre completo tal como aparece en sus documentos oficiales")
+                        placeholder="Ingrese su nombre y apellido",
+                        help="Su nombre completo tal como aparece en sus documentos oficiales")
     
     correo = None
     if es_privada:
@@ -1025,15 +1030,13 @@ if "session" in params:
                     with st.expander("🔍 Ver tabla relacionada"):
                         st.image(imagenes[i], use_container_width=True)
                         
-                        # Opciones para descargar la imagen si es relevante
-                        col1, col2 = st.columns([1, 3])
-                        with col1:
-                            st.download_button(
-                                "⬇️ Descargar", 
-                                data=imagenes[i],  # Esto asume que imagenes[i] contiene los bytes de la imagen
-                                file_name=f"recomendacion_{i+1}.png",
-                                mime="image/png"
-                            )
+                        # Opción para descargar la imagen si es relevante
+                        st.download_button(
+                            "⬇️ Descargar", 
+                            data=imagenes[i],  # Esto asume que imagenes[i] contiene los bytes de la imagen
+                            file_name=f"recomendacion_{i+1}.png",
+                            mime="image/png"
+                        )
         
         # Verificar que todas las recomendaciones fueron vistas
         todas_vistas = all(recomendaciones_vistas)
@@ -1090,9 +1093,7 @@ if "session" in params:
             acepta_terminos = st.checkbox("Confirmo que he leído todas las recomendaciones y mi voto representa mi opinión personal", value=False)
             
             # Botón de envío con carga
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                submitted = st.form_submit_button("✅ Enviar mi voto", use_container_width=True, disabled=not acepta_terminos)
+            submitted = st.form_submit_button("✅ Enviar mi voto", use_container_width=True, disabled=not acepta_terminos)
 
             if submitted:
                 if not acepta_terminos:
@@ -1140,7 +1141,6 @@ if "session" in params:
         
         st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
-
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
 # 6) Panel de administración
