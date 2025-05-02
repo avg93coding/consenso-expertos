@@ -766,7 +766,7 @@ if "session" in params:
 
     odds_header()
 
-    # Ocultar barra lateral
+    # Ocultar barra lateral en la página de votación
     st.markdown("""
         <style>
           [data-testid="stSidebar"] { display: none !important; }
@@ -784,30 +784,27 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # Fase 1: Captura de nombre (y correo si aplica)
-    if "verificado" not in st.session_state:
-        with st.form("verificacion_identidad"):
-            name = st.text_input("Nombre completo (nombre y apellido):")
-            correo = None
-            if es_privada:
-                correo = st.text_input("Correo electrónico (obligatorio):")
-            confirmar = st.form_submit_button("Continuar")
+    # Paso 1: Capturar nombre (y correo si es privada) y presionar botón 'Continuar'
+    with st.form("form_identificacion"):
+        name = st.text_input("Nombre completo (nombre y apellido) del participante:")
+        correo = None
+        if es_privada:
+            correo = st.text_input("Correo electrónico (obligatorio):")
+        continuar = st.form_submit_button("➡️ Continuar")
 
-        if confirmar:
-            if not name or (es_privada and not correo):
-                st.warning("Por favor, complete todos los campos obligatorios.")
-                st.stop()
-            if es_privada and not correo_autorizado(correo, code):
-                st.error("❌ El correo ingresado no está autorizado para esta sesión privada.")
-                st.stop()
-            st.session_state["nombre"] = name
-            st.session_state["correo"] = correo
-            st.session_state["verificado"] = True
-            st.rerun()
+    if not continuar:
         st.stop()
 
-    name = st.session_state["nombre"]
-    correo = st.session_state.get("correo")
+    if es_privada and (not name or not correo):
+        st.warning("⚠️ Ingrese nombre y correo electrónico para continuar.")
+        st.stop()
+    elif not es_privada and not name:
+        st.warning("⚠️ Ingrese su nombre para continuar.")
+        st.stop()
+
+    if es_privada and not correo_autorizado(correo, code):
+        st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
+        st.stop()
 
     # Verificar si ya votó
     ya_voto = (
@@ -822,7 +819,7 @@ if "session" in params:
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
         ⚠️ <strong>Importante:</strong> Lea todas las recomendaciones antes de emitir su voto.<br>
-        Al final podrá emitir un único voto global.
+        Al finalizar el recorrido podrá emitir un único voto global para todo el paquete.
         </div>
         """, unsafe_allow_html=True)
 
@@ -831,41 +828,57 @@ if "session" in params:
             partes = re.split(r'\s*\d+\.\s*', str(texto))
             return [p.strip() for p in partes if p.strip()]
 
-        recomendaciones = separar_recomendaciones(s["desc"])
-        imagenes = s.get("imagenes_relacionadas", [])
+        lista_recos = separar_recomendaciones(s["desc"])
 
-        st.markdown("---")
-        for i, reco in enumerate(recomendaciones):
+        for i, reco in enumerate(lista_recos):
             st.markdown(f"""
-            <div style="background-color: white; border-left: 4px solid #662D91; padding: 15px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                <strong>Recomendación {i+1}</strong><br>
-                {reco}
+            <div class="recommendation-card">
+                <span class="recommendation-number">{i+1}</span>
+                <strong>Recomendación</strong>
+                <div style="margin-top: 10px;">{reco}</div>
             </div>
             """, unsafe_allow_html=True)
 
-            if i < len(imagenes) and imagenes[i]:
-                with st.expander(f"🔍 Ver imagen relacionada {i+1}"):
-                    st.image(imagenes[i], use_container_width=True)
+            # Mostrar imagen si existe
+            if "imagenes_relacionadas" in s and i < len(s["imagenes_relacionadas"]):
+                img_bytes = s["imagenes_relacionadas"][i]
+                with st.expander(f"🔍 Ver tabla relacionada #{i+1}"):
+                    st.image(img_bytes, use_container_width=True)
 
         st.markdown("---")
         st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
-        voto = st.radio("Su voto global para todas las recomendaciones:", options=list(range(1, 10)), horizontal=True)
-        comentario = st.text_area("Comentario (opcional):")
+        voto = st.radio(
+            "Seleccione su voto global para todas las recomendaciones:",
+            options=list(range(1, 10)),
+            horizontal=True,
+            key="voto_final"
+        )
+        comentario = st.text_area("Comentario (opcional):", key="comentario_final")
 
         if st.button("✅ Enviar voto"):
             pid = hashlib.sha256(name.encode()).hexdigest()[:8]
 
-            s["names"].append(name)
-            s["ids"].append(pid)
+            if name not in s["names"]:
+                s["names"].append(name)
+                s["ids"].append(pid)
+
             s["votes"].append(voto)
             s["comments"].append(comentario)
             s.setdefault("correos", []).append(correo)
 
-            st.success(f"🎉 Voto registrado correctamente. ID: `{pid}`")
             st.balloons()
+            st.success(f"🎉 Su voto ha sido registrado exitosamente. ID: `{pid}`")
+
+            st.markdown("""
+            <div style="margin-top: 20px; padding: 15px; background-color: #eaf7ea; border-radius: 10px; text-align: center;">
+                🙌 <strong>¡Gracias por su participación!</strong> Su aporte ha sido registrado correctamente. Puede cerrar esta ventana o esperar nuevas indicaciones.
+            </div>
+            """, unsafe_allow_html=True)
+
             st.stop()
 
     st.stop()
+
     # Detener cualquier render posterior innecesario
     st.stop()
 
