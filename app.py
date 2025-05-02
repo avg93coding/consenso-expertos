@@ -762,7 +762,7 @@ params = st.query_params
 if "session" in params:
     import hashlib, re, datetime
 
-    odds_header()
+    odds_header()  # Mostrar encabezado al inicio
 
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
@@ -785,7 +785,7 @@ if "session" in params:
         </style>
     """, unsafe_allow_html=True)
 
-    # Paso 1 — Captura de datos
+    # Paso 1 — Captura de nombre y correo
     if "nombre_confirmado" not in st.session_state:
         st.markdown("### 👤 Ingrese su nombre para comenzar")
         nombre = st.text_input("Nombre completo:")
@@ -806,7 +806,6 @@ if "session" in params:
     name = st.session_state.nombre
     correo = st.session_state.get("correo", None)
 
-    # Paso 2 — Validar si ya votó
     if st.session_state.get("voto_registrado"):
         st.success("🎉 ¡Gracias por su votación!")
         st.markdown(f"**ID de participación:** `{st.session_state.voto_id}`")
@@ -820,6 +819,9 @@ if "session" in params:
     def separar_recomendaciones(texto):
         partes = re.split(r'\s*\d+\.\s*', str(texto))
         return [p.strip() for p in partes if p.strip()]
+
+    if "titulo" in s and s["titulo"].strip():
+        st.markdown(f"## 🧭 {s['titulo']}")
 
     st.markdown("### 📋 Recomendaciones a evaluar")
     lista_recos = separar_recomendaciones(s["desc"])
@@ -883,8 +885,9 @@ if "session" in params:
         st.markdown(f"**ID de participación:** `{pid}`")
         st.stop()
 
-    # Evita que cargue el resto de la app (panel lateral, etc.)
+    # Evita que cargue el panel de administración
     st.stop()
+
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
