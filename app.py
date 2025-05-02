@@ -1046,7 +1046,7 @@ elif menu == "Crear Recomendación":
 
 
 elif menu == "Dashboard":
-    st.subheader("Dashboard en Tiempo Real (actualización cada 5 segundos)")
+    st.subheader("Dashboard en Tiempo Real")
     st_autorefresh(interval=5000, key="refresh_dashboard")  # 5000 ms = 5 segundos
 
     # Selección de sesión
