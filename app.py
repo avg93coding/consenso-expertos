@@ -1064,7 +1064,7 @@ elif menu == "Dashboard":
         st.error("Código de sesión no encontrado.")
         st.stop()
 
-    # Importante: solo tomar un voto por participante
+    # Votos válidos
     votes = [
         s["votes"][i] for i in range(len(s["names"]))
         if i < len(s["votes"]) and isinstance(s["votes"][i], (int, float))
@@ -1081,7 +1081,7 @@ elif menu == "Dashboard":
     # Tres columnas: Resumen | Métricas | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
 
-    # --- Columna 1: Resumen ---
+    # Columna 1 — Resumen
     with col_res:
         if st.button("Finalizar esta sesión"):
             store[code]["is_active"] = False
@@ -1097,7 +1097,7 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # --- Columna 2: Métricas ---
+    # Columna 2 — KPIs
     with col_kpi:
         st.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
         st.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
@@ -1105,7 +1105,7 @@ elif menu == "Dashboard":
         if n > 0:
             st.markdown(card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]"), unsafe_allow_html=True)
 
-    # --- Columna 3: Histograma ---
+    # Columna 3 — Gráfico + estado de consenso
     with col_chart:
         if votos_actuales:
             df = pd.DataFrame({"Voto": votes})
@@ -1124,24 +1124,22 @@ elif menu == "Dashboard":
                 paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig, use_container_width=True)
+
+            # Estado de consenso justo debajo del gráfico
+            if votos_actuales < quorum:
+                st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
+            elif pct >= 80 and 7 <= mediana <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
+                st.success("✅ CONSENSO ALCANZADO (mediana + IC95%)")
+            elif pct >= 80:
+                st.success("✅ CONSENSO ALCANZADO (% votos)")
+            elif pct <= 20 and 1 <= mediana <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
+                st.error("❌ NO APROBADO (mediana + IC95%)")
+            elif sum(1 for v in votes if v <= 3) >= 0.8 * votos_actuales:
+                st.error("❌ NO APROBADO (% votos)")
+            else:
+                st.warning("⚠️ NO SE ALCANZÓ CONSENSO")
         else:
             st.info("🔍 Aún no hay votos para mostrar.")
-
-    # Estado de consenso
-    st.markdown("---")
-    if votos_actuales < quorum:
-        st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
-    else:
-        if pct >= 80 and 7 <= mediana <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
-            st.success("✅ CONSENSO ALCANZADO (mediana + IC95%)")
-        elif pct >= 80:
-            st.success("✅ CONSENSO ALCANZADO (% votos)")
-        elif pct <= 20 and 1 <= mediana <= 3 and 1 <= lo <= 3 and 1 <= hi <= 3:
-            st.error("❌ NO APROBADO (mediana + IC95%)")
-        elif sum(1 for v in votes if v <= 3) >= 0.8 * votos_actuales:
-            st.error("❌ NO APROBADO (% votos)")
-        else:
-            st.warning("⚠️ NO SE ALCANZÓ CONSENSO")
 
     # Acciones de exportación
     st.subheader("Acciones y Exportación")
@@ -1170,7 +1168,6 @@ elif menu == "Dashboard":
         for pid, name, vote, com in zip(s["ids"], s["names"], s["votes"], s["comments"]):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
-
 
 elif menu == "Crear Paquete GRADE":
     st.subheader("Crear / Descargar Paquetes GRADE")
