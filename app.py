@@ -762,6 +762,8 @@ params = st.query_params
 if "session" in params:
     import hashlib, re, datetime
 
+    odds_header()  # Mostrar encabezado SOLO en la vista de votación
+
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = code.strip().upper()
@@ -863,29 +865,6 @@ if "session" in params:
         st.markdown(f"**ID de participación:** `{pid}`")
         st.stop()
 
-# … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
-
-# 6) Panel de administración
-
-# Logo en la barra lateral
-logo_url = "https://static.wixstatic.com/media/89a9c2_ddc57311fc734357b9ea2b699e107ae2~mv2.png/v1/fill/w_90,h_54,al_c,q_85,usm_0.66_1.00_0.01/Logo%20versi%C3%B3n%20principal.png"
-st.sidebar.image(logo_url, width=80)
-odds_header()
-st.sidebar.title("Panel de Control")
-st.sidebar.markdown("### ODDS Epidemiology")
-menu = st.sidebar.selectbox("Navegación", ["Inicio", "Crear Recomendación", "Dashboard", "Crear Paquete GRADE", "Reporte Consolidado"])
-
-if menu == "Inicio":
-    st.markdown("## Bienvenido al Sistema de votación para Consenso de expertos de ODDS Epidemiology")
-    
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("""
-    
-    
-    Utilice el panel de navegación para comenzar.
-    """)
- 
-    
     
 
 # ──────────────────────────────────────────────────────────────────────────────
