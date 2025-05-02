@@ -875,7 +875,16 @@ st.sidebar.title("Panel de Control")
 st.sidebar.markdown("### ODDS Epidemiology")
 menu = st.sidebar.selectbox("Navegación", ["Inicio", "Crear Recomendación", "Dashboard", "Crear Paquete GRADE", "Reporte Consolidado"])
 
-
+if menu == "Inicio":
+    st.markdown("## Bienvenido al Sistema de votación para Consenso de expertos de ODDS Epidemiology")
+    
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("""
+    
+    
+    Utilice el panel de navegación para comenzar.
+    """)
+ 
     
     
 
