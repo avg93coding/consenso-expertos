@@ -771,7 +771,7 @@ if "session" in params:
     if not s:
         st.error(f"❌ Sesión inválida: {code}")
         st.stop()
-
+        odds_header()
     tipo = s.get("tipo", "STD")
     es_privada = s.get("privado", False)
 
