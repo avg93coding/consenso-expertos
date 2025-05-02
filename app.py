@@ -928,7 +928,7 @@ elif menu == "Crear Recomendación":
         st.session_state.uploader_key = 0
 
     excel_file = st.file_uploader(
-        "Suba archivo .xlsx/.xls con columnas 'ronda' y 'recomendacion'",
+        "Suba archivo .xlsx/.xls con columnas 'ronda', 'titulo' (opcional) y 'recomendacion'",
         type=["xlsx", "xls"],
         key=f"excel_{st.session_state.uploader_key}"
     )
@@ -937,14 +937,20 @@ elif menu == "Crear Recomendación":
         try:
             df = pd.read_excel(excel_file, engine="openpyxl")
             df.columns = df.columns.str.strip().str.lower()
+
             if "recomendacion" not in df.columns:
-                st.error("El archivo debe tener al menos una columna llamada 'recomendacion'.")
+                st.error("El archivo debe tener una columna llamada 'recomendacion'.")
             else:
                 preguntas = df["recomendacion"].dropna().tolist()
-                modo = st.radio("¿Cómo desea proceder con las recomendaciones?", ["Usar todas las recomendaciones", "Seleccionar recomendaciones manualmente"])
+                titulo = df["titulo"].iloc[0] if "titulo" in df.columns else ""
+                modo = st.radio("¿Cómo desea proceder con las recomendaciones?", [
+                    "Usar todas las recomendaciones", "Seleccionar recomendaciones manualmente"
+                ])
+
                 if modo == "Usar todas las recomendaciones":
                     texto_final = "\n".join([f"{i+1}. {rec}" for i, rec in enumerate(preguntas)])
                     st.session_state["ronda_precargada"] = df["ronda"].iloc[0] if "ronda" in df.columns else ""
+                    st.session_state["titulo_precargado"] = titulo
                     st.session_state["recomendaciones_precargadas"] = texto_final.strip()
                     st.success(f"✅ {len(preguntas)} recomendaciones cargadas para la sesión.")
                 elif modo == "Seleccionar recomendaciones manualmente":
@@ -952,23 +958,24 @@ elif menu == "Crear Recomendación":
                     if seleccionadas:
                         texto_final = "\n".join([f"{i+1}. {rec}" for i, rec in enumerate(seleccionadas)])
                         st.session_state["ronda_precargada"] = df["ronda"].iloc[0] if "ronda" in df.columns else ""
+                        st.session_state["titulo_precargado"] = titulo
                         st.session_state["recomendaciones_precargadas"] = texto_final.strip()
                         st.success(f"✅ {len(seleccionadas)} recomendaciones seleccionadas para la sesión.")
         except Exception as e:
             st.error(f"Error al leer el archivo: {e}")
 
     if "recomendaciones_precargadas" in st.session_state and st.button("❌ Quitar archivo cargado"):
-        for k in ["ronda_precargada", "recomendaciones_precargadas"]:
+        for k in ["ronda_precargada", "titulo_precargado", "recomendaciones_precargadas"]:
             st.session_state.pop(k, None)
         st.session_state.uploader_key += 1
         st.experimental_rerun()
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # —— Formulario de creación manual ——
     with st.form("create_form", clear_on_submit=True):
         codigo_manual = st.text_input("Código personalizado para la sesión (opcional):").strip().upper()
         nombre_ronda = st.text_input("Nombre de la ronda:", value=st.session_state.pop("ronda_precargada", ""))
+        titulo_bloque = st.text_input("Título del bloque de recomendaciones:", value=st.session_state.pop("titulo_precargado", ""))
         desc = st.text_area("Recomendaciones a evaluar:", value=st.session_state.pop("recomendaciones_precargadas", ""), height=300)
         scale = st.selectbox("Escala de votación:", ["Likert 1-9", "Sí/No"])
         n_participantes = st.number_input("¿Cuántos participantes están habilitados para votar?", min_value=1, step=1)
@@ -1007,10 +1014,9 @@ elif menu == "Crear Recomendación":
                 st.stop()
 
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            descripcion_final = f"{desc} ({nombre_ronda})" if nombre_ronda else desc
-
             store[code] = {
-                "desc": descripcion_final,
+                "titulo": titulo_bloque,
+                "desc": desc,
                 "scale": scale,
                 "votes": [],
                 "comments": [],
@@ -1042,7 +1048,6 @@ elif menu == "Crear Recomendación":
             st.info(f"URL para compartir: {url}")
             st.write(f"[Abrir página de votación]({url})")
             st.markdown("</div>", unsafe_allow_html=True)
-
 
 
 elif menu == "Dashboard":
