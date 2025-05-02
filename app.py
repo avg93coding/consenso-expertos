@@ -761,12 +761,21 @@ params = st.query_params
 
 if "session" in params:
     import hashlib, re, datetime
-    odds_header()
+
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = code.strip().upper()
 
+    s = store.get(code)
+    if not s:
+        st.error(f"❌ Sesión inválida: {code}")
+        st.stop()
 
+    es_privada = s.get("privado", False)  # ✅ Definida aquí
+    tipo = s.get("tipo", "STD")
+
+    # Mostrar encabezado
+    odds_header()
 
     # Ocultar panel de navegación
     st.markdown("""
@@ -855,8 +864,6 @@ if "session" in params:
         st.balloons()
         st.success("🎉 ¡Gracias por su votación!")
         st.markdown(f"**ID de participación:** `{pid}`")
-        st.stop()
-
         st.stop()
 
 
