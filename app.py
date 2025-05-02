@@ -766,12 +766,22 @@ if "session" in params:
     code = raw[0] if isinstance(raw, list) else raw
     code = code.strip().upper()
 
-    # Mostrar encabezado SOLO en modo votación
+    # Validar código
+    s = store.get(code)
+    if not s:
+        st.error(f"❌ Sesión inválida: {code}")
+        st.stop()
+
+    tipo = s.get("tipo", "STD")
+    es_privada = s.get("privado", False)
+
+    # Mostrar encabezado SOLO si el usuario va a votar
     if (
-    "nombre_confirmado" in st.session_state
-    and not st.session_state.get("voto_registrado")
-    and st.session_state.nombre not in s["names"]):
-    odds_header()odds_header()
+        "nombre_confirmado" in st.session_state
+        and not st.session_state.get("voto_registrado")
+        and st.session_state.get("nombre") not in s["names"]
+    ):
+        odds_header()
 
     # Ocultar panel de navegación
     st.markdown("""
@@ -781,15 +791,6 @@ if "session" in params:
         header, footer { visibility: hidden; }
         </style>
     """, unsafe_allow_html=True)
-
-    # Validar código
-    s = store.get(code)
-    if not s:
-        st.error(f"❌ Sesión inválida: {code}")
-        st.stop()
-
-    tipo = s.get("tipo", "STD")
-    es_privada = s.get("privado", False)
 
     # Paso 1 — Captura de nombre y correo
     if "nombre_confirmado" not in st.session_state:
@@ -811,10 +812,10 @@ if "session" in params:
                 st.rerun()
         st.stop()
 
+    # Paso 2 — Ya votó
     name = st.session_state.nombre
     correo = st.session_state.get("correo", None)
 
-    # Paso 2 — Ya votó
     if st.session_state.get("voto_registrado"):
         st.success("🎉 ¡Gracias por su votación!")
         st.markdown(f"**ID de participación:** `{st.session_state.voto_id}`")
@@ -870,6 +871,7 @@ if "session" in params:
         st.success("🎉 ¡Gracias por su votación!")
         st.markdown(f"**ID de participación:** `{pid}`")
         st.stop()
+
 
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
