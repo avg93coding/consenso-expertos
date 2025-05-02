@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -757,79 +756,23 @@ import hashlib
 # ——————————————————————————————
 # Manejo de la página de votación según ?session=…
 # ——————————————————————————————
-# Código del formulario mejorado
-import streamlit as st
-
 params = st.query_params
 
 if "session" in params:
-    import re
-    import hashlib
-    import datetime
-    from time import sleep
-
+    # Extraer y limpiar el código de sesión
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = str(code).strip().upper()
 
-    # Estilos principales optimizados
+    odds_header()
+
+    # Ocultar barra lateral en la página de votación
     st.markdown("""
         <style>
-          [data-testid="stSidebar"], [data-testid="collapsedControl"] { display: none !important; }
-          .main { background-color: #f9f9f9; font-family: 'Segoe UI', Roboto, sans-serif; }
-          h1, h2, h3, h4 { color: #2C3E50; font-weight: 600; }
-          .form-container {
-            background-color: white;
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-          }
-          .stTextInput input, .stTextArea textarea {
-            border-radius: 6px;
-            border: 1px solid #e0e0e0;
-            padding: 10px;
-            font-size: 15px;
-          }
-          .stButton button {
-            background-color: #662D91;
-            color: white;
-            border-radius: 6px;
-            padding: 10px 20px;
-            font-weight: 600;
-            border: none;
-            transition: all 0.3s ease;
-          }
-          .stButton button:hover {
-            background-color: #5a2683;
-            box-shadow: 0 4px 8px rgba(102, 45, 145, 0.2);
-          }
+          [data-testid="stSidebar"] { display: none !important; }
+          [data-testid="collapsedControl"] { display: none !important; }
         </style>
     """, unsafe_allow_html=True)
-
-    st.markdown("""
-        <div style="background: linear-gradient(90deg, #662D91 0%, #9B59B6 100%); padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: white; margin: 0; padding: 0; text-align: center;">
-                <span style="margin-right: 10px;">🗳️</span> Sistema de Votación Digital
-            </h2>
-        </div>
-    """, unsafe_allow_html=True)
-
-    if 'store' not in st.session_state:
-        st.session_state['store'] = {}
-    store = st.session_state['store']
-
-    if code == "DEMO" and code not in store:
-        store[code] = {
-            "tipo": "STD",
-            "privado": False,
-            "names": [],
-            "ids": [],
-            "votes": [],
-            "comments": [],
-            "desc": "1. Primera recomendación. 2. Segunda recomendación. 3. Tercera recomendación.",
-            "imagenes_relacionadas": []
-        }
 
     s = store.get(code)
     if not s:
@@ -839,39 +782,105 @@ if "session" in params:
     tipo = s.get("tipo", "STD")
     es_privada = s.get("privado", False)
 
-    with st.form(key="form_participante"):
-        st.markdown("<div class='form-container'>", unsafe_allow_html=True)
-        st.subheader("👤 Información del participante")
-        name = st.text_input("Nombre completo")
-        correo = st.text_input("Correo electrónico") if es_privada else None
-        continuar = st.form_submit_button("Continuar")
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.subheader(f"Panel de votación — Sesión {code}")
 
-    if not continuar:
+    # Capturar nombre
+    name = st.text_input("Nombre completo (nombre y apellido) del participante:")
+
+    # Capturar correo solo si la sesión es privada
+    correo = None
+    if es_privada:
+        correo = st.text_input("Correo electrónico (obligatorio):")
+        if not name or not correo:
+            st.warning("Ingrese nombre y correo electrónico para continuar.")
+            st.stop()
+        if not correo_autorizado(correo, code):
+            st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
+            st.stop()
+    else:
+        if not name:
+            st.warning("Ingrese su nombre para continuar.")
+            st.stop()
+
+    # Verificar si ya votó
+    ya_voto = (
+        (tipo == "STD" and name in s["names"]) or
+        (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
+    )
+    if ya_voto:
+        st.success("✅ Ya registró su participación.")
         st.stop()
 
-    if es_privada and (not name or not correo):
-        st.warning("Debe ingresar nombre y correo.")
-        st.stop()
-
+    # Tipo estándar: Voto por paquete de recomendaciones
     if tipo == "STD":
-        st.subheader("📊 Votación global")
-        voto = st.radio("Nivel de acuerdo (1 a 9):", list(range(1,10)), index=4, horizontal=True)
-        comentario = st.text_area("Comentario (opcional):")
-        acepta = st.checkbox("He leído todas las recomendaciones y confirmo mi voto.")
-        if st.button("✅ Enviar mi voto"):
-            if not acepta:
-                st.error("Debe aceptar los términos antes de enviar.")
-            else:
+        st.markdown("""
+        <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
+        ⚠️ <strong>Importante:</strong> Lea todas las recomendaciones antes de emitir su voto.<br>
+        Al finalizar el recorrido podrá emitir un único voto global para todo el paquete.
+        </div>
+        """, unsafe_allow_html=True)
+
+        import re
+        def separar_recomendaciones(texto):
+            partes = re.split(r'\s*\d+\.\s*', str(texto))
+            return [p.strip() for p in partes if p.strip()]
+
+        if "lista_recos" not in st.session_state:
+            st.session_state.lista_recos = separar_recomendaciones(s["desc"])
+            st.session_state.reco_index = 0
+
+        index = st.session_state.reco_index
+        total = len(st.session_state.lista_recos)
+        reco_actual = st.session_state.lista_recos[index]
+
+        if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
+            st.markdown("Haga click sobre las lupas si quiere ver las tablas relacionadas con esta/s recomendacion/es")
+            for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
+                with st.expander(f"🔍 Ver tablas {i+1}"):
+                    st.image(img_bytes, use_container_width=True)
+
+        col_left, col_center, col_right = st.columns([1, 8, 1])
+        with col_left:
+            if st.button("⬅️", key="anterior", disabled=(index == 0)):
+                st.session_state.reco_index -= 1
+                st.rerun()
+        with col_center:
+            st.markdown(f"**Recomendación {index+1} de {total}**")
+            st.markdown(reco_actual)
+        with col_right:
+            if st.button("➡️", key="siguiente", disabled=(index == total - 1)):
+                st.session_state.reco_index += 1
+                st.rerun()
+
+        # Solo permitir votar en la última recomendación
+        if index == total - 1:
+            st.markdown("---")
+            st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
+            voto = st.slider("Su voto global para todas las recomendaciones:", 1, 9, 5, key="voto_final")
+            comentario = st.text_area("Comentario (opcional):", key="comentario_final")
+
+            if st.button("✅ Enviar voto"):
                 pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-                s["names"].append(name)
-                s["ids"].append(pid)
+
+                if name not in s["names"]:
+                    s["names"].append(name)
+                    s["ids"].append(pid)
+
                 s["votes"].append(voto)
                 s["comments"].append(comentario)
+                s.setdefault("correos", []).append(correo)
+
                 st.balloons()
-                st.success("🎉 Su voto ha sido registrado exitosamente!")
-else:
-    st.warning("Debe incluir el parámetro ?session=CODE en la URL.")
+                st.success(f"🎉 Su voto ha sido registrado. ID: `{pid}`")
+
+                for k in ["lista_recos", "reco_index"]:
+                    st.session_state.pop(k, None)
+
+                st.stop()
+
+    # Detener cualquier render posterior innecesario
+    st.stop()
+
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
@@ -978,8 +987,8 @@ elif menu == "Crear Recomendación":
         st.markdown("""
         <div class="helper-text">
         Escala Likert 1‑9:<br>
-        • 1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo<br>
-        Se alcanza consenso cuando ≥80 % de votos son ≥7 y hay quórum (mitad + 1).
+        • 1‑3 Desacuerdo • 4‑6 Neutral • 7‑9 Acuerdo<br>
+        Se alcanza consenso cuando ≥80 % de votos son ≥7 y hay quórum (mitad + 1).
         </div>
         """, unsafe_allow_html=True)
 
@@ -1098,7 +1107,7 @@ elif menu == "Dashboard":
             df = pd.DataFrame({"Voto": votes})
             fig = px.histogram(
                 df, x="Voto", nbins=9,
-                labels={"Voto": "Escala 1–9", "count": "Frecuencia"},
+                labels={"Voto": "Escala 1–9", "count": "Frecuencia"},
                 color_discrete_sequence=[PRIMARY]
             )
             fig.update_traces(marker_line_width=0)
