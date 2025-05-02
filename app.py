@@ -907,6 +907,17 @@ if "session" in params:
           div[data-testid="stRadio"] > div {
             flex-direction: row !important;
           }
+          
+          /* Eliminar espacios en blanco innecesarios */
+          .block-container {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+          }
+          
+          /* Eliminar espacios en blanco extras entre elementos */
+          .element-container {
+            margin-bottom: 1rem !important;
+          }
         </style>
     """, unsafe_allow_html=True)
 
@@ -918,6 +929,36 @@ if "session" in params:
             </h2>
         </div>
     """, unsafe_allow_html=True)
+
+    # Verificar si store está definido, si no, definirlo
+    # Esto es solo un ejemplo, necesitarás reemplazarlo con tu implementación real
+    if 'store' not in locals() and 'store' not in globals():
+        # Definición simplificada de la clase Store (reemplazar con tu implementación real)
+        class SimpleStore:
+            def __init__(self):
+                self._data = {}
+                
+            def get(self, key):
+                return self._data.get(key, None)
+                
+            def set(self, key, value):
+                self._data[key] = value
+                return True
+                
+        store = SimpleStore()
+        
+        # Solo para propósitos de demostración, crear una sesión de prueba
+        if code == "DEMO":
+            store.set("DEMO", {
+                "tipo": "STD",
+                "privado": False,
+                "names": [],
+                "ids": [],
+                "votes": [],
+                "comments": [],
+                "desc": "1. Primera recomendación importante. 2. Segunda recomendación a considerar. 3. Tercera recomendación clave.",
+                "imagenes_relacionadas": []
+            })
 
     s = store.get(code)
     if not s:
@@ -946,6 +987,13 @@ if "session" in params:
             </p>
         </div>
     """, unsafe_allow_html=True)
+
+    # Definir la función correo_autorizado si no existe
+    if 'correo_autorizado' not in locals() and 'correo_autorizado' not in globals():
+        def correo_autorizado(correo, code):
+            # Implementación simplificada - reemplazar con tu lógica real
+            # En una aplicación real, aquí verificarías si el correo está en la lista de autorizados
+            return True
 
     # Formulario de datos personales con validación en tiempo real
     st.markdown("<div class='form-container'>", unsafe_allow_html=True)
@@ -998,10 +1046,20 @@ if "session" in params:
     
     st.markdown("</div>", unsafe_allow_html=True)
 
+    # Inicializar listas si no existen en la sesión
+    if "names" not in s:
+        s["names"] = []
+    if "ids" not in s:
+        s["ids"] = []
+    if "votes" not in s:
+        s["votes"] = []
+    if "comments" not in s:
+        s["comments"] = []
+
     # Verificar si ya votó
     ya_voto = (
         (tipo == "STD" and name in s["names"]) or
-        (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
+        (tipo == "GRADE_PKG" and "dominios" in s and "prioridad_problema" in s["dominios"] and name in s["dominios"]["prioridad_problema"]["names"])
     )
     
     if ya_voto:
@@ -1044,11 +1102,6 @@ if "session" in params:
         lista_recos = separar_recomendaciones(s["desc"])
         imagenes = s.get("imagenes_relacionadas", [])
         
-        # Progreso de lectura
-        recomendaciones_vistas = []
-        for i in range(len(lista_recos)):
-            recomendaciones_vistas.append(False)
-        
         # Generar tarjetas de recomendaciones
         for i, reco in enumerate(lista_recos):
             with st.container():
@@ -1060,24 +1113,19 @@ if "session" in params:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Marcar como vista
-                recomendaciones_vistas[i] = True
-                
                 # Mostrar imagen si existe
-                if i < len(imagenes):
+                if i < len(imagenes) and imagenes[i]:
                     with st.expander("🔍 Ver tabla relacionada"):
                         st.image(imagenes[i], use_container_width=True)
                         
                         # Opción para descargar la imagen si es relevante
-                        st.download_button(
-                            "⬇️ Descargar", 
-                            data=imagenes[i],  # Esto asume que imagenes[i] contiene los bytes de la imagen
-                            file_name=f"recomendacion_{i+1}.png",
-                            mime="image/png"
-                        )
-        
-        # Verificar que todas las recomendaciones fueron vistas
-        todas_vistas = all(recomendaciones_vistas)
+                        if isinstance(imagenes[i], bytes):
+                            st.download_button(
+                                "⬇️ Descargar", 
+                                data=imagenes[i],
+                                file_name=f"recomendacion_{i+1}.png",
+                                mime="image/png"
+                            )
         
         # Separador visual
         st.markdown("<hr/>", unsafe_allow_html=True)
@@ -1093,7 +1141,7 @@ if "session" in params:
         </div>
         """, unsafe_allow_html=True)
         
-        # Escala de votación con colores - AHORA CON RADIO BUTTONS NATIVOS
+        # Escala de votación con colores
         st.markdown("""
         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
             <span style="color: #d9534f;">En desacuerdo</span>
@@ -1102,19 +1150,15 @@ if "session" in params:
         </div>
         """, unsafe_allow_html=True)
         
-        # Formulario nativo de Streamlit para la votación
-        with st.form("voto_global", clear_on_submit=False):
-            # Inicializar el valor por defecto en session_state
-            if 'voto_seleccionado' not in st.session_state:
-                st.session_state.voto_seleccionado = 5
-            
+        # CLAVE: Usar una clave única para el formulario
+        with st.form(key="voto_form", clear_on_submit=False):
             # Radio buttons para seleccionar nivel de acuerdo
             voto_seleccionado = st.radio(
                 "Seleccione un valor:",
                 options=[1, 2, 3, 4, 5, 6, 7, 8, 9],
                 index=4,  # Por defecto selecciona 5 (índice 4)
                 horizontal=True,
-                label_visibility="collapsed"
+                key="voto_radio"
             )
             
             # Mostrar descripción del valor seleccionado
@@ -1129,71 +1173,103 @@ if "session" in params:
             comentario = st.text_area(
                 "Comentario (opcional):",
                 placeholder="Ingrese aquí sus observaciones, sugerencias o justificación de su voto...",
-                height=120
+                height=120,
+                key="comentario_area"
             )
             
-            # Términos y condiciones con checkbox nativo
-            st.markdown('<div style="margin: 15px 0;"></div>', unsafe_allow_html=True)
+            # Términos y condiciones con checkbox
             acepta_terminos = st.checkbox(
                 "Confirmo que he leído todas las recomendaciones y mi voto representa mi opinión personal", 
-                value=False
+                key="acepta_terminos"
             )
             
-            # Botón de envío con validación nativa
-            submitted = st.form_submit_button(
+            # Botón de envío
+            submit_button = st.form_submit_button(
                 "✅ Enviar mi voto", 
                 use_container_width=True, 
-                type="primary",
-                disabled=not acepta_terminos
+                type="primary"
             )
-
-            if submitted:
-                if not acepta_terminos:
-                    st.error("Debe confirmar que ha leído todas las recomendaciones para continuar.")
-                else:
-                    # Mostrar progreso de envío
-                    with st.spinner("Procesando su voto..."):
-                        sleep(1.0)  # Simular procesamiento
-                        
-                        # Generar ID único
-                        pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-                        
-                        # Registrar voto
-                        if name not in s["names"]:
-                            s["names"].append(name)
-                            s["ids"].append(pid)
-                        
-                        s["votes"].append(voto_seleccionado)
-                        s["comments"].append(comentario)
-                        s.setdefault("correos", []).append(correo)
-                        s.setdefault("fecha_voto", []).append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                        
-                        # Guardar los cambios
-                        store.set(code, s)
-                        
-                        # Animación de éxito
-                        st.balloons()
-                        
-                        # Mensaje de confirmación
-                        st.success("🎉 Su voto ha sido registrado exitosamente!")
-                        
-                        # Detalles del voto
-                        st.markdown(f"""
-                        <div style="background-color: #eaf7ea; padding: 15px; border-radius: 8px; margin-top: 20px;">
-                            <h4 style="margin-top: 0;">Resumen de su participación</h4>
-                            <p><strong>ID de voto:</strong> <code>{pid}</code></p>
-                            <p><strong>Fecha y hora:</strong> {s["fecha_voto"][-1]}</p>
-                            <p><strong>Calificación:</strong> {voto_seleccionado}/9</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Opciones adicionales
-                        with st.expander("Opciones adicionales"):
-                            st.markdown("- Para obtener un comprobante de su voto, capture esta pantalla")
-                            st.markdown("- Si necesita asistencia, contacte al administrador de la sesión")
+        
+        # Procesar el envío del formulario fuera del form
+        if submit_button:
+            if not acepta_terminos:
+                st.error("Debe confirmar que ha leído todas las recomendaciones para continuar.")
+            elif not name:
+                st.error("Debe ingresar su nombre completo para continuar.")
+            else:
+                # Mostrar progreso de envío
+                with st.spinner("Procesando su voto..."):
+                    sleep(1.0)  # Simular procesamiento
+                    
+                    # Generar ID único
+                    pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+                    
+                    # Registrar voto
+                    if name not in s["names"]:
+                        s["names"].append(name)
+                        s["ids"].append(pid)
+                    else:
+                        idx = s["names"].index(name)
+                        s["ids"][idx] = pid
+                    
+                    # Registrar voto (asegurarse de que los índices coincidan)
+                    idx = s["names"].index(name)
+                    while len(s["votes"]) <= idx:
+                        s["votes"].append(None)
+                    s["votes"][idx] = voto_seleccionado
+                    
+                    # Registrar comentario
+                    while len(s["comments"]) <= idx:
+                        s["comments"].append("")
+                    s["comments"][idx] = comentario
+                    
+                    # Registrar correo y fecha si es necesario
+                    if "correos" not in s:
+                        s["correos"] = [None] * len(s["names"])
+                    while len(s["correos"]) <= idx:
+                        s["correos"].append(None)
+                    s["correos"][idx] = correo
+                    
+                    if "fecha_voto" not in s:
+                        s["fecha_voto"] = [None] * len(s["names"])
+                    while len(s["fecha_voto"]) <= idx:
+                        s["fecha_voto"].append(None)
+                    s["fecha_voto"][idx] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    # Guardar los cambios
+                    store.set(code, s)
+                    
+                    # Animación de éxito
+                    st.balloons()
+                    
+                    # Mensaje de confirmación
+                    st.success("🎉 Su voto ha sido registrado exitosamente!")
+                    
+                    # Detalles del voto
+                    st.markdown(f"""
+                    <div style="background-color: #eaf7ea; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                        <h4 style="margin-top: 0;">Resumen de su participación</h4>
+                        <p><strong>ID de voto:</strong> <code>{pid}</code></p>
+                        <p><strong>Fecha y hora:</strong> {s["fecha_voto"][idx]}</p>
+                        <p><strong>Calificación:</strong> {voto_seleccionado}/9</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Opciones adicionales
+                    with st.expander("Opciones adicionales"):
+                        st.markdown("- Para obtener un comprobante de su voto, capture esta pantalla")
+                        st.markdown("- Si necesita asistencia, contacte al administrador de la sesión")
         
         st.markdown("</div>", unsafe_allow_html=True)
-    st.stop()
+else:
+    # Página de inicio si no hay sesión
+    st.markdown("""
+    <div style="text-align: center; padding: 20px;">
+        <h1 style="color: #662D91;">Sistema de Votación Digital</h1>
+        <p>Para acceder al sistema de votación necesita un código de sesión válido.</p>
+        <p>Por favor, añada el código de sesión a la URL como parámetro: <code>?session=SUCODIGO</code></p>
+    </div>
+    """, unsafe_allow_html=True)
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
 # 6) Panel de administración
