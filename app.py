@@ -816,7 +816,63 @@ if "session" in params:
             border: none;
             transition: all 0.3s ease;
           }
+          params = st.query_params
+
+if "session" in params:
+    import re
+    import hashlib
+    import datetime
+    from time import sleep
+
+    raw = params.get("session")
+    code = raw[0] if isinstance(raw, list) else raw
+    code = str(code).strip().upper()
+
+    # Aplicar estilos modernos para toda la página
+    st.markdown("""
+        <style>
+          /* Estilos generales */
+          [data-testid="stSidebar"] { display: none !important; }
+          [data-testid="collapsedControl"] { display: none !important; }
           
+          /* Contenedor principal con fondo sutil */
+          .main {
+            background-color: #f9f9f9;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+          }
+          
+          /* Estilos para títulos */
+          h1, h2, h3, h4 {
+            color: #2C3E50;
+            font-weight: 600;
+          }
+          
+          /* Tarjeta para el formulario */
+          .form-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+          }
+          
+          /* Estilo para campos de entrada */
+          .stTextInput input, .stTextArea textarea {
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            padding: 10px;
+            font-size: 15px;
+          }
+          
+          /* Estilo para botones */
+          .stButton button {
+            background-color: #662D91;
+            color: white;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 600;
+            border: none;
+            transition: all
           .stButton button:hover {
             background-color: #5a2683;
             box-shadow: 0 4px 8px rgba(102, 45, 145, 0.2);
@@ -1022,6 +1078,307 @@ if "session" in params:
                 </div>
                 """, unsafe_allow_html=True)
                 
+params = st.query_params
+
+if "session" in params:
+    import re
+    import hashlib
+    import datetime
+    from time import sleep
+
+    raw = params.get("session")
+    code = raw[0] if isinstance(raw, list) else raw
+    code = str(code).strip().upper()
+
+    # Aplicar estilos modernos para toda la página
+    st.markdown("""
+        <style>
+          /* Estilos generales */
+          [data-testid="stSidebar"] { display: none !important; }
+          [data-testid="collapsedControl"] { display: none !important; }
+          
+          /* Contenedor principal con fondo sutil */
+          .main {
+            background-color: #f9f9f9;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+          }
+          
+          /* Estilos para títulos */
+          h1, h2, h3, h4 {
+            color: #2C3E50;
+            font-weight: 600;
+          }
+          
+          /* Tarjeta para el formulario */
+          .form-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+          }
+          
+          /* Estilo para campos de entrada */
+          .stTextInput input, .stTextArea textarea {
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            padding: 10px;
+            font-size: 15px;
+          }
+          
+          /* Estilo para botones */
+          .stButton button {
+            background-color: #662D91;
+            color: white;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 600;
+            border: none;
+            transition: all 0.3s ease;
+          }
+          
+          .stButton button:hover {
+            background-color: #5a2683;
+            box-shadow: 0 4px 8px rgba(102, 45, 145, 0.2);
+          }
+          
+          /* Sistema de votación por botones */
+          .btn-vote-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+          
+          .btn-vote {
+            padding: 12px 0;
+            flex-grow: 1;
+            text-align: center;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 45px;
+            border: 2px solid transparent;
+          }
+          
+          .btn-vote:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+          }
+          
+          .btn-vote.selected {
+            border-color: #662D91;
+            box-shadow: 0 0 0 2px rgba(102, 45, 145, 0.3);
+          }
+          
+          .btn-vote.disagree {
+            background-color: #ffeeee;
+            color: #d9534f;
+          }
+          
+          .btn-vote.neutral {
+            background-color: #f0f5ff;
+            color: #5bc0de;
+          }
+          
+          .btn-vote.agree {
+            background-color: #eaf7ea;
+            color: #5cb85c;
+          }
+          
+          /* Estilo para las recomendaciones */
+          .recommendation-card {
+            background-color: #FFFFFF;
+            border-left: 4px solid #662D91;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+          }
+          
+          .recommendation-number {
+            background-color: #662D91;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-right: 8px;
+          }
+          
+          /* Alertas y mensajes */
+          .stAlert {
+            border-radius: 8px;
+            font-weight: 500;
+          }
+          
+          /* Divisores */
+          hr {
+            margin: 25px 0;
+            border-top: 1px solid #eee;
+          }
+          
+          /* Fix para el checkbox */
+          .st-emotion-cache-ue6h4q {
+            padding-right: 35px !important;
+          }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Componente de encabezado mejorado
+    st.markdown("""
+        <div style="background: linear-gradient(90deg, #662D91 0%, #9B59B6 100%); padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);">
+            <h2 style="color: white; margin: 0; padding: 0; text-align: center;">
+                <span style="margin-right: 10px;">🗳️</span> Sistema de Votación Digital
+            </h2>
+        </div>
+    """, unsafe_allow_html=True)
+
+    s = store.get(code)
+    if not s:
+        st.error(f"Sesión inválida: {code}")
+        with st.expander("¿Necesitas ayuda?"):
+            st.write("""
+                Si crees que esto es un error, comprueba que:
+                - Hayas ingresado correctamente el código de sesión
+                - La sesión no haya expirado
+                - Tengas una conexión a internet estable
+                
+                Si el problema persiste, contacta al administrador del sistema.
+            """)
+        st.stop()
+
+    tipo = s.get("tipo", "STD")
+    es_privada = s.get("privado", False)
+
+    # Mostrar información de la sesión
+    st.markdown(f"""
+        <div style="background-color: #f0f5ff; padding: 12px; border-radius: 8px; border-left: 4px solid #4a6fa5; margin-bottom: 20px;">
+            <p style="margin: 0; font-size: 16px;">
+                <strong>Sesión:</strong> {code} &nbsp;|&nbsp; 
+                <strong>Tipo:</strong> {tipo} &nbsp;|&nbsp; 
+                <strong>Acceso:</strong> {"Privado" if es_privada else "Público"}
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Formulario de datos personales con validación en tiempo real
+    st.markdown("<div class='form-container'>", unsafe_allow_html=True)
+    st.markdown("### 👤 Información del participante")
+    
+    if es_privada:
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            name = st.text_input("Nombre completo:", 
+                            placeholder="Ingrese su nombre y apellido",
+                            help="Su nombre completo tal como aparece en sus documentos oficiales")
+    else:
+        name = st.text_input("Nombre completo:", 
+                        placeholder="Ingrese su nombre y apellido",
+                        help="Su nombre completo tal como aparece en sus documentos oficiales")
+    
+    correo = None
+    if es_privada:
+        with col2:
+            correo = st.text_input("Correo electrónico:", 
+                                placeholder="ejemplo@dominio.com",
+                                help="Ingrese el correo con el que fue invitado a esta sesión")
+            
+            # Validación básica de correo electrónico
+            if correo and not re.match(r"[^@]+@[^@]+\.[^@]+", correo):
+                st.warning("⚠️ Por favor, ingrese un correo electrónico válido.")
+    
+    # Verificaciones de datos
+    if es_privada and (not name or not correo):
+        st.warning("⚠️ Debe ingresar su nombre completo y correo electrónico para continuar.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.stop()
+    elif not es_privada and not name:
+        st.warning("⚠️ Debe ingresar su nombre completo para continuar.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.stop()
+    
+    # Verificación de correo autorizado
+    if es_privada and correo and not correo_autorizado(correo, code):
+        st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
+        
+        with st.expander("¿No puede acceder?"):
+            st.write("""
+                Si cree que debería tener acceso:
+                1. Verifique que está usando el mismo correo electrónico con el que fue invitado
+                2. Compruebe que no haya errores de escritura
+                3. Contacte al administrador de la sesión para solicitar autorización
+            """)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.stop()
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # Verificar si ya votó
+    ya_voto = (
+        (tipo == "STD" and name in s["names"]) or
+        (tipo == "GRADE_PKG" and name in s["dominios"]["prioridad_problema"]["names"])
+    )
+    
+    if ya_voto:
+        st.success("✅ Ya registró su participación en esta sesión.")
+        
+        # Mostrar detalles del voto anterior (opcional)
+        with st.expander("Ver detalles de su participación"):
+            if tipo == "STD":
+                idx = s["names"].index(name)
+                st.write(f"**ID de voto:** `{s['ids'][idx]}`")
+                st.write(f"**Calificación otorgada:** {s['votes'][idx]}/9")
+                if s['comments'][idx]:
+                    st.write(f"**Comentario:** {s['comments'][idx]}")
+            else:
+                st.write("Los detalles no están disponibles para este tipo de sesión.")
+        
+        # Opción para contactar al administrador
+        with st.expander("¿Necesita modificar su voto?"):
+            st.write("Si necesita modificar su voto, contacte al administrador de la sesión.")
+        
+        st.stop()
+
+    if tipo == "STD":
+        # Banner de información importante
+        st.markdown("""
+        <div style="margin-top: 15px; padding: 15px; background-color: #fff8e6; border-left: 4px solid #ffc107; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <p style="display: flex; align-items: center; margin: 0;">
+                <span style="font-size: 20px; margin-right: 10px;">⚠️</span>
+                <span><strong>Importante:</strong> Lea detenidamente todas las recomendaciones antes de emitir su voto.</span>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Función para separar recomendaciones
+        def separar_recomendaciones(texto):
+            partes = re.split(r'\s*\d+\.\s*', str(texto))
+            return [p.strip() for p in partes if p.strip()]
+
+        # Obtener recomendaciones e imágenes
+        lista_recos = separar_recomendaciones(s["desc"])
+        imagenes = s.get("imagenes_relacionadas", [])
+        
+        # Progreso de lectura
+        recomendaciones_vistas = []
+        for i in range(len(lista_recos)):
+            recomendaciones_vistas.append(False)
+        
+        # Generar tarjetas de recomendaciones
+        for i, reco in enumerate(lista_recos):
+            with st.container():
+                st.markdown(f"""
+                <div class="recommendation-card">
+                    <span class="recommendation-number">{i+1}</span>
+                    <strong>Recomendación</strong>
+                    <div style="margin-top: 10px;">{reco}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
                 # Marcar como vista
                 recomendaciones_vistas[i] = True
                 
@@ -1046,41 +1403,99 @@ if "session" in params:
         
         # Formulario de votación con diseño mejorado
         st.markdown("<div class='form-container'>", unsafe_allow_html=True)
+        st.markdown("### 📊 Votación global")
+        
+        # Instrucciones claras
+        st.markdown("""
+        <div style="background-color: #f0f5ff; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+            <p style="margin: 0;">Por favor, indique su nivel de acuerdo con el paquete completo de recomendaciones:</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Escala de votación con colores - AHORA CON BOTONES EN VEZ DE SLIDER
+        st.markdown("""
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <span style="color: #d9534f;">En desacuerdo</span>
+            <span style="color: #5bc0de;">Neutral</span>
+            <span style="color: #5cb85c;">De acuerdo</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Inicializar valor del voto en la sesión
+        if 'voto_seleccionado' not in st.session_state:
+            st.session_state.voto_seleccionado = 5
+        
+        # Sistema de botones para seleccionar voto
+        col1, col2, col3 = st.columns([1, 3, 1])
+        with col2:
+            st.markdown("""
+            <div class="btn-vote-container">
+                <div class="btn-vote disagree" onclick="selectVote(1)" id="vote-1">1</div>
+                <div class="btn-vote disagree" onclick="selectVote(2)" id="vote-2">2</div>
+                <div class="btn-vote disagree" onclick="selectVote(3)" id="vote-3">3</div>
+                <div class="btn-vote neutral" onclick="selectVote(4)" id="vote-4">4</div>
+                <div class="btn-vote neutral" onclick="selectVote(5)" id="vote-5">5</div>
+                <div class="btn-vote neutral" onclick="selectVote(6)" id="vote-6">6</div>
+                <div class="btn-vote agree" onclick="selectVote(7)" id="vote-7">7</div>
+                <div class="btn-vote agree" onclick="selectVote(8)" id="vote-8">8</div>
+                <div class="btn-vote agree" onclick="selectVote(9)" id="vote-9">9</div>
+            </div>
+            
+            <script>
+            function selectVote(value) {
+                // Remove selected class from all buttons
+                for (let i = 1; i <= 9; i++) {
+                    document.getElementById('vote-' + i).classList.remove('selected');
+                }
+                // Add selected class to clicked button
+                document.getElementById('vote-' + value).classList.add('selected');
+                
+                // Set hidden input value
+                document.getElementById('selected_vote').value = value;
+                
+                // Update the vote display text
+                const voteDisplay = document.getElementById('vote-display');
+                let displayText = '';
+                let displayColor = '';
+                
+                if (value <= 3) {
+                    displayText = value + ' - En desacuerdo';
+                    displayColor = '#d9534f';
+                } else if (value <= 6) {
+                    displayText = value + ' - Neutral';
+                    displayColor = '#5bc0de';
+                } else {
+                    displayText = value + ' - De acuerdo';
+                    displayColor = '#5cb85c';
+                }
+                
+                voteDisplay.innerHTML = 'Ha seleccionado: ' + displayText;
+                voteDisplay.style.color = displayColor;
+                voteDisplay.style.fontWeight = 'bold';
+                
+                // Enable the submit button if terms are accepted
+                if (document.getElementById('terms-checkbox').checked) {
+                    document.getElementById('submit-button').disabled = false;
+                }
+            }
+            
+            // Set the initial vote value (5) as selected when page loads
+            document.addEventListener('DOMContentLoaded', function() {
+                selectVote(5);
+            });
+            </script>
+            """, unsafe_allow_html=True)
+        
+        # Campo oculto para almacenar el voto seleccionado
+        st.markdown('<input type="hidden" id="selected_vote" value="5">', unsafe_allow_html=True)
+        
+        # Visualización del voto seleccionado
+        st.markdown('<p id="vote-display" style="color: #5bc0de; font-weight: bold; text-align: center; margin: 15px 0;">Ha seleccionado: 5 - Neutral</p>', unsafe_allow_html=True)
+        
+        # Formulario real para enviar el voto
         with st.form("voto_global", clear_on_submit=False):
-            st.markdown("### 📊 Votación global")
-            
-            # Instrucciones claras
-            st.markdown("""
-            <div style="background-color: #f0f5ff; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                <p style="margin: 0;">Por favor, indique su nivel de acuerdo con el paquete completo de recomendaciones:</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Escala de votación con colores
-            st.markdown("""
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span style="color: #d9534f;">En desacuerdo</span>
-                <span style="color: #5bc0de;">Neutral</span>
-                <span style="color: #5cb85c;">De acuerdo</span>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            voto = st.slider(
-                "Calificación:",
-                min_value=1,
-                max_value=9,
-                value=5,
-                step=1,
-                help="1 = Completamente en desacuerdo, 9 = Completamente de acuerdo"
-            )
-            
-            # Visualización del voto seleccionado
-            if voto <= 3:
-                st.markdown(f'<p style="color: #d9534f; font-weight: bold;">Ha seleccionado: {voto} - En desacuerdo</p>', unsafe_allow_html=True)
-            elif voto <= 6:
-                st.markdown(f'<p style="color: #5bc0de; font-weight: bold;">Ha seleccionado: {voto} - Neutral</p>', unsafe_allow_html=True)
-            else:
-                st.markdown(f'<p style="color: #5cb85c; font-weight: bold;">Ha seleccionado: {voto} - De acuerdo</p>', unsafe_allow_html=True)
+            # Campo de voto oculto (se actualizará con JavaScript)
+            voto = st.number_input("Voto", min_value=1, max_value=9, value=5, label_visibility="collapsed")
             
             # Campo para comentarios
             comentario = st.text_area(
@@ -1089,16 +1504,48 @@ if "session" in params:
                 height=120
             )
             
-            # Términos y condiciones
-            acepta_terminos = st.checkbox("Confirmo que he leído todas las recomendaciones y mi voto representa mi opinión personal", value=False)
+            # Términos y condiciones con ID para manipular con JavaScript
+            st.markdown('<div style="margin: 15px 0;"></div>', unsafe_allow_html=True)
+            acepta_terminos = st.checkbox(
+                "Confirmo que he leído todas las recomendaciones y mi voto representa mi opinión personal", 
+                value=False,
+                key="terminos"
+            )
+            
+            # Agregar JavaScript para conectar el checkbox con el submit button
+            st.markdown("""
+            <script>
+            // Función para actualizar el estado del botón de envío
+            document.addEventListener('DOMContentLoaded', function() {
+                const termsCheckbox = document.getElementById('terms-checkbox');
+                if (termsCheckbox) {
+                    termsCheckbox.addEventListener('change', function() {
+                        const submitButton = document.getElementById('submit-button');
+                        if (submitButton) {
+                            submitButton.disabled = !termsCheckbox.checked;
+                        }
+                    });
+                }
+            });
+            </script>
+            """, unsafe_allow_html=True)
             
             # Botón de envío con carga
-            submitted = st.form_submit_button("✅ Enviar mi voto", use_container_width=True, disabled=not acepta_terminos)
+            submitted = st.form_submit_button(
+                "✅ Enviar mi voto", 
+                use_container_width=True, 
+                type="primary",
+                disabled=not acepta_terminos
+            )
 
             if submitted:
                 if not acepta_terminos:
                     st.error("Debe confirmar que ha leído todas las recomendaciones para continuar.")
                 else:
+                    # Recuperar el valor del voto desde el elemento oculto (via JavaScript)
+                    voto_js = st.experimental_get_query_params().get("selected_vote", ["5"])[0]
+                    voto_final = int(voto_js) if voto_js.isdigit() else voto
+                    
                     # Mostrar progreso de envío
                     with st.spinner("Procesando su voto..."):
                         sleep(1.0)  # Simular procesamiento
@@ -1111,16 +1558,19 @@ if "session" in params:
                             s["names"].append(name)
                             s["ids"].append(pid)
                         
-                        s["votes"].append(voto)
+                        s["votes"].append(voto_final)
                         s["comments"].append(comentario)
                         s.setdefault("correos", []).append(correo)
                         s.setdefault("fecha_voto", []).append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                        
+                        # Guardar los cambios
+                        store.set(code, s)
                         
                         # Animación de éxito
                         st.balloons()
                         
                         # Mensaje de confirmación
-                        st.success(f"🎉 Su voto ha sido registrado exitosamente!")
+                        st.success("🎉 Su voto ha sido registrado exitosamente!")
                         
                         # Detalles del voto
                         st.markdown(f"""
@@ -1128,7 +1578,7 @@ if "session" in params:
                             <h4 style="margin-top: 0;">Resumen de su participación</h4>
                             <p><strong>ID de voto:</strong> <code>{pid}</code></p>
                             <p><strong>Fecha y hora:</strong> {s["fecha_voto"][-1]}</p>
-                            <p><strong>Calificación:</strong> {voto}/9</p>
+                            <p><strong>Calificación:</strong> {voto_final}/9</p>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -1136,8 +1586,23 @@ if "session" in params:
                         with st.expander("Opciones adicionales"):
                             st.markdown("- Para obtener un comprobante de su voto, capture esta pantalla")
                             st.markdown("- Si necesita asistencia, contacte al administrador de la sesión")
-                        
-                        st.stop()
+        
+        # Añadir script adicional para establecer valores predeterminados después de la carga
+        st.markdown("""
+        <script>
+        // Establecer selección inicial una vez que la página esté completamente cargada
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                selectVote(5);
+                
+                // Intentar hacer focus en el primer elemento seleccionable
+                try {
+                    document.querySelector('input[type="text"]').focus();
+                } catch(e) {}
+            }, 500);
+        });
+        </script>
+        """, unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
