@@ -762,6 +762,8 @@ params = st.query_params
 if "session" in params:
     import hashlib, re, datetime
 
+    odds_header()
+
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = code.strip().upper()
@@ -774,7 +776,6 @@ if "session" in params:
     es_privada = s.get("privado", False)
     tipo = s.get("tipo", "STD")
 
-    # Ocultar panel de navegación
     st.markdown("""
         <style>
         [data-testid="stSidebar"] { display: none !important; }
@@ -783,13 +784,10 @@ if "session" in params:
         </style>
     """, unsafe_allow_html=True)
 
-    # Paso 1 — Captura de nombre y correo
     if "nombre_confirmado" not in st.session_state:
         st.markdown("### 👤 Ingrese su nombre para comenzar")
         nombre = st.text_input("Nombre completo:")
-        correo = None
-        if es_privada:
-            correo = st.text_input("Correo electrónico:")
+        correo = st.text_input("Correo electrónico:") if es_privada else None
 
         if st.button("Continuar"):
             if not nombre or (es_privada and not correo):
@@ -803,7 +801,6 @@ if "session" in params:
                 st.rerun()
         st.stop()
 
-    # Paso 2 — Ya votó
     name = st.session_state.nombre
     correo = st.session_state.get("correo", None)
 
@@ -816,7 +813,6 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # Paso 3 — Mostrar recomendaciones
     def separar_recomendaciones(texto):
         partes = re.split(r'\s*\d+\.\s*', str(texto))
         return [p.strip() for p in partes if p.strip()]
@@ -834,7 +830,6 @@ if "session" in params:
         </div>
         """, unsafe_allow_html=True)
 
-    # Paso 4 — Votación
     st.markdown("### 📊 Votación global")
     voto = st.radio("Seleccione su nivel de acuerdo (1=Desacuerdo, 9=Acuerdo):",
                     options=list(range(1, 10)), horizontal=True)
@@ -862,8 +857,10 @@ if "session" in params:
         st.success("🎉 ¡Gracias por su votación!")
         st.markdown(f"**ID de participación:** `{pid}`")
         st.stop()
-# Añadir esta línea al FINAL del bloque completo:
+
+    # 🔴 Añadir este st.stop() aquí evita que cargue la barra lateral del panel
     st.stop()
+
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
 # 6) Panel de administración
