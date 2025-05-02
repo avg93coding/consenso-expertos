@@ -776,6 +776,7 @@ if "session" in params:
     es_privada = s.get("privado", False)
     tipo = s.get("tipo", "STD")
 
+    # Ocultar navegación y encabezados
     st.markdown("""
         <style>
         [data-testid="stSidebar"] { display: none !important; }
@@ -784,6 +785,7 @@ if "session" in params:
         </style>
     """, unsafe_allow_html=True)
 
+    # Paso 1 — Captura de datos
     if "nombre_confirmado" not in st.session_state:
         st.markdown("### 👤 Ingrese su nombre para comenzar")
         nombre = st.text_input("Nombre completo:")
@@ -804,6 +806,7 @@ if "session" in params:
     name = st.session_state.nombre
     correo = st.session_state.get("correo", None)
 
+    # Paso 2 — Validar si ya votó
     if st.session_state.get("voto_registrado"):
         st.success("🎉 ¡Gracias por su votación!")
         st.markdown(f"**ID de participación:** `{st.session_state.voto_id}`")
@@ -813,6 +816,7 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
+    # Paso 3 — Mostrar recomendaciones
     def separar_recomendaciones(texto):
         partes = re.split(r'\s*\d+\.\s*', str(texto))
         return [p.strip() for p in partes if p.strip()]
@@ -830,11 +834,32 @@ if "session" in params:
         </div>
         """, unsafe_allow_html=True)
 
+    # Paso 4 — Votación
     st.markdown("### 📊 Votación global")
     voto = st.radio("Seleccione su nivel de acuerdo (1=Desacuerdo, 9=Acuerdo):",
                     options=list(range(1, 10)), horizontal=True)
     comentario = st.text_area("Comentario (opcional):")
     acepta = st.checkbox("Confirmo que leí las recomendaciones y voto con base en mi criterio")
+
+    # Semáforo explicativo
+    st.markdown("""
+    <div style="margin-top: 20px;">
+      <div style="display: flex; justify-content: space-around; text-align: center;">
+        <div style="flex:1;">
+          <div style="background-color: #e74c3c; color: white; padding: 8px; border-radius: 6px;">1 – 3</div>
+          <div style="margin-top: 5px;">Desacuerdo</div>
+        </div>
+        <div style="flex:1;">
+          <div style="background-color: #f1c40f; color: black; padding: 8px; border-radius: 6px;">4 – 6</div>
+          <div style="margin-top: 5px;">Neutral / Dudoso</div>
+        </div>
+        <div style="flex:1;">
+          <div style="background-color: #27ae60; color: white; padding: 8px; border-radius: 6px;">7 – 9</div>
+          <div style="margin-top: 5px;">Acuerdo</div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     if st.button("✅ Enviar voto"):
         if not acepta:
@@ -858,7 +883,7 @@ if "session" in params:
         st.markdown(f"**ID de participación:** `{pid}`")
         st.stop()
 
-    # 🔴 Añadir este st.stop() aquí evita que cargue la barra lateral del panel
+    # Evita que cargue el resto de la app (panel lateral, etc.)
     st.stop()
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
