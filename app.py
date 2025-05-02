@@ -872,7 +872,7 @@ if "session" in params:
         st.markdown(f"**ID de participación:** `{pid}`")
         st.stop()
 
- st.stop()
+        st.stop()
 
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
