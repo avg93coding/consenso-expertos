@@ -768,7 +768,7 @@ if "session" in params:
     code = raw[0] if isinstance(raw, list) else raw
     code = code.strip().upper()
 
-    odds_header()
+    
 
     # Ocultar barra lateral y panel de navegación
     st.markdown("""
