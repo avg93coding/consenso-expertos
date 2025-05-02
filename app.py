@@ -766,7 +766,7 @@ if "session" in params:
 
     odds_header()
 
-    # Ocultar barra lateral en la página de votación
+    # Ocultar barra lateral
     st.markdown("""
         <style>
           [data-testid="stSidebar"] { display: none !important; }
@@ -784,23 +784,30 @@ if "session" in params:
 
     st.subheader(f"Panel de votación — Sesión {code}")
 
-    # Capturar nombre
-    name = st.text_input("Nombre completo (nombre y apellido) del participante:")
+    # Fase 1: Captura de nombre (y correo si aplica)
+    if "verificado" not in st.session_state:
+        with st.form("verificacion_identidad"):
+            name = st.text_input("Nombre completo (nombre y apellido):")
+            correo = None
+            if es_privada:
+                correo = st.text_input("Correo electrónico (obligatorio):")
+            confirmar = st.form_submit_button("Continuar")
 
-    # Capturar correo solo si la sesión es privada
-    correo = None
-    if es_privada:
-        correo = st.text_input("Correo electrónico (obligatorio):")
-        if not name or not correo:
-            st.warning("Ingrese nombre y correo electrónico para continuar.")
-            st.stop()
-        if not correo_autorizado(correo, code):
-            st.error("❌ El correo ingresado no está autorizado para participar en esta sesión privada.")
-            st.stop()
-    else:
-        if not name:
-            st.warning("Ingrese su nombre para continuar.")
-            st.stop()
+        if confirmar:
+            if not name or (es_privada and not correo):
+                st.warning("Por favor, complete todos los campos obligatorios.")
+                st.stop()
+            if es_privada and not correo_autorizado(correo, code):
+                st.error("❌ El correo ingresado no está autorizado para esta sesión privada.")
+                st.stop()
+            st.session_state["nombre"] = name
+            st.session_state["correo"] = correo
+            st.session_state["verificado"] = True
+            st.rerun()
+        st.stop()
+
+    name = st.session_state["nombre"]
+    correo = st.session_state.get("correo")
 
     # Verificar si ya votó
     ya_voto = (
@@ -811,12 +818,11 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # Tipo estándar: Voto por paquete de recomendaciones
     if tipo == "STD":
         st.markdown("""
         <div style="margin-top: 10px; padding: 10px; background-color: #f0f2f6; border-left: 4px solid #662D91; border-radius: 5px;">
         ⚠️ <strong>Importante:</strong> Lea todas las recomendaciones antes de emitir su voto.<br>
-        Al finalizar el recorrido podrá emitir un único voto global para todo el paquete.
+        Al final podrá emitir un único voto global.
         </div>
         """, unsafe_allow_html=True)
 
@@ -825,59 +831,41 @@ if "session" in params:
             partes = re.split(r'\s*\d+\.\s*', str(texto))
             return [p.strip() for p in partes if p.strip()]
 
-        if "lista_recos" not in st.session_state:
-            st.session_state.lista_recos = separar_recomendaciones(s["desc"])
-            st.session_state.reco_index = 0
+        recomendaciones = separar_recomendaciones(s["desc"])
+        imagenes = s.get("imagenes_relacionadas", [])
 
-        index = st.session_state.reco_index
-        total = len(st.session_state.lista_recos)
-        reco_actual = st.session_state.lista_recos[index]
+        st.markdown("---")
+        for i, reco in enumerate(recomendaciones):
+            st.markdown(f"""
+            <div style="background-color: white; border-left: 4px solid #662D91; padding: 15px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                <strong>Recomendación {i+1}</strong><br>
+                {reco}
+            </div>
+            """, unsafe_allow_html=True)
 
-        if "imagenes_relacionadas" in s and s["imagenes_relacionadas"]:
-            st.markdown("Haga click sobre las lupas si quiere ver las tablas relacionadas con esta/s recomendacion/es")
-            for i, img_bytes in enumerate(s["imagenes_relacionadas"]):
-                with st.expander(f"🔍 Ver tablas {i+1}"):
-                    st.image(img_bytes, use_container_width=True)
+            if i < len(imagenes) and imagenes[i]:
+                with st.expander(f"🔍 Ver imagen relacionada {i+1}"):
+                    st.image(imagenes[i], use_container_width=True)
 
-        col_left, col_center, col_right = st.columns([1, 8, 1])
-        with col_left:
-            if st.button("⬅️", key="anterior", disabled=(index == 0)):
-                st.session_state.reco_index -= 1
-                st.rerun()
-        with col_center:
-            st.markdown(f"**Recomendación {index+1} de {total}**")
-            st.markdown(reco_actual)
-        with col_right:
-            if st.button("➡️", key="siguiente", disabled=(index == total - 1)):
-                st.session_state.reco_index += 1
-                st.rerun()
+        st.markdown("---")
+        st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
+        voto = st.radio("Su voto global para todas las recomendaciones:", options=list(range(1, 10)), horizontal=True)
+        comentario = st.text_area("Comentario (opcional):")
 
-        # Solo permitir votar en la última recomendación
-        if index == total - 1:
-            st.markdown("---")
-            st.markdown("**1–3 Desacuerdo • 4–6 Neutral • 7–9 Acuerdo**")
-            voto = st.slider("Su voto global para todas las recomendaciones:", 1, 9, 5, key="voto_final")
-            comentario = st.text_area("Comentario (opcional):", key="comentario_final")
+        if st.button("✅ Enviar voto"):
+            pid = hashlib.sha256(name.encode()).hexdigest()[:8]
 
-            if st.button("✅ Enviar voto"):
-                pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+            s["names"].append(name)
+            s["ids"].append(pid)
+            s["votes"].append(voto)
+            s["comments"].append(comentario)
+            s.setdefault("correos", []).append(correo)
 
-                if name not in s["names"]:
-                    s["names"].append(name)
-                    s["ids"].append(pid)
+            st.success(f"🎉 Voto registrado correctamente. ID: `{pid}`")
+            st.balloons()
+            st.stop()
 
-                s["votes"].append(voto)
-                s["comments"].append(comentario)
-                s.setdefault("correos", []).append(correo)
-
-                st.balloons()
-                st.success(f"🎉 Su voto ha sido registrado. ID: `{pid}`")
-
-                for k in ["lista_recos", "reco_index"]:
-                    st.session_state.pop(k, None)
-
-                st.stop()
-
+    st.stop()
     # Detener cualquier render posterior innecesario
     st.stop()
 
