@@ -775,13 +775,7 @@ if "session" in params:
     tipo = s.get("tipo", "STD")
     es_privada = s.get("privado", False)
 
-    # Mostrar encabezado SOLO si el usuario va a votar
-    if (
-        "nombre_confirmado" in st.session_state
-        and not st.session_state.get("voto_registrado")
-        and st.session_state.get("nombre") not in s["names"]
-    ):
-        odds_header()
+
 
     # Ocultar panel de navegación
     st.markdown("""
