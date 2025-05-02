@@ -862,7 +862,8 @@ if "session" in params:
         st.success("🎉 ¡Gracias por su votación!")
         st.markdown(f"**ID de participación:** `{pid}`")
         st.stop()
-
+# Añadir esta línea al FINAL del bloque completo:
+    st.stop()
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
 # 6) Panel de administración
