@@ -762,13 +762,22 @@ params = st.query_params
 if "session" in params:
     import hashlib
     import re
+    import datetime
 
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = code.strip().upper()
 
     odds_header()
-    st.markdown("<style>[data-testid='stSidebar']{display:none !important;}</style>", unsafe_allow_html=True)
+
+    # Ocultar barra lateral y panel de navegación
+    st.markdown("""
+        <style>
+        [data-testid="stSidebar"] { display: none !important; }
+        [data-testid="collapsedControl"] { display: none !important; }
+        header, footer { visibility: hidden; }
+        </style>
+    """, unsafe_allow_html=True)
 
     s = store.get(code)
     if not s:
@@ -778,26 +787,27 @@ if "session" in params:
     tipo = s.get("tipo", "STD")
     es_privada = s.get("privado", False)
 
-    # Paso 1: Captura de nombre
+    # Paso 1: Captura de nombre con botón “Continuar”
     if "nombre_confirmado" not in st.session_state:
         st.markdown("### 👤 Ingrese su nombre para comenzar")
         st.session_state.nombre = st.text_input("Nombre completo:")
         if es_privada:
             st.session_state.correo = st.text_input("Correo electrónico:")
-        if st.button("Continuar"):
+        continuar = st.button("Continuar")
+        if continuar:
             if not st.session_state.nombre or (es_privada and not st.session_state.correo):
                 st.warning("Debe completar todos los campos.")
-                st.stop()
-            if es_privada and not correo_autorizado(st.session_state.correo, code):
+            elif es_privada and not correo_autorizado(st.session_state.correo, code):
                 st.error("Correo no autorizado.")
-                st.stop()
-            st.session_state.nombre_confirmado = True
+            else:
+                st.session_state.nombre_confirmado = True
+                st.rerun()
         st.stop()
 
     name = st.session_state.nombre
     correo = st.session_state.get("correo", None)
 
-    # Paso 2: Evitar revotación (bloqueo permanente en navegador)
+    # Paso 2: Mostrar agradecimiento si ya votó (bloquea segunda votación)
     if "voto_registrado" in st.session_state and st.session_state.voto_registrado:
         st.success("🎉 ¡Gracias por su votación!")
         st.markdown(f"**ID de participación:** `{st.session_state.voto_id}`")
@@ -807,7 +817,7 @@ if "session" in params:
         st.success("✅ Ya registró su participación.")
         st.stop()
 
-    # Mostrar recomendaciones
+    # Paso 3: Mostrar recomendaciones
     def separar_recomendaciones(texto):
         partes = re.split(r'\s*\d+\.\s*', str(texto))
         return [p.strip() for p in partes if p.strip()]
@@ -825,10 +835,10 @@ if "session" in params:
         </div>
         """, unsafe_allow_html=True)
 
-    # Votación con radio buttons
+    # Paso 4: Votación
     st.markdown("### 📊 Votación global")
     voto = st.radio("Seleccione su nivel de acuerdo (1=Desacuerdo, 9=Acuerdo):",
-                    options=[1,2,3,4,5,6,7,8,9], horizontal=True)
+                    options=[1, 2, 3, 4, 5, 6, 7, 8, 9], horizontal=True)
 
     comentario = st.text_area("Comentario (opcional):")
     acepta = st.checkbox("Confirmo que leí las recomendaciones y voto con base en mi criterio")
@@ -856,7 +866,7 @@ if "session" in params:
         st.success("🎉 ¡Gracias por su votación!")
         st.markdown(f"**ID de participación:** `{pid}`")
         st.stop()
-
+        st.stop()
 
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
