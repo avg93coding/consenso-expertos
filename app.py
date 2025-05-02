@@ -761,19 +761,10 @@ params = st.query_params
 
 if "session" in params:
     import hashlib, re, datetime
-
+    odds_header()
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = code.strip().upper()
-
-    # Validar código
-    s = store.get(code)
-    if not s:
-        st.error(f"❌ Sesión inválida: {code}")
-        st.stop()
-        odds_header()
-    tipo = s.get("tipo", "STD")
-    es_privada = s.get("privado", False)
 
 
 
