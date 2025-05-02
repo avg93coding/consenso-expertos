@@ -821,7 +821,7 @@ if "session" in params:
         return [p.strip() for p in partes if p.strip()]
 
     if "titulo" in s and s["titulo"].strip():
-        st.markdown(f"## 🧭 {s['titulo']}")
+        st.markdown(f"## {s['titulo']}")
 
     st.markdown("### 📋 Recomendaciones a evaluar")
     lista_recos = separar_recomendaciones(s["desc"])
