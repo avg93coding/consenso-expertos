@@ -762,8 +762,6 @@ params = st.query_params
 if "session" in params:
     import hashlib, re, datetime
 
-    odds_header()  # Mostrar encabezado de inmediato
-
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = code.strip().upper()
@@ -773,10 +771,8 @@ if "session" in params:
         st.error(f"❌ Sesión inválida: {code}")
         st.stop()
 
-    # Ahora sí es seguro usar es_privada
     es_privada = s.get("privado", False)
     tipo = s.get("tipo", "STD")
-
 
     # Ocultar panel de navegación
     st.markdown("""
@@ -866,7 +862,6 @@ if "session" in params:
         st.success("🎉 ¡Gracias por su votación!")
         st.markdown(f"**ID de participación:** `{pid}`")
         st.stop()
-
 
 # … aquí continúa el resto de tu aplicación (panel de administración, sidebar, etc.) …
 
