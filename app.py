@@ -767,7 +767,11 @@ if "session" in params:
     code = code.strip().upper()
 
     # Mostrar encabezado SOLO en modo votación
-    odds_header()
+    if (
+    "nombre_confirmado" in st.session_state
+    and not st.session_state.get("voto_registrado")
+    and st.session_state.nombre not in s["names"]):
+    odds_header()odds_header()
 
     # Ocultar panel de navegación
     st.markdown("""
