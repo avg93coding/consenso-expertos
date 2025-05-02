@@ -758,7 +758,6 @@ import hashlib
 # ——————————————————————————————
 # Código del formulario mejorado
  
-                
 params = st.query_params
 
 if "session" in params:
@@ -904,6 +903,17 @@ if "session" in params:
           /* Fix para el checkbox */
           .st-emotion-cache-ue6h4q {
             padding-right: 35px !important;
+          }
+          
+          /* Estilo para el botón de envío deshabilitado */
+          .submit-btn-disabled {
+            opacity: 0.6;
+            cursor: not-allowed !important;
+          }
+          
+          .submit-btn-enabled {
+            opacity: 1;
+            cursor: pointer !important;
           }
         </style>
     """, unsafe_allow_html=True)
@@ -1123,7 +1133,13 @@ if "session" in params:
             </div>
             
             <script>
+            // Variable global para el voto seleccionado
+            let selectedVoteValue = 5;
+            
             function selectVote(value) {
+                // Guardar el valor del voto seleccionado
+                selectedVoteValue = value;
+                
                 // Remove selected class from all buttons
                 for (let i = 1; i <= 9; i++) {
                     document.getElementById('vote-' + i).classList.remove('selected');
@@ -1131,8 +1147,11 @@ if "session" in params:
                 // Add selected class to clicked button
                 document.getElementById('vote-' + value).classList.add('selected');
                 
-                // Set hidden input value
-                document.getElementById('selected_vote').value = value;
+                // Update the hidden input value
+                const hiddenInput = document.getElementById('hidden-vote-value');
+                if (hiddenInput) {
+                    hiddenInput.value = value;
+                }
                 
                 // Update the vote display text
                 const voteDisplay = document.getElementById('vote-display');
@@ -1154,29 +1173,53 @@ if "session" in params:
                 voteDisplay.style.color = displayColor;
                 voteDisplay.style.fontWeight = 'bold';
                 
-                // Enable the submit button if terms are accepted
-                if (document.getElementById('terms-checkbox').checked) {
-                    document.getElementById('submit-button').disabled = false;
+                // Update the submit button state based on terms checkbox
+                updateSubmitButtonState();
+            }
+            
+            function updateSubmitButtonState() {
+                const termsCheckbox = document.getElementById('terms-checkbox');
+                const submitButton = document.getElementById('submit-button');
+                
+                if (termsCheckbox && submitButton) {
+                    if (termsCheckbox.checked) {
+                        submitButton.disabled = false;
+                        submitButton.classList.remove('submit-btn-disabled');
+                        submitButton.classList.add('submit-btn-enabled');
+                    } else {
+                        submitButton.disabled = true;
+                        submitButton.classList.add('submit-btn-disabled');
+                        submitButton.classList.remove('submit-btn-enabled');
+                    }
                 }
             }
             
             // Set the initial vote value (5) as selected when page loads
             document.addEventListener('DOMContentLoaded', function() {
                 selectVote(5);
+                setTimeout(function() {
+                    // Asegurarse de que los elementos existen
+                    if (document.getElementById('vote-5')) {
+                        selectVote(5);
+                    }
+                    
+                    // Configurar listeners para el checkbox
+                    const termsCheckbox = document.getElementById('terms-checkbox');
+                    if (termsCheckbox) {
+                        termsCheckbox.addEventListener('change', updateSubmitButtonState);
+                    }
+                }, 500);
             });
             </script>
             """, unsafe_allow_html=True)
-        
-        # Campo oculto para almacenar el voto seleccionado
-        st.markdown('<input type="hidden" id="selected_vote" value="5">', unsafe_allow_html=True)
         
         # Visualización del voto seleccionado
         st.markdown('<p id="vote-display" style="color: #5bc0de; font-weight: bold; text-align: center; margin: 15px 0;">Ha seleccionado: 5 - Neutral</p>', unsafe_allow_html=True)
         
         # Formulario real para enviar el voto
         with st.form("voto_global", clear_on_submit=False):
-            # Campo de voto oculto (se actualizará con JavaScript)
-            voto = st.number_input("Voto", min_value=1, max_value=9, value=5, label_visibility="collapsed")
+            # Campo oculto para el valor del voto (se actualizará con JavaScript)
+            st.markdown('<input type="hidden" id="hidden-vote-value" name="hidden-vote-value" value="5">', unsafe_allow_html=True)
             
             # Campo para comentarios
             comentario = st.text_area(
@@ -1185,7 +1228,7 @@ if "session" in params:
                 height=120
             )
             
-            # Términos y condiciones con ID para manipular con JavaScript
+            # Términos y condiciones
             st.markdown('<div style="margin: 15px 0;"></div>', unsafe_allow_html=True)
             acepta_terminos = st.checkbox(
                 "Confirmo que he leído todas las recomendaciones y mi voto representa mi opinión personal", 
@@ -1193,20 +1236,50 @@ if "session" in params:
                 key="terminos"
             )
             
-            # Agregar JavaScript para conectar el checkbox con el submit button
+            # Aplicar ID al checkbox para manipulación con JavaScript
             st.markdown("""
             <script>
-            // Función para actualizar el estado del botón de envío
             document.addEventListener('DOMContentLoaded', function() {
-                const termsCheckbox = document.getElementById('terms-checkbox');
-                if (termsCheckbox) {
-                    termsCheckbox.addEventListener('change', function() {
-                        const submitButton = document.getElementById('submit-button');
-                        if (submitButton) {
-                            submitButton.disabled = !termsCheckbox.checked;
+                // Esperamos a que Streamlit termine de renderizar
+                setTimeout(function() {
+                    // Buscamos el checkbox de términos por su texto/label
+                    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                    checkboxes.forEach(function(checkbox) {
+                        const label = checkbox.parentElement.textContent || '';
+                        if (label.includes('Confirmo que he leído')) {
+                            checkbox.id = 'terms-checkbox';
+                            checkbox.addEventListener('change', function() {
+                                const submitButton = document.getElementById('submit-button');
+                                if (submitButton) {
+                                    submitButton.disabled = !this.checked;
+                                    if (this.checked) {
+                                        submitButton.classList.remove('submit-btn-disabled');
+                                        submitButton.classList.add('submit-btn-enabled');
+                                    } else {
+                                        submitButton.classList.add('submit-btn-disabled');
+                                        submitButton.classList.remove('submit-btn-enabled');
+                                    }
+                                }
+                            });
                         }
                     });
-                }
+                    
+                    // Buscamos el botón de envío por su texto
+                    const buttons = document.querySelectorAll('button');
+                    buttons.forEach(function(button) {
+                        if (button.textContent.includes('Enviar mi voto')) {
+                            button.id = 'submit-button';
+                            // Aplicar estado inicial
+                            const termsCheckbox = document.getElementById('terms-checkbox');
+                            if (termsCheckbox) {
+                                button.disabled = !termsCheckbox.checked;
+                                if (!termsCheckbox.checked) {
+                                    button.classList.add('submit-btn-disabled');
+                                }
+                            }
+                        }
+                    });
+                }, 1000);
             });
             </script>
             """, unsafe_allow_html=True)
@@ -1223,9 +1296,45 @@ if "session" in params:
                 if not acepta_terminos:
                     st.error("Debe confirmar que ha leído todas las recomendaciones para continuar.")
                 else:
-                    # Recuperar el valor del voto desde el elemento oculto (via JavaScript)
-                    voto_js = st.experimental_get_query_params().get("selected_vote", ["5"])[0]
-                    voto_final = int(voto_js) if voto_js.isdigit() else voto
+                    # Script para recuperar el voto seleccionado
+                    st.markdown("""
+                    <script>
+                    // Función para obtener el voto seleccionado
+                    function getSelectedVote() {
+                        return selectedVoteValue || 5;
+                    }
+                    
+                    // Establecer el valor en el campo oculto
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const hiddenInput = document.getElementById('hidden-vote-value');
+                        if (hiddenInput) {
+                            hiddenInput.value = getSelectedVote();
+                        }
+                        
+                        // También podemos intentar pasar el valor como un query param
+                        const form = document.querySelector('form');
+                        if (form) {
+                            form.addEventListener('submit', function() {
+                                // Agregar un campo extra con el valor del voto
+                                const voteInput = document.createElement('input');
+                                voteInput.type = 'hidden';
+                                voteInput.name = 'selected_vote';
+                                voteInput.value = getSelectedVote();
+                                form.appendChild(voteInput);
+                            });
+                        }
+                    });
+                    </script>
+                    """, unsafe_allow_html=True)
+                    
+                    # Intentar obtener el valor del voto
+                    try:
+                        # Intento 1: Desde query params
+                        voto_param = st.experimental_get_query_params().get("selected_vote", ["5"])[0]
+                        voto_final = int(voto_param) if voto_param.isdigit() else 5
+                    except:
+                        # Si falla, usar el valor por defecto
+                        voto_final = 5
                     
                     # Mostrar progreso de envío
                     with st.spinner("Procesando su voto..."):
@@ -1267,23 +1376,6 @@ if "session" in params:
                         with st.expander("Opciones adicionales"):
                             st.markdown("- Para obtener un comprobante de su voto, capture esta pantalla")
                             st.markdown("- Si necesita asistencia, contacte al administrador de la sesión")
-        
-        # Añadir script adicional para establecer valores predeterminados después de la carga
-        st.markdown("""
-        <script>
-        // Establecer selección inicial una vez que la página esté completamente cargada
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                selectVote(5);
-                
-                // Intentar hacer focus en el primer elemento seleccionable
-                try {
-                    document.querySelector('input[type="text"]').focus();
-                } catch(e) {}
-            }, 500);
-        });
-        </script>
-        """, unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
