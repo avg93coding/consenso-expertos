@@ -1046,8 +1046,8 @@ elif menu == "Crear Recomendación":
 
 
 elif menu == "Dashboard":
-    st.subheader("Dashboard en Tiempo Real")
-    st_autorefresh(interval=5000, key="refresh_dashboard")
+    st.subheader("Dashboard en Tiempo Real (actualización cada 5 segundos)")
+    st_autorefresh(interval=5000, key="refresh_dashboard")  # 5000 ms = 5 segundos
 
     # Selección de sesión
     active_sessions = [k for k, v in store.items() if v.get("is_active", True)]
@@ -1064,7 +1064,6 @@ elif menu == "Dashboard":
         st.error("Código de sesión no encontrado.")
         st.stop()
 
-    # Votos válidos
     votes = [
         s["votes"][i] for i in range(len(s["names"]))
         if i < len(s["votes"]) and isinstance(s["votes"][i], (int, float))
@@ -1078,10 +1077,8 @@ elif menu == "Dashboard":
     quorum = s.get("n_participantes", 0) // 2 + 1
     votos_actuales = len(set(s["names"]))
 
-    # Tres columnas: Resumen | Métricas | Gráfico
     col_res, col_kpi, col_chart = st.columns([2, 1, 3])
 
-    # Columna 1 — Resumen
     with col_res:
         if st.button("Finalizar esta sesión"):
             store[code]["is_active"] = False
@@ -1097,7 +1094,6 @@ elif menu == "Dashboard":
         **Votos recibidos:** {votos_actuales}
         """)
 
-    # Columna 2 — KPIs
     with col_kpi:
         st.markdown(card_html("Media", f"{media:.2f}"), unsafe_allow_html=True)
         st.markdown(card_html("Desv. estándar", f"{desv_std:.2f}"), unsafe_allow_html=True)
@@ -1105,27 +1101,28 @@ elif menu == "Dashboard":
         if n > 0:
             st.markdown(card_html("Mediana (IC95%)", f"{mediana:.1f} [{lo:.1f}, {hi:.1f}]"), unsafe_allow_html=True)
 
-    # Columna 3 — Gráfico + estado de consenso
     with col_chart:
         if votos_actuales:
             df = pd.DataFrame({"Voto": votes})
             fig = px.histogram(
                 df, x="Voto", nbins=9,
-                labels={"Voto": "Escala 1–9", "count": "Frecuencia"},
+                labels={"Voto": "Escala 1–9", "count": "Frecuencia"},
                 color_discrete_sequence=[PRIMARY]
             )
             fig.update_traces(marker_line_width=0)
             fig.update_layout(
                 bargap=0.4,
                 xaxis=dict(tickmode="linear", tick0=1, dtick=1),
-                margin=dict(t=30, b=0, l=0, r=0),
+                margin=dict(t=30, b=20, l=0, r=0),
                 height=300,
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig, use_container_width=True)
 
-            # Estado de consenso justo debajo del gráfico
+            st.markdown(f"📊 **Total de votos recibidos:** {votos_actuales}")
+
+            # Estado de consenso justo después del gráfico
             if votos_actuales < quorum:
                 st.info(f"🕒 Quórum no alcanzado ({votos_actuales}/{quorum})")
             elif pct >= 80 and 7 <= mediana <= 9 and 7 <= lo <= 9 and 7 <= hi <= 9:
@@ -1141,7 +1138,7 @@ elif menu == "Dashboard":
         else:
             st.info("🔍 Aún no hay votos para mostrar.")
 
-    # Acciones de exportación
+    # Acciones
     st.subheader("Acciones y Exportación")
     if st.button("Iniciar nueva ronda"):
         history.setdefault(code, []).append(copy.deepcopy(s))
@@ -1168,6 +1165,7 @@ elif menu == "Dashboard":
         for pid, name, vote, com in zip(s["ids"], s["names"], s["votes"], s["comments"]):
             if com:
                 st.markdown(f"**{name}** (ID:{pid}) — Voto: {vote}\n> {com}")
+
 
 elif menu == "Crear Paquete GRADE":
     st.subheader("Crear / Descargar Paquetes GRADE")
