@@ -762,7 +762,6 @@ if "session" in params:
     import hashlib
     import re
 
-    # Extraer código de sesión
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = code.strip().upper()
@@ -772,83 +771,85 @@ if "session" in params:
 
     s = store.get(code)
     if not s:
-        st.error("Sesión inválida.")
+        st.error(f"Sesión inválida: {code}")
         st.stop()
 
     tipo = s.get("tipo", "STD")
     es_privada = s.get("privado", False)
 
-    # Paso 1: Captura de nombre y botón continuar
+    # Paso 1: Captura de nombre (y correo si es privada)
     if "nombre_confirmado" not in st.session_state:
-        st.markdown("### 👤 Ingrese su nombre para comenzar")
-        st.session_state.nombre = st.text_input("Nombre completo:")
-        if es_privada:
-            st.session_state.correo = st.text_input("Correo electrónico:")
-        if st.button("Continuar"):
-            if not st.session_state.nombre or (es_privada and not st.session_state.correo):
-                st.warning("Debe completar todos los campos para continuar.")
-                st.stop()
-            if es_privada and not correo_autorizado(st.session_state.correo, code):
-                st.error("Correo no autorizado para esta sesión.")
-                st.stop()
-            st.session_state.nombre_confirmado = True
+        with st.form("form_nombre"):
+            st.subheader("👤 Ingrese sus datos")
+            st.session_state.nombre = st.text_input("Nombre completo:")
+            if es_privada:
+                st.session_state.correo = st.text_input("Correo electrónico:")
+            continuar = st.form_submit_button("Continuar")
+
+            if continuar:
+                if not st.session_state.nombre or (es_privada and not st.session_state.correo):
+                    st.warning("Debe completar todos los campos.")
+                elif es_privada and not correo_autorizado(st.session_state.correo, code):
+                    st.error("Correo no autorizado.")
+                else:
+                    st.session_state.nombre_confirmado = True
         st.stop()
 
     name = st.session_state.nombre
     correo = st.session_state.get("correo", None)
 
+    # Mostrar agradecimiento si ya votó
     if name in s["names"]:
-        st.success("✅ Ya registró su participación.")
+        idx = s["names"].index(name)
+        st.success("🎉 ¡Gracias por su participación!")
+        st.markdown(f"**ID de participación:** `{s['ids'][idx]}`")
+        st.markdown(f"**Voto registrado:** {s['votes'][idx]} / 9")
+        if s["comments"][idx]:
+            st.markdown(f"**Comentario:** {s['comments'][idx]}")
+        st.markdown("Puede cerrar esta ventana.")
         st.stop()
 
-    # Paso 2: Mostrar recomendaciones todas en una misma página
-    st.markdown("### 📋 Recomendaciones a evaluar")
-    st.markdown("Por favor, lea todas antes de emitir su voto.")
-
+    # Mostrar recomendaciones
     def separar_recomendaciones(texto):
         partes = re.split(r'\s*\d+\.\s*', str(texto))
         return [p.strip() for p in partes if p.strip()]
 
+    st.markdown("### 📋 Recomendaciones")
     lista_recos = separar_recomendaciones(s["desc"])
 
     for i, reco in enumerate(lista_recos):
         st.markdown(f"""
-        <div style="background-color: #ffffff; padding: 15px; border-radius: 8px; 
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; 
-                    border-left: 4px solid #662D91;">
-            <strong>Recomendación {i+1}</strong>
-            <p>{reco}</p>
+        <div style="background-color: #fff; padding: 15px; margin-bottom: 15px; 
+                    border-left: 5px solid #662D91; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+            <strong>Recomendación {i+1}</strong><br>
+            {reco}
         </div>
         """, unsafe_allow_html=True)
 
-    # Paso 3: Votación tipo botón (no slider)
-    st.markdown("### 📊 Votación global")
+    st.markdown("### 📊 Votación")
     voto = st.radio("Seleccione su nivel de acuerdo (1=Desacuerdo, 9=Acuerdo):",
                     options=[1,2,3,4,5,6,7,8,9], horizontal=True)
-
     comentario = st.text_area("Comentario (opcional):")
     acepta = st.checkbox("Confirmo que leí las recomendaciones y voto con base en mi criterio")
 
     if st.button("✅ Enviar voto"):
         if not acepta:
-            st.warning("Debe confirmar que leyó las recomendaciones.")
-            st.stop()
-        pid = hashlib.sha256(name.encode()).hexdigest()[:8]
-        s["names"].append(name)
-        s["ids"].append(pid)
-        s["votes"].append(voto)
-        s["comments"].append(comentario)
-        s.setdefault("correos", []).append(correo)
-        s.setdefault("fecha_voto", []).append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        store[code] = s  # guardar
+            st.warning("Debe aceptar los términos antes de votar.")
+        else:
+            pid = hashlib.sha256(name.encode()).hexdigest()[:8]
+            s["names"].append(name)
+            s["ids"].append(pid)
+            s["votes"].append(voto)
+            s["comments"].append(comentario)
+            s.setdefault("correos", []).append(correo)
+            s.setdefault("fecha_voto", []).append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            store[code] = s
 
-        st.balloons()
-        st.success("🎉 ¡Gracias por su votación!")
-        st.markdown(f"**ID de participación:** `{pid}`")
-        st.stop()
+            st.session_state.voto_enviado = True
+            st.balloons()
+            st.success("🎉 ¡Gracias por su votación!")
+            st.markdown(f"**ID de participación:** `{pid}`")
 
-
-    # Detener cualquier render posterior innecesario
     st.stop()
 
 
