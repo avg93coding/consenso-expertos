@@ -762,6 +762,8 @@ params = st.query_params
 if "session" in params:
     import hashlib, re, datetime
 
+    odds_header()  # Mostrar encabezado de inmediato
+
     raw = params.get("session")
     code = raw[0] if isinstance(raw, list) else raw
     code = code.strip().upper()
@@ -771,11 +773,10 @@ if "session" in params:
         st.error(f"❌ Sesión inválida: {code}")
         st.stop()
 
-    es_privada = s.get("privado", False)  # ✅ Definida aquí
+    # Ahora sí es seguro usar es_privada
+    es_privada = s.get("privado", False)
     tipo = s.get("tipo", "STD")
 
-    # Mostrar encabezado
-    odds_header()
 
     # Ocultar panel de navegación
     st.markdown("""
