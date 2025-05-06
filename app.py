@@ -79,9 +79,31 @@ def inject_css():
       .stButton > button:hover {
         background-color: #F1592A;
       }
+
+      /* ——— Ajustes para modo oscuro Apple/iOS ——— */
+      @media (prefers-color-scheme: dark) {
+        html, body, .stApp {
+          background-color: #111 !important;
+          color: #eee !important;
+        }
+        input, select, textarea, button {
+          background-color: #222 !important;
+          color: #fff !important;
+          border: 1px solid #555 !important;
+        }
+        .stButton > button {
+          background-color: #662D91 !important;
+          color: #fff !important;
+        }
+        .stButton > button:hover {
+          background-color: #F1592A !important;
+        }
+      }
+
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
+
 
 def inject_grid_css():
     grid_css = """
